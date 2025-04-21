@@ -1,0 +1,26 @@
+[tool.ruff]
+# Same line length as flake8
+line-length = 100
+
+# Exclude a variety of commonly ignored directories
+exclude = [
+    ".git",
+    "__pycache__",
+    "docs/",
+    "*/migrations/*",
+    "venv/",
+    "node_modules/",
+]
+
+[tool.ruff.lint]
+# Enable Pyflakes, pycodestyle, isort
+select = ["E", "F", "I"]
+
+# Ignore specific rules
+ignore = ["E203"]
+
+# Allow autofix for all enabled rules (when using `ruff --fix`)
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core", "api", "users", "channel", "factcheck"]

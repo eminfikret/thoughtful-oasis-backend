@@ -1,0 +1,72 @@
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  POSTGRES_DB: test_db
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_HOST: postgres
+
+services:
+  - postgres:15
+
+lint:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - pip install ruff
+  script:
+    - ruff check .
+  cache:
+    paths:
+      - ~/.cache/pip/
+      - .ruff_cache/
+
+lint-image:
+  stage: build
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/lint:latest -f docker/Dockerfile.lint .
+    - docker push $CI_REGISTRY_IMAGE/lint:latest
+  only:
+    - main
+    - tags
+
+test:
+  stage: test
+  image: python:3.11-slim
+  variables:
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: 5432
+    DJANGO_SETTINGS_MODULE: core.settings
+  before_script:
+    - pip install -r requirements.txt
+    - python manage.py migrate
+  script:
+    - python manage.py test
+
+build:
+  stage: build
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA -f docker/Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "Deploying to production server"
+  only:
+    - main
