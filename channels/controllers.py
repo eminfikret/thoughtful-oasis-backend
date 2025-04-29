@@ -1,12 +1,11 @@
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from drf_yasg.utils import swagger_auto_schema
-
 from channels.exceptions import ChannelNotFound
-from channels.serializers import ChannelSerializer, ChannelCreateSerializer, ChannelUpdateSerializer
+from channels.serializers import ChannelCreateSerializer, ChannelSerializer, ChannelUpdateSerializer
 from channels.services import ChannelService
 from channels.types import ChannelId
 

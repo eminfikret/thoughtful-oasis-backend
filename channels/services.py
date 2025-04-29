@@ -3,7 +3,6 @@ from typing import List, Optional
 from django.contrib.auth.models import User
 from django.utils.text import slugify
 
-
 from channels.exceptions import ChannelNotFound
 from channels.models import Channel
 from channels.repositories import ChannelRepository

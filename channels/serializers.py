@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import Channel
+
 
 class ChannelSerializer(serializers.ModelSerializer):
     owner_id = serializers.PrimaryKeyRelatedField(source='owner', read_only=True)
