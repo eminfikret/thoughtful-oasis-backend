@@ -1,8 +1,9 @@
-from typing import List, Optional
+from typing import List
 
 from django.contrib.auth.models import User
 from django.utils.text import slugify
 
+from channels.dtos import CreateChannelDto, UpdateChannelDto
 from channels.exceptions import ChannelNotFound
 from channels.models import Channel
 from channels.repositories import ChannelRepository
@@ -28,29 +29,27 @@ class ChannelService:
 
     @staticmethod
     def create_channel(
-            name: str,
-            description: str,
+            dto: CreateChannelDto,
             owner: User
     ) -> Channel:
-        slug = ChannelService._generate_unique_slug(name)
-        return ChannelRepository.create_channel(name, description, slug, owner)
+        slug = ChannelService._generate_unique_slug(dto.name)
+        return ChannelRepository.create_channel(dto.name, dto.description, slug, owner)
 
     @staticmethod
     def update_channel(
             channel_id: ChannelId,
-            name: Optional[str] = None,
-            description: Optional[str] = None
+            dto: UpdateChannelDto,
     ) -> Channel:
         channel = ChannelService.get_channel_by_id(channel_id)
 
         updated_fields = {}
 
-        if name is not None and name != channel.name:
-            updated_fields['name'] = name
-            updated_fields['slug'] = ChannelService._generate_unique_slug(name)
+        if dto.name is not None and dto.name != channel.name:
+            updated_fields['name'] = dto.name
+            updated_fields['slug'] = ChannelService._generate_unique_slug(dto.name)
 
-        if description is not None and description != channel.description:
-            updated_fields['description'] = description
+        if dto.description is not None and dto.description != channel.description:
+            updated_fields['description'] = dto.description
 
         if updated_fields:
             for field, value in updated_fields.items():

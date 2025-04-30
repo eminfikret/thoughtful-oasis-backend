@@ -4,6 +4,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from channels.dtos import CreateChannelDto, UpdateChannelDto
 from channels.exceptions import ChannelNotFound
 from channels.serializers import ChannelCreateSerializer, ChannelSerializer, ChannelUpdateSerializer
 from channels.services import ChannelService
@@ -36,12 +37,14 @@ class ChannelListController(APIView):
         serializer = ChannelCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        owner = request.user
+        dto = CreateChannelDto(
+            name=serializer.validated_data['name'],
+            description=serializer.validated_data['description']
+        )
 
         channel = ChannelService.create_channel(
-            serializer.validated_data['name'],
-            serializer.validated_data['description'],
-            owner
+            dto=dto,
+            owner=request.user
         )
 
         serializer = ChannelSerializer(channel)
@@ -78,11 +81,15 @@ class ChannelDetailController(APIView):
         serializer = ChannelUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        dto = UpdateChannelDto(
+            name=serializer.validated_data.get('name'),
+            description=serializer.validated_data.get('description')
+        )
+
         try:
             updated_channel = ChannelService.update_channel(
-                pk,
-                name=serializer.validated_data.get('name'),
-                description=serializer.validated_data.get('description'),
+                channel_id=pk,
+                dto=dto
             )
         except ChannelNotFound as e:
             raise NotFound(detail=str(e))
