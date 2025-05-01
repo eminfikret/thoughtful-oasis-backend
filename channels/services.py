@@ -42,18 +42,15 @@ class ChannelService:
     ) -> Channel:
         channel = ChannelService.get_channel_by_id(channel_id)
 
-        updated_fields = {}
+        if dto.name is not None:
+            channel.name = dto.name
+        if dto.description is not None:
+            channel.description = dto.description
 
-        if dto.name is not None and dto.name != channel.name:
-            updated_fields['name'] = dto.name
-            updated_fields['slug'] = ChannelService._generate_unique_slug(dto.name)
+        if 'name' in channel.get_dirty_fields():
+            channel.slug = ChannelService._generate_unique_slug(dto.name)
 
-        if dto.description is not None and dto.description != channel.description:
-            updated_fields['description'] = dto.description
-
-        if updated_fields:
-            for field, value in updated_fields.items():
-                setattr(channel, field, value)
+        if channel.is_dirty():
             return ChannelRepository.update_channel(channel)
 
         return channel
