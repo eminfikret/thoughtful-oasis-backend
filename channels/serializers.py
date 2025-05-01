@@ -18,7 +18,7 @@ class ChannelCreateSerializer(serializers.ModelSerializer):
 
 class ChannelUpdateSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=False, max_length=255)
-    description = serializers.TimeField(required=False)
+    description = serializers.CharField(required=False)
 
     class Meta:
         model = Channel
