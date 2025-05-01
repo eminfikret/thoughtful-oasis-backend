@@ -28,7 +28,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'users',
-    'channel',
+    'channels',
     'factcheck',
     'api',
 ]
@@ -69,10 +69,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'thoughtful_oasis'),
+        'NAME': os.environ.get('POSTGRES_DB', 'fact_check_db'),
         'USER': os.environ.get('POSTGRES_USER', 'postgres'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
