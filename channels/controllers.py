@@ -1,11 +1,13 @@
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound as ChannelNotFoundAPIException
+from rest_framework.exceptions import PermissionDenied as PermissionDeniedAPIException
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from channels.dtos import CreateChannelDto, UpdateChannelDto
-from channels.exceptions import ChannelNotFound
+from channels.exceptions import ChannelNotFoundException, UnauthorizedChannelAccessException
 from channels.params import ChannelsParams
 from channels.serializers import (
     ChannelCreateSerializer,
@@ -20,6 +22,8 @@ from common.serializers import PaginatedResponseSerializer
 
 
 class ChannelListController(APIView):
+    permission_classes = [IsAuthenticated]
+
     @swagger_auto_schema(
         operation_summary="List all channels",
         operation_description="Get a list of all channels",
@@ -72,19 +76,22 @@ class ChannelListController(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class ChannelDetailController(APIView):
+    permission_classes = [IsAuthenticated]
+
     @swagger_auto_schema(
         operation_summary="Retrieve a single channel",
         operation_description="Get a channel by its ID",
         responses={
             200: ChannelSerializer(),
-            404: str(ChannelNotFound(ChannelId(123))),
+            404: str(ChannelNotFoundException(ChannelId(123))),
         }
     )
-    def get(self, request, pk: ChannelId):
+    def get(self, pk: ChannelId):
         try:
             channel = ChannelService.get_channel_by_id(pk)
-        except ChannelNotFound as e:
-            raise NotFound(detail=str(e))
+        except ChannelNotFoundException as e:
+            raise ChannelNotFoundAPIException(detail=str(e))
+
         serializer = ChannelSerializer(channel)
         return Response(serializer.data)
 
@@ -95,7 +102,8 @@ class ChannelDetailController(APIView):
         responses={
             200: ChannelSerializer(),
             400: ChannelUpdateSerializer(),
-            404: str(ChannelNotFound(ChannelId(123))),
+            403: str(UnauthorizedChannelAccessException()),
+            404: str(ChannelNotFoundException(ChannelId(123))),
         },
     )
     def patch(self, request, pk: ChannelId):
@@ -110,10 +118,13 @@ class ChannelDetailController(APIView):
         try:
             updated_channel = ChannelService.update_channel(
                 channel_id=pk,
-                dto=dto
+                dto=dto,
+                user=request.user,
             )
-        except ChannelNotFound as e:
-            raise NotFound(detail=str(e))
+        except ChannelNotFoundException as e:
+            raise ChannelNotFoundAPIException(detail=str(e))
+        except UnauthorizedChannelAccessException as e:
+            raise PermissionDeniedAPIException(detail=str(e))
 
         output_serializer = ChannelSerializer(updated_channel)
         return Response(output_serializer.data, status=status.HTTP_200_OK)
@@ -123,13 +134,19 @@ class ChannelDetailController(APIView):
         operation_description="Delete a channel by its ID",
         responses={
             204: "No Content",
-            404: str(ChannelNotFound(ChannelId(123))),
+            403: str(UnauthorizedChannelAccessException()),
+            404: str(ChannelNotFoundException(ChannelId(123))),
         },
     )
     def delete(self, request, pk: ChannelId):
         try:
-            ChannelService.delete_channel(pk)
-        except ChannelNotFound as e:
-            raise NotFound(detail=str(e))
+            ChannelService.delete_channel(
+                channel_id=pk,
+                user=request.user,
+            )
+        except ChannelNotFoundException as e:
+            raise ChannelNotFoundAPIException(detail=str(e))
+        except UnauthorizedChannelAccessException as e:
+            raise PermissionDeniedAPIException(detail=str(e))
 
         return Response(status=status.HTTP_204_NO_CONTENT)
