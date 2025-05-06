@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from common.serializers import PaginationQueryParams
+
 from .models import Channel
 
 
@@ -23,3 +25,6 @@ class ChannelUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = ['name', 'description']
+
+class ChannelsQueryParamsSerializer(PaginationQueryParams):
+    pass

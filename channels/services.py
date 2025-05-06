@@ -6,14 +6,19 @@ from django.utils.text import slugify
 from channels.dtos import CreateChannelDto, UpdateChannelDto
 from channels.exceptions import ChannelNotFound
 from channels.models import Channel
+from channels.params import ChannelsParams
 from channels.repositories import ChannelRepository
 from channels.types import ChannelId
 
 
 class ChannelService:
     @staticmethod
-    def get_all_channels() -> List[Channel]:
-        return ChannelRepository.get_all_channels()
+    def get_all_channels(params: ChannelsParams) -> List[Channel]:
+        return ChannelRepository.get_all_channels(params)
+
+    @staticmethod
+    def get_channels_count() -> int:
+        return ChannelRepository.get_channels_count()
 
     @staticmethod
     def get_channel_by_id(channel_id: ChannelId) -> Channel:

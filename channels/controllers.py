@@ -6,23 +6,44 @@ from rest_framework.views import APIView
 
 from channels.dtos import CreateChannelDto, UpdateChannelDto
 from channels.exceptions import ChannelNotFound
-from channels.serializers import ChannelCreateSerializer, ChannelSerializer, ChannelUpdateSerializer
+from channels.params import ChannelsParams
+from channels.serializers import (
+    ChannelCreateSerializer,
+    ChannelSerializer,
+    ChannelsQueryParamsSerializer,
+    ChannelUpdateSerializer,
+)
 from channels.services import ChannelService
 from channels.types import ChannelId
+from common.responses import PaginatedResponse
+from common.serializers import PaginatedResponseSerializer
 
 
 class ChannelListController(APIView):
     @swagger_auto_schema(
         operation_summary="List all channels",
         operation_description="Get a list of all channels",
+        query_serializer=ChannelsQueryParamsSerializer(),
         responses={
-            200: ChannelSerializer(many=True)
+            200: PaginatedResponseSerializer(ChannelSerializer),
+            400: ChannelsQueryParamsSerializer()
         },
     )
     def get(self, request):
-        channels = ChannelService.get_all_channels()
+        query_serializer = ChannelsQueryParamsSerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        channels_params = ChannelsParams(**query_serializer.validated_data)
+
+        channels = ChannelService.get_all_channels(channels_params)
         serializer = ChannelSerializer(channels, many=True)
-        return Response(serializer.data)
+
+        count = ChannelService.get_channels_count()
+
+        return PaginatedResponse(
+            results=serializer.data,
+            count=count,
+            request=request,
+        )
 
     @swagger_auto_schema(
         operation_summary="Create a new channel",
