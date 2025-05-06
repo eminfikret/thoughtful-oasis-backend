@@ -1,5 +1,5 @@
 from rest_framework.authtoken.models import Token
-
+from rest_framework_simplejwt.tokens import RefreshToken
 from .repositories import UserRepository
 
 
@@ -25,9 +25,11 @@ class UserService:
         user = self.user_repository.authenticate_user(username, password)
         if not user:
             return None
-        
-        token, _ = Token.objects.get_or_create(user=user)
+
+        refresh = RefreshToken.for_user(user)
+
         return {
-            'user': user,
-            'token': token.key
+            'user': user.username,
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
         }
