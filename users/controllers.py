@@ -1,10 +1,16 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
+from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import LoginSerializer, RegisterSerializer, UserSerializer
+from .serializers import (
+    LoginSerializer, RegisterSerializer, UserDetailSerializer,
+    UserProfileSerializer, UserProfileUpdateSerializer, UserSerializer
+)
 from .services import UserService
 
 
@@ -16,6 +22,7 @@ class UserListController(APIView):
         self.user_service = UserService()
     
     @swagger_auto_schema(
+        operation_summary="List all users",
         operation_description="Get a list of all users",
         responses={200: openapi.Response(
             description="List of users",
@@ -40,6 +47,7 @@ class UserListController(APIView):
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
+
 class RegisterController(APIView):
     """Controller for user registration"""
     
@@ -48,6 +56,7 @@ class RegisterController(APIView):
         self.user_service = UserService()
     
     @swagger_auto_schema(
+        operation_summary="Register a new user",
         operation_description="Register a new user",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -86,6 +95,7 @@ class RegisterController(APIView):
             return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class LoginController(APIView):
     """Controller for user login"""
     
@@ -94,6 +104,7 @@ class LoginController(APIView):
         self.user_service = UserService()
     
     @swagger_auto_schema(
+        operation_summary="Login a user",
         operation_description="Login a user and receive an authentication token",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -142,5 +153,114 @@ class LoginController(APIView):
                 }, status=status.HTTP_200_OK)
             
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserDetailController(APIView):
+    """Controller for user detail operations"""
+    permission_classes = [IsAuthenticated]
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_service = UserService()
+    
+    @swagger_auto_schema(
+        operation_summary="Get user details",
+        operation_description="Get details for a specific user",
+        responses={
+            200: UserDetailSerializer(),
+            404: "User not found"
+        }
+    )
+    def get(self, request, user_id):
+        """Get a specific user's details"""
+        user = self.user_service.get_user_by_id(user_id)
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = UserDetailSerializer(user)
+        return Response(serializer.data)
+    
+    @swagger_auto_schema(
+        operation_summary="Update user details",
+        operation_description="Update details for a specific user",
+        request_body=UserDetailSerializer,
+        responses={
+            200: UserDetailSerializer(),
+            400: "Bad request",
+            403: "Permission denied",
+            404: "User not found"
+        }
+    )
+    def put(self, request, user_id):
+        """Update a specific user's details"""
+        # Only allow users to update their own details
+        if request.user.id != int(user_id):
+            raise PermissionDenied("You can only update your own details")
+        
+        user = self.user_service.get_user_by_id(user_id)
+        if not user:
+            raise NotFound("User not found")
+        
+        serializer = UserDetailSerializer(user, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserProfileController(APIView):
+    """Controller for user profile operations"""
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_service = UserService()
+    
+    @swagger_auto_schema(
+        operation_summary="Get user profile",
+        operation_description="Get profile for a specific user",
+        responses={
+            200: UserProfileSerializer(),
+            404: "Profile not found"
+        }
+    )
+    def get(self, request, user_id):
+        """Get a specific user's profile"""
+        profile = self.user_service.get_user_profile(user_id)
+        if not profile:
+            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+    
+    @swagger_auto_schema(
+        operation_summary="Update user profile",
+        operation_description="Update profile for a specific user",
+        request_body=UserProfileUpdateSerializer,
+        responses={
+            200: UserProfileSerializer(),
+            400: "Bad request",
+            403: "Permission denied",
+            404: "Profile not found"
+        }
+    )
+    def patch(self, request, user_id):
+        """Update a specific user's profile"""
+        # Only allow users to update their own profile
+        if request.user.id != int(user_id):
+            raise PermissionDenied("You can only update your own profile")
+        
+        profile = self.user_service.get_user_profile(user_id)
+        if not profile:
+            raise NotFound("Profile not found")
+        
+        serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(UserProfileSerializer(profile).data)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
