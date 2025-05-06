@@ -3,13 +3,19 @@ from typing import List, Optional
 from django.contrib.auth.models import User
 
 from channels.models import Channel
+from channels.params import ChannelsParams
 from channels.types import ChannelId
 
 
 class ChannelRepository:
     @staticmethod
-    def get_all_channels() -> List[Channel]:
-        return Channel.objects.all().order_by('created_at')
+    def get_all_channels(params: ChannelsParams) -> List[Channel]:
+        queryset = Channel.objects.all()
+        return list(queryset[params.offset:params.offset + params.limit])
+
+    @staticmethod
+    def get_channels_count() -> int:
+        return Channel.objects.count()
 
     @staticmethod
     def get_channel_by_id(channel_id: ChannelId) -> Optional[Channel]:
