@@ -1,7 +1,17 @@
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
-
 from .repositories import UserRepository
 
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    """Create or update the user profile when a user is created or updated."""
+    repo = UserRepository()
+    if created:
+        repo.create_profile(instance)
+    else:
+        instance.profile.save()
 
 class UserService:
     def __init__(self):

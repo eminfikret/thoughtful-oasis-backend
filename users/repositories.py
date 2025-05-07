@@ -4,8 +4,12 @@ from django.shortcuts import get_object_or_404
 
 from .models import UserProfile
 
-
 class UserRepository:
+    @staticmethod
+    def create_profile(user):
+        """Create a new user profile."""
+        return UserProfile.objects.create(user=user)
+
     def get_all_users(self):
         return User.objects.all()
     
