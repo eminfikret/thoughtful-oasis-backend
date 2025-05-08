@@ -4,6 +4,7 @@ from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
 from .repositories import UserRepository
+from .models import UserProfile
 
 
 @receiver(post_save, sender=User)
@@ -11,9 +12,13 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
     """Create or update the user profile when a user is created or updated."""
     repo = UserRepository()
     if created:
-        repo.create_profile(instance)
+        try:
+            UserProfile.objects.get(user=instance)
+        except UserProfile.DoesNotExist:
+            repo.create_profile(instance)
     else:
-        instance.profile.save()
+        if hasattr(instance, 'profile'):
+            instance.profile.save()
 
 class UserService:
     def __init__(self):
