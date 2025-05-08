@@ -3,8 +3,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
-from .repositories import UserRepository
 from .models import UserProfile
+from .repositories import UserRepository
 
 
 @receiver(post_save, sender=User)

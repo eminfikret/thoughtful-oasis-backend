@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework.authtoken.models import Token
 
 from users.models import UserProfile
-from users.services import UserService, create_or_update_user_profile
+from users.services import UserService
 
 
 class UserServiceTest(TestCase):

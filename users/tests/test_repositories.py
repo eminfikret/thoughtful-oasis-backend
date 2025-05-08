@@ -1,6 +1,5 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
-from django.shortcuts import get_object_or_404
 
 from users.models import UserProfile
 from users.repositories import UserRepository
