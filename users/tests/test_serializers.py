@@ -38,7 +38,9 @@ class SerializersTest(TestCase):
         self.assertIn('updated_at', data)
     
     def test_user_serializer(self):
-        serializer = UserSerializer(self.user)
+        # refresh from database to ensure profile is actually loaded
+        user = User.objects.get(id=self.user.id) 
+        serializer = UserSerializer(user)
         data = serializer.data
         
         self.assertEqual(data['id'], self.user.id)
@@ -51,7 +53,9 @@ class SerializersTest(TestCase):
         self.assertEqual(data['profile']['website'], 'https://example.com')
     
     def test_user_detail_serializer(self):
-        serializer = UserDetailSerializer(self.user)
+        # Refresh from database to ensure profile is fully loaded
+        user = User.objects.get(id=self.user.id)
+        serializer = UserDetailSerializer(user)
         data = serializer.data
         
         self.assertEqual(data['id'], self.user.id)
