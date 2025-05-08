@@ -1,15 +1,19 @@
 from rest_framework.authtoken.models import Token
 from rest_framework_simplejwt.tokens import RefreshToken
 from .repositories import UserRepository
+from jwt import decode as jwt_decode
+from django.conf import settings
+from datetime import datetime
+
 
 
 class UserService:
     def __init__(self):
         self.user_repository = UserRepository()
-    
+
     def get_all_users(self):
         return self.user_repository.get_all_users()
-    
+
     def register_user(self, user_data):
         password = user_data.pop('password')
         user = self.user_repository.create_user({
@@ -20,7 +24,7 @@ class UserService:
             'last_name': user_data.get('last_name', '')
         })
         return user
-    
+
     def login_user(self, username, password):
         user = self.user_repository.authenticate_user(username, password)
         if not user:
@@ -28,8 +32,16 @@ class UserService:
 
         refresh = RefreshToken.for_user(user)
 
-        return {
-            'user': user.username,
-            'access_token': str(refresh.access_token),
-            'refresh_token': str(refresh),
-        }
+        access_token = str(refresh.access_token)
+
+        decoded = jwt_decode(access_token, settings.SECRET_KEY, algorithms=["HS256"])
+        exp_timestamp = decoded.get('exp')
+        if exp_timestamp:
+            exp_time = datetime.fromtimestamp(exp_timestamp)
+            print(f"[DEBUG] Access token will expire at: {exp_time}")
+
+            return {
+                'user': user,
+                'access_token': str(refresh.access_token),
+                ' refresh_token': str(refresh),
+            }

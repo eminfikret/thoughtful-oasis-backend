@@ -138,7 +138,7 @@ class LoginController(APIView):
             if result:
                 return Response({
                     'user': UserSerializer(result['user']).data,
-                    'token': result['token']
+                    'token': result['access_token']
                 }, status=status.HTTP_200_OK)
             
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
