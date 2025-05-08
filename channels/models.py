@@ -19,7 +19,7 @@ class Channel(DirtyFieldsMixin, models.Model):
 
     class Meta:
         db_table = 'channels'
-        ordering = ['created_at', 'updated_at']
+        ordering = ['-created_at', '-updated_at']
         verbose_name = 'Channel'
         verbose_name_plural = 'Channels'
         get_latest_by = 'created_at'
