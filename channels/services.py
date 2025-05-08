@@ -13,8 +13,8 @@ from channels.types import ChannelId
 
 class ChannelService:
     @staticmethod
-    def get_all_channels(params: ChannelsParams) -> List[Channel]:
-        return ChannelRepository.get_all_channels(params)
+    def get_channels(params: ChannelsParams) -> List[Channel]:
+        return ChannelRepository.get_channels(params)
 
     @staticmethod
     def get_channels_count() -> int:
