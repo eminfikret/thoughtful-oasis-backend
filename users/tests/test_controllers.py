@@ -1,0 +1,185 @@
+import json
+from django.contrib.auth.models import User
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.authtoken.models import Token
+from rest_framework.test import APITestCase, APIClient
+
+from users.models import UserProfile
+from users.serializers import UserSerializer
+
+
+class UserControllersTest(APITestCase):
+    def setUp(self):
+        self.test_user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='password123',
+            first_name='Test',
+            last_name='User'
+        )
+
+        self.profile = UserProfile.objects.get(user=self.test_user)
+        self.profile.bio = "Test bio"
+        self.profile.website = "https://example.com"
+        self.profile.save()
+        
+        self.token = Token.objects.create(user=self.test_user)
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.test_user, token=self.token)
+        
+        # second user for testing
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='password123',
+            first_name='Other',
+            last_name='User'
+        )
+    
+    def test_user_list_controller_get(self):
+        """Test getting all users"""
+        url = reverse('user-list')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)  #  testuser and otheruser
+    
+    def test_register_controller_post(self):
+        """Test user registration"""
+        url = reverse('user-register')
+        data = {
+            'username': 'newuser',
+            'email': 'new@example.com',
+            'password': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['username'], 'newuser')
+        self.assertEqual(response.data['email'], 'new@example.com')
+        
+
+        user = User.objects.get(username='newuser')
+        self.assertIsNotNone(user)
+        self.assertIsNotNone(user.profile)  # profile should be created too
+    
+    def test_register_controller_post_password_mismatch(self):
+        """Test user registration with mismatched passwords"""
+        url = reverse('user-register')
+        data = {
+            'username': 'newuser',
+            'email': 'new@example.com',
+            'password': 'StrongPass123!',
+            'password2': 'DifferentPass456!',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data)
+    
+    def test_login_controller_post_valid(self):
+        """Test valid login"""
+        url = reverse('user-login')
+        data = {
+            'username': 'testuser',
+            'password': 'password123'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('user', response.data)
+        self.assertIn('token', response.data)
+        self.assertEqual(response.data['user']['username'], 'testuser')
+    
+    def test_login_controller_post_invalid(self):
+        """Test invalid login"""
+        url = reverse('user-login')
+        data = {
+            'username': 'testuser',
+            'password': 'wrongpassword'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('error', response.data)
+    
+    def test_user_detail_controller_get(self):
+        """Test getting user details"""
+        url = reverse('user-detail', args=[self.test_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'testuser')
+        self.assertEqual(response.data['email'], 'test@example.com')
+        self.assertIn('profile', response.data)
+    
+    def test_user_detail_controller_get_nonexistent(self):
+        """Test getting non-existent user details"""
+        url = reverse('user-detail', args=[999])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_user_detail_controller_put(self):
+        """Test updating user details"""
+        url = reverse('user-detail', args=[self.test_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        data = {
+            'first_name': 'Updated',
+            'last_name': 'Name',
+            'profile': {
+                'bio': 'Updated bio',
+                'website': 'https://updated.com'
+            }
+        }
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['first_name'], 'Updated')
+        self.assertEqual(response.data['last_name'], 'Name')
+        self.assertEqual(response.data['profile']['bio'], 'Updated bio')
+        self.assertEqual(response.data['profile']['website'], 'https://updated.com')
+    
+    def test_user_detail_controller_put_unauthorized(self):
+        """Test updating another user's details (should fail)"""
+        url = reverse('user-detail', args=[self.other_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        data = {
+            'first_name': 'Should',
+            'last_name': 'Fail',
+        }
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    
+    def test_user_profile_controller_get(self):
+        """Test getting a user profile"""
+        url = reverse('user-profile', args=[self.test_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['bio'], 'Test bio')
+        self.assertEqual(response.data['website'], 'https://example.com')
+    
+    def test_user_profile_controller_patch(self):
+        """Test updating a user profile"""
+        url = reverse('user-profile', args=[self.test_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        data = {
+            'bio': 'New bio',
+            'website': 'https://newsite.com'
+        }
+        response = self.client.patch(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['bio'], 'New bio')
+        self.assertEqual(response.data['website'], 'https://newsite.com')
+    
+    def test_user_profile_controller_patch_unauthorized(self):
+        """Test updating another user's profile (should fail)"""
+        url = reverse('user-profile', args=[self.other_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        data = {
+            'bio': 'Should fail',
+        }
+        response = self.client.patch(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
