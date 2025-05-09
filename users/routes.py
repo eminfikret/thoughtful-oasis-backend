@@ -8,4 +8,10 @@ urlpatterns = [
     path('login/', controllers.LoginController.as_view(), name='user-login'),
     path('tokenRefresh/', controllers.RefreshTokenView.as_view(), name='user-refresh-token'),
 
+    path('<int:user_id>/', controllers.UserDetailController.as_view(), name='user-detail'),
+    path(
+        '<int:user_id>/profile/',
+        controllers.UserProfileController.as_view(),
+        name='user-profile'
+    ),
 ]
