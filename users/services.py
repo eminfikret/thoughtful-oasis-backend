@@ -6,7 +6,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from jwt import decode as jwt_decode
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from rest_framework_simplejwt.settings import api_settings
+
 from .repositories import UserRepository
 
 
