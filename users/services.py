@@ -1,10 +1,9 @@
-from rest_framework.authtoken.models import Token
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework_simplejwt.settings import api_settings
 from .repositories import UserRepository
 from jwt import decode as jwt_decode
 from django.conf import settings
 from datetime import datetime
-
 
 
 class UserService:
@@ -40,8 +39,27 @@ class UserService:
             exp_time = datetime.fromtimestamp(exp_timestamp)
             print(f"[DEBUG] Access token will expire at: {exp_time}")
 
+        return {
+            'user': user,
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
+        }
+
+    def refresh_token(self, refresh_token_str):
+
+        try:
+            refresh_token = RefreshToken(refresh_token_str)
+            new_access_token = str(refresh_token.access_token)
+
+            # Optional debug: print expiry
+            exp = refresh_token.access_token['exp']
+            from datetime import datetime
+            print("[DEBUG] Refreshed access token expires at:", datetime.fromtimestamp(exp))
+
             return {
-                'user': user,
-                'access_token': str(refresh.access_token),
-                ' refresh_token': str(refresh),
+                'access_token': new_access_token,
+                'refresh_token': str(refresh_token),  # return same refresh if you don’t rotate
             }
+        except TokenError as e:
+            print("[ERROR] Invalid refresh token:", str(e))
+            return None
