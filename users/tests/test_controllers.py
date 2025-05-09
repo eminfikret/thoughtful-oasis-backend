@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APIClient, APITestCase
 
 from users.models import UserProfile
@@ -22,9 +22,11 @@ class UserControllersTest(APITestCase):
         self.profile.website = "https://example.com"
         self.profile.save()
         
-        self.token = Token.objects.create(user=self.test_user)
+        self.refresh = RefreshToken.for_user(self.test_user)
+        self.token = str(self.refresh.access_token)
+        
         self.client = APIClient()
-        self.client.force_authenticate(user=self.test_user, token=self.token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         
         # second user for testing
         self.other_user = User.objects.create_user(
@@ -38,7 +40,7 @@ class UserControllersTest(APITestCase):
     def test_user_list_controller_get(self):
         """Test getting all users"""
         url = reverse('user-list')
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)  #  testuser and otheruser
@@ -106,7 +108,7 @@ class UserControllersTest(APITestCase):
     def test_user_detail_controller_get(self):
         """Test getting user details"""
         url = reverse('user-detail', args=[self.test_user.id])
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['username'], 'testuser')
@@ -116,14 +118,14 @@ class UserControllersTest(APITestCase):
     def test_user_detail_controller_get_nonexistent(self):
         """Test getting non-existent user details"""
         url = reverse('user-detail', args=[999])
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_user_detail_controller_put(self):
         """Test updating user details"""
         url = reverse('user-detail', args=[self.test_user.id])
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'first_name': 'Updated',
             'last_name': 'Name',
@@ -142,7 +144,7 @@ class UserControllersTest(APITestCase):
     def test_user_detail_controller_put_unauthorized(self):
         """Test updating another user's details (should fail)"""
         url = reverse('user-detail', args=[self.other_user.id])
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'first_name': 'Should',
             'last_name': 'Fail',
@@ -153,7 +155,7 @@ class UserControllersTest(APITestCase):
     def test_user_profile_controller_get(self):
         """Test getting a user profile"""
         url = reverse('user-profile', args=[self.test_user.id])
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['bio'], 'Test bio')
@@ -162,7 +164,7 @@ class UserControllersTest(APITestCase):
     def test_user_profile_controller_patch(self):
         """Test updating a user profile"""
         url = reverse('user-profile', args=[self.test_user.id])
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'bio': 'New bio',
             'website': 'https://newsite.com'
@@ -175,7 +177,7 @@ class UserControllersTest(APITestCase):
     def test_user_profile_controller_patch_unauthorized(self):
         """Test updating another user's profile (should fail)"""
         url = reverse('user-profile', args=[self.other_user.id])
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'bio': 'Should fail',
         }

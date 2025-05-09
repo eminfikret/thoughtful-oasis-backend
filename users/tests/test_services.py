@@ -1,6 +1,5 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
-from rest_framework.authtoken.models import Token
 
 from users.models import UserProfile
 from users.services import UserService
@@ -54,10 +53,11 @@ class UserServiceTest(TestCase):
     def test_login_user_valid(self):
         result = self.service.login_user('testuser', 'password123')
         self.assertEqual(result['user'], self.test_user)
-        self.assertIsNotNone(result['token'])
-        self.assertIsInstance(result['token'], str)
         
-        self.assertTrue(Token.objects.filter(user=self.test_user).exists())
+        self.assertIsNotNone(result['access_token'])
+        self.assertIsInstance(result['access_token'], str)
+        self.assertIsNotNone(result['refresh_token'])
+        self.assertIsInstance(result['refresh_token'], str)
     
     def test_login_user_invalid(self):
         result = self.service.login_user('testuser', 'wrongpassword')
