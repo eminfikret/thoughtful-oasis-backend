@@ -1,6 +1,7 @@
+from datetime import timedelta
+
 from django.apps import AppConfig
 from rest_framework_simplejwt.settings import api_settings
-from datetime import timedelta
 
 
 class UsersConfig(AppConfig):

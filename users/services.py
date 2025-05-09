@@ -1,14 +1,13 @@
+from datetime import datetime
+
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from rest_framework.authtoken.models import Token
-
+from jwt import decode as jwt_decode
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework_simplejwt.settings import api_settings
 from .repositories import UserRepository
-from jwt import decode as jwt_decode
-from django.conf import settings
-from datetime import datetime
 
 
 @receiver(post_save, sender=User)
@@ -68,9 +67,8 @@ class UserService:
             refresh_token = RefreshToken(refresh_token_str)
             new_access_token = str(refresh_token.access_token)
 
-            # Optional debug: print expiry
             exp = refresh_token.access_token['exp']
-            from datetime import datetime
+
             print("[DEBUG] Refreshed access token expires at:", datetime.fromtimestamp(exp))
 
             return {
