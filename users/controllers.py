@@ -134,7 +134,8 @@ class LoginController(APIView):
                                 'last_name': openapi.Schema(type=openapi.TYPE_STRING),
                             }
                         ),
-                        'token': openapi.Schema(type=openapi.TYPE_STRING)
+                        'token': openapi.Schema(type=openapi.TYPE_STRING),
+                        'refresh_token': openapi.Schema(type=openapi.TYPE_STRING)
                     }
                 )
             ),
@@ -153,22 +154,62 @@ class LoginController(APIView):
             if result:
                 return Response({
                     'user': UserSerializer(result['user']).data,
-                    'token': result['token']
+                    'token': result['access_token'],
+                    'refresh_token': result['refresh_token']
+
                 }, status=status.HTTP_200_OK)
             
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class RefreshTokenView(APIView):
+    @swagger_auto_schema(
+        operation_description="Refresh an access token using a valid refresh token",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['refresh_token'],
+            properties={
+                'refresh_token': openapi.Schema(type=openapi.TYPE_STRING),
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="New access token",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'access_token': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            ),
+            401: "Invalid or expired refresh token"
+        }
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh_token")
+        if not refresh_token:
+            return Response({"error": "Refresh token is required"},
+            status=status.HTTP_400_BAD_REQUEST)
+
+        user_service = UserService()
+        tokens = user_service.refresh_token(refresh_token)
+
+        if tokens is None:
+            return Response({"error": "Invalid or expired refresh token"},
+            status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response(tokens, status=status.HTTP_200_OK)
+
 
 class UserDetailController(APIView):
     """Controller for user detail operations"""
     permission_classes = [IsAuthenticated]
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user_service = UserService()
-    
+
     @swagger_auto_schema(
         operation_summary="Get user details",
         operation_description="Get details for a specific user",
@@ -182,10 +223,10 @@ class UserDetailController(APIView):
         user = self.user_service.get_user_by_id(user_id)
         if not user:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         serializer = UserDetailSerializer(user)
         return Response(serializer.data)
-    
+
     @swagger_auto_schema(
         operation_summary="Update user details",
         operation_description="Update details for a specific user",
@@ -202,16 +243,16 @@ class UserDetailController(APIView):
         # Only allow users to update their own details
         if request.user.id != int(user_id):
             raise PermissionDenied("You can only update your own details")
-        
+
         user = self.user_service.get_user_by_id(user_id)
         if not user:
             raise NotFound("User not found")
-        
+
         serializer = UserDetailSerializer(user, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -223,7 +264,7 @@ class UserProfileController(APIView):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user_service = UserService()
-    
+
     @swagger_auto_schema(
         operation_summary="Get user profile",
         operation_description="Get profile for a specific user",
@@ -237,10 +278,10 @@ class UserProfileController(APIView):
         profile = self.user_service.get_user_profile(user_id)
         if not profile:
             return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         serializer = UserProfileSerializer(profile)
         return Response(serializer.data)
-    
+
     @swagger_auto_schema(
         operation_summary="Update user profile",
         operation_description="Update profile for a specific user",
@@ -257,14 +298,14 @@ class UserProfileController(APIView):
         # Only allow users to update their own profile
         if request.user.id != int(user_id):
             raise PermissionDenied("You can only update your own profile")
-        
+
         profile = self.user_service.get_user_profile(user_id)
         if not profile:
             raise NotFound("Profile not found")
-        
+
         serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(UserProfileSerializer(profile).data)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
