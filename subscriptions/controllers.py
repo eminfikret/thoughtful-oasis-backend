@@ -8,6 +8,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from channels.exceptions import ChannelNotFoundException
 from channels.types import ChannelId
@@ -26,6 +27,7 @@ from subscriptions.services import SubscriptionService
 
 class SubscribersListController(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="List subscribers of a channel",
@@ -78,6 +80,7 @@ class SubscribersListController(APIView):
 
 class SubscribeController(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="Subscribe to a channel",
@@ -101,6 +104,7 @@ class SubscribeController(APIView):
 
 class UnsubscribeController(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="Unsubscribe from a channel",
@@ -124,6 +128,7 @@ class UnsubscribeController(APIView):
 
 class MySubscriptionsController(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="List my subscriptions",

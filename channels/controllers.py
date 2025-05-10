@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from channels.dtos import CreateChannelDto, UpdateChannelDto
 from channels.exceptions import ChannelNotFoundException, UnauthorizedChannelAccessException
@@ -25,6 +26,7 @@ from common.serializers import PaginatedResponseSerializer
 
 class ChannelListController(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="List all channels",
@@ -95,6 +97,7 @@ class ChannelListController(APIView):
 
 class ChannelDetailController(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="Retrieve a single channel",
