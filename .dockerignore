@@ -1,0 +1,27 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.ruff_cache/
+
+# Git
+.git/
+.gitignore
+
+# Media and static
+media/
+staticfiles/
+
+# Tests and coverage
+htmlcov/
+.tox/
+.coverage*
+.cache
+coverage.xml

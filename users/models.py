@@ -8,8 +8,7 @@ class UserProfile(models.Model):
     profile_picture = models.ImageField(
         upload_to='profile_pictures/',
         blank=True,
-        null=True,
-        unique=True
+        null=True
     )  
     website = models.URLField(blank=True, null=True)
     reputation = models.IntegerField(default=0)
