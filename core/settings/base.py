@@ -131,3 +131,19 @@ REST_FRAMEWORK = {
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': (
+                'JWT Authorization header using the Bearer scheme.\n\n'
+                'Example: "Bearer <your_token>"'
+            ),
+        }
+    },
+    'DEFAULT_INFO': 'core.urls.schema_view',
+}
