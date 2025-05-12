@@ -12,6 +12,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from channels.exceptions import ChannelNotFoundException
 from channels.types import ChannelId
+from common.params import PaginationParams
 from common.responses import PaginatedResponse
 from common.serializers import PaginatedResponseSerializer
 from subscriptions.exceptions import UnauthorizedSubscriptionAccessException
@@ -62,10 +63,13 @@ class SubscribersListController(APIView):
         try:
             subscribers = SubscriptionService.get_subscriptions_by_channel(
                 channel_id=pk,
-                params=params,
-                user=request.user
+                requester=request.user,
+                pagination=PaginationParams(limit=params.limit, offset=params.offset),
             )
-            count = SubscriptionService.get_subscriptions_count()
+            count = SubscriptionService.get_subscriptions_count_by_channel(
+                channel_id=pk,
+                requester=request.user
+            )
         except ChannelNotFoundException as e:
             raise ChannelNotFoundAPIException(detail=str(e))
         except UnauthorizedSubscriptionAccessException as e:
@@ -156,9 +160,13 @@ class MySubscriptionsController(APIView):
 
         subscriptions = SubscriptionService.get_subscriptions_by_subscriber(
             subscriber=request.user,
-            params=params,
+            requester=request.user,
+            pagination=PaginationParams(limit=params.limit, offset=params.offset),
         )
-        count = SubscriptionService.get_subscriptions_count(subscriber=request.user)
+        count = SubscriptionService.get_subscriptions_count_by_subscriber(
+            subscriber=request.user,
+            requester=request.user,
+        )
 
         serializer = MySubscriptionSerializer(subscriptions, many=True)
         return PaginatedResponse(
