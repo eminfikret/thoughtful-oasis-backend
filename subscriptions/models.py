@@ -2,9 +2,10 @@ from django.contrib.auth.models import User
 from django.db import models
 
 from channels.models import Channel
+from common.models import BaseModel
 
 
-class Subscription(models.Model):
+class Subscription(BaseModel):
     channel = models.ForeignKey(
         Channel,
         on_delete=models.CASCADE,
@@ -21,8 +22,6 @@ class Subscription(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
-
-    objects = models.Manager()
 
     class Meta:
         db_table = 'subscriptions'

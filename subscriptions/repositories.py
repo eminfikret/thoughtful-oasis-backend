@@ -3,36 +3,42 @@ from typing import List, Optional
 from django.contrib.auth.models import User
 
 from channels.models import Channel
+from common.params import PaginationParams
 from subscriptions.models import Subscription
-from subscriptions.params import SubscriptionsParams
 
 
 class SubscriptionRepository:
     @staticmethod
-    def get_subscription(channel: Channel, subscriber: User) -> Optional[Subscription]:
+    def get_subscription(
+            channel: Channel,
+            subscriber: User
+    ) -> Optional[Subscription]:
         return Subscription.objects.filter(channel=channel, subscriber=subscriber).first()
 
     @staticmethod
-    def get_subscriptions_by_channel(
-            channel: Channel,
-            params: SubscriptionsParams,
+    def get_subscriptions(
+            channel: Optional[Channel] = None,
+            subscriber: Optional[User] = None,
+            pagination: Optional[PaginationParams] = None,
     ) -> List[Subscription]:
-        queryset =  Subscription.objects.filter(channel=channel)
-        return list(queryset[params.offset:params.offset + params.limit])
+        pagination = pagination or PaginationParams()
+
+        queryset =  Subscription.objects.filter_optional(
+            channel=channel,
+            subscriber=subscriber
+        )
+
+        return list(queryset[pagination.offset:pagination.offset + pagination.limit])
 
     @staticmethod
-    def get_subscriptions_by_subscriber(
-            subscriber: User,
-            params: SubscriptionsParams,
-    ) -> List[Subscription]:
-        queryset =  Subscription.objects.filter(subscriber=subscriber)
-        return list(queryset[params.offset:params.offset + params.limit])
-
-    @staticmethod
-    def get_subscriptions_count(subscriber: Optional[User] = None) -> int:
-        if subscriber is not None:
-            return Subscription.objects.filter(subscriber=subscriber).count()
-        return Subscription.objects.count()
+    def get_subscriptions_count(
+            channel: Optional[Channel] = None,
+            subscriber: Optional[User] = None,
+    ) -> int:
+        return Subscription.objects.filter_optional(
+            channel=channel,
+            subscriber=subscriber,
+        ).count()
 
     @staticmethod
     def create_subscription(channel: Channel, subscriber: User) -> Subscription:
