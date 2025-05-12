@@ -2,8 +2,10 @@ from dirtyfields import DirtyFieldsMixin
 from django.contrib.auth.models import User
 from django.db import models
 
+from common.models import BaseModel
 
-class Channel(DirtyFieldsMixin, models.Model):
+
+class Channel(DirtyFieldsMixin, BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField()
     slug = models.SlugField(unique=True)
@@ -14,8 +16,6 @@ class Channel(DirtyFieldsMixin, models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    objects = models.Manager()
 
     class Meta:
         db_table = 'channels'
