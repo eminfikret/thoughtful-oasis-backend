@@ -54,8 +54,8 @@ class ChannelRepository:
         return channel
 
     @staticmethod
-    def slug_exists(slug: str) -> bool:
-        return Channel.objects.filter(slug=slug).exists()
+    def name_exists(name: str) -> bool:
+        return Channel.objects.filter(name__iexact=name).exists()
 
     @staticmethod
     def delete_channel(channel: Channel) -> None:
