@@ -54,7 +54,7 @@ class SubscribersListController(APIView):
             ),
         },
     )
-    def get(self, request, pk: ChannelId):
+    def get(self, request: Request, pk: ChannelId):
         query_serializer = SubscribersQueryParamsSerializer(data=request.query_params)
         query_serializer.is_valid(raise_exception=True)
         params = SubscriptionsParams(**query_serializer.validated_data)

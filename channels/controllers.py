@@ -114,7 +114,7 @@ class ChannelDetailController(APIView):
             )
         }
     )
-    def get(self, pk: ChannelId):
+    def get(self, request: Request, pk: ChannelId):
         try:
             channel = ChannelService.get_channel_by_id(pk)
         except ChannelNotFoundException as e:
