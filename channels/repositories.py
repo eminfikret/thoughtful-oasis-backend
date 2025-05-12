@@ -9,7 +9,7 @@ from channels.types import ChannelId
 
 class ChannelRepository:
     @staticmethod
-    def get_all_channels(params: ChannelsParams) -> List[Channel]:
+    def get_channels(params: ChannelsParams) -> List[Channel]:
         queryset = Channel.objects.all()
         return list(queryset[params.offset:params.offset + params.limit])
 
