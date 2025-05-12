@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 from channels.models import Channel
 from channels.params import ChannelsParams
@@ -11,11 +12,22 @@ class ChannelRepository:
     @staticmethod
     def get_channels(params: ChannelsParams) -> List[Channel]:
         queryset = Channel.objects.all()
+
+        if params.search:
+            queryset = queryset.filter(
+                Q(name__icontains=params.search) | Q(description__icontains=params.search)
+            )
+
         return list(queryset[params.offset:params.offset + params.limit])
 
     @staticmethod
-    def get_channels_count() -> int:
-        return Channel.objects.count()
+    def get_channels_count(search: Optional[str] = None) -> int:
+        queryset = Channel.objects.all()
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
+        return queryset.count()
 
     @staticmethod
     def get_channel_by_id(channel_id: ChannelId) -> Optional[Channel]:

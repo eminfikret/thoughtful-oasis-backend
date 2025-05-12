@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from django.contrib.auth.models import User
 from django.utils.text import slugify
@@ -17,8 +17,8 @@ class ChannelService:
         return ChannelRepository.get_channels(params)
 
     @staticmethod
-    def get_channels_count() -> int:
-        return ChannelRepository.get_channels_count()
+    def get_channels_count(search: Optional[str] = None) -> int:
+        return ChannelRepository.get_channels_count(search)
 
     @staticmethod
     def get_channel_by_id(channel_id: ChannelId) -> Channel:

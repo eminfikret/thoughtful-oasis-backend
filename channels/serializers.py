@@ -33,4 +33,5 @@ class ChannelUpdateSerializer(serializers.ModelSerializer):
         fields = ['name', 'description']
 
 class ChannelsQueryParamsSerializer(PaginationQueryParams):
+    search = serializers.CharField(required=False, allow_blank=True)
     pass

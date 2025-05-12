@@ -53,7 +53,7 @@ class ChannelListController(APIView):
         channels = ChannelService.get_channels(params)
         serializer = ChannelSerializer(channels, many=True)
 
-        count = ChannelService.get_channels_count()
+        count = ChannelService.get_channels_count(search=params.search)
 
         return PaginatedResponse(
             results=serializer.data,
