@@ -20,6 +20,7 @@ from channels.serializers import (
 )
 from channels.services import ChannelService
 from channels.types import ChannelId
+from common.params import PaginationParams
 from common.responses import PaginatedResponse
 from common.serializers import PaginatedResponseSerializer
 
@@ -50,7 +51,10 @@ class ChannelListController(APIView):
         query_serializer.is_valid(raise_exception=True)
         params = ChannelsParams(**query_serializer.validated_data)
 
-        channels = ChannelService.get_channels(params)
+        channels = ChannelService.get_channels(
+            search=params.search,
+            pagination=PaginationParams(limit=params.limit, offset=params.offset)
+        )
         serializer = ChannelSerializer(channels, many=True)
 
         count = ChannelService.get_channels_count(search=params.search)
@@ -159,7 +163,7 @@ class ChannelDetailController(APIView):
             updated_channel = ChannelService.update_channel(
                 channel_id=pk,
                 dto=dto,
-                user=request.user,
+                requester=request.user,
             )
         except ChannelNotFoundException as e:
             raise ChannelNotFoundAPIException(detail=str(e))
@@ -184,7 +188,7 @@ class ChannelDetailController(APIView):
         try:
             ChannelService.delete_channel(
                 channel_id=pk,
-                user=request.user,
+                requester=request.user,
             )
         except ChannelNotFoundException as e:
             raise ChannelNotFoundAPIException(detail=str(e))

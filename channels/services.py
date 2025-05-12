@@ -6,15 +6,23 @@ from django.utils.text import slugify
 from channels.dtos import CreateChannelDto, UpdateChannelDto
 from channels.exceptions import ChannelNotFoundException, UnauthorizedChannelAccessException
 from channels.models import Channel
-from channels.params import ChannelsParams
 from channels.repositories import ChannelRepository
 from channels.types import ChannelId
+from common.params import PaginationParams
 
 
 class ChannelService:
     @staticmethod
-    def get_channels(params: ChannelsParams) -> List[Channel]:
-        return ChannelRepository.get_channels(params)
+    def get_channels(
+            search: Optional[str] = None,
+            pagination: Optional[PaginationParams] = None,
+    ) -> List[Channel]:
+        pagination = pagination or PaginationParams()
+
+        return ChannelRepository.get_channels(
+            search=search,
+            pagination=pagination,
+        )
 
     @staticmethod
     def get_channels_count(search: Optional[str] = None) -> int:
@@ -43,16 +51,16 @@ class ChannelService:
     def update_channel(
         channel_id: ChannelId,
         dto: UpdateChannelDto,
-        user: User,
+        requester: User,
     ) -> Channel:
         """
         Raises:
             ChannelNotFoundException: if no channel exists with the given ID.
-            UnauthorizedChannelAccessException: If the user is neither the owner nor an admin.
+            UnauthorizedChannelAccessException: If the requester is neither the owner nor an admin.
         """
         channel = ChannelService.get_channel_by_id(channel_id)
 
-        if not (channel.owner == user or user.is_staff):
+        if not (channel.owner == requester or requester.is_staff):
             raise UnauthorizedChannelAccessException()
 
         if dto.name is not None:
@@ -71,16 +79,16 @@ class ChannelService:
     @staticmethod
     def delete_channel(
         channel_id: ChannelId,
-        user: User,
+        requester: User,
     ) -> None:
         """
         Raises:
             ChannelNotFoundException: if no channel exists with the given ID.
-            UnauthorizedChannelAccessException: If the user is neither the owner nor an admin.
+            UnauthorizedChannelAccessException: If the requester is neither the owner nor an admin.
         """
         channel = ChannelService.get_channel_by_id(channel_id)
 
-        if not (channel.owner == user or user.is_staff):
+        if not (channel.owner == requester or requester.is_staff):
             raise UnauthorizedChannelAccessException()
 
         ChannelRepository.delete_channel(channel)
