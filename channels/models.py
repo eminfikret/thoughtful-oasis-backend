@@ -6,7 +6,7 @@ from common.models import BaseModel
 
 
 class Channel(DirtyFieldsMixin, BaseModel):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
     description = models.TextField()
     slug = models.SlugField(unique=True)
     owner = models.ForeignKey(
