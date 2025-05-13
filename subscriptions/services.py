@@ -4,9 +4,9 @@ from django.contrib.auth.models import User
 
 from channels.services import ChannelService
 from channels.types import ChannelId
-from subscriptions.exceptions import UnauthorizedSubscriptionAccessException
+from common.params import PaginationParams
+from subscriptions.exceptions import SubscriptionPermissionDeniedException
 from subscriptions.models import Subscription
-from subscriptions.params import SubscriptionsParams
 from subscriptions.repositories import SubscriptionRepository
 
 
@@ -14,29 +14,73 @@ class SubscriptionService:
     @staticmethod
     def get_subscriptions_by_channel(
             channel_id: ChannelId,
-            params: SubscriptionsParams,
-            user: User
+            requester: User,
+            pagination: Optional[PaginationParams] = None,
     ) -> List[Subscription]:
         """
         Raises:
             ChannelNotFoundException: if no channel exists with the given ID.
-            UnauthorizedSubscriptionAccessException: If the user is neither the owner nor an admin.
+            SubscriptionPermissionDeniedException:
+                If the requester is neither the owner nor an admin.
         """
+        pagination = pagination or PaginationParams()
+
         channel = ChannelService.get_channel_by_id(channel_id)
-        if not (channel.owner == user or user.is_staff):
-            raise UnauthorizedSubscriptionAccessException()
-        return SubscriptionRepository.get_subscriptions_by_channel(channel, params)
+        if not (channel.owner == requester or requester.is_staff):
+            raise SubscriptionPermissionDeniedException()
+
+        return SubscriptionRepository.get_subscriptions(
+            channel=channel,
+            pagination=pagination
+        )
 
     @staticmethod
     def get_subscriptions_by_subscriber(
             subscriber: User,
-            params: SubscriptionsParams,
+            requester: User,
+            pagination: Optional[PaginationParams] = None,
     ) -> List[Subscription]:
-        return SubscriptionRepository.get_subscriptions_by_subscriber(subscriber, params)
+        """
+        Raises:
+            SubscriptionPermissionDeniedException:
+                If the requester is neither the subscriber nor an admin.
+        """
+        pagination = pagination or PaginationParams()
+
+        if subscriber != requester and not requester.is_staff:
+            raise SubscriptionPermissionDeniedException()
+
+        return SubscriptionRepository.get_subscriptions(
+            subscriber=subscriber,
+            pagination=pagination
+        )
 
     @staticmethod
-    def get_subscriptions_count(subscriber: Optional[User] = None) -> int:
-        return SubscriptionRepository.get_subscriptions_count(subscriber)
+    def get_subscriptions_count_by_channel(channel_id: ChannelId, requester: User) -> int:
+        """
+        Raises:
+            ChannelNotFoundException: if no channel exists with the given ID.
+            SubscriptionPermissionDeniedException:
+                If the requester is neither the owner nor an admin.
+        """
+        channel = ChannelService.get_channel_by_id(channel_id)
+
+        if not (channel.owner == requester or requester.is_staff):
+            raise SubscriptionPermissionDeniedException()
+
+        return SubscriptionRepository.get_subscriptions_count(channel=channel)
+
+    @staticmethod
+    def get_subscriptions_count_by_subscriber(subscriber: User, requester: User) -> int:
+        """
+        Raises:
+            SubscriptionPermissionDeniedException:
+                If the requester is neither the subscriber nor an admin.
+        """
+        if subscriber != requester and not requester.is_staff:
+            raise SubscriptionPermissionDeniedException()
+
+        return SubscriptionRepository.get_subscriptions_count(subscriber=subscriber)
 
     @staticmethod
     def subscribe(channel_id: ChannelId, subscriber: User) -> None:

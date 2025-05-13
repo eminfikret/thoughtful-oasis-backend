@@ -1,7 +1,7 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.exceptions import NotFound as ChannelNotFoundAPIException
+from rest_framework.exceptions import NotFound as NotFoundAPIException
 from rest_framework.exceptions import PermissionDenied as PermissionDeniedAPIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -12,9 +12,11 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from channels.exceptions import ChannelNotFoundException
 from channels.types import ChannelId
+from common.exceptions import NotFoundException, PermissionDeniedException
+from common.params import PaginationParams
 from common.responses import PaginatedResponse
 from common.serializers import PaginatedResponseSerializer
-from subscriptions.exceptions import UnauthorizedSubscriptionAccessException
+from subscriptions.exceptions import SubscriptionPermissionDeniedException
 from subscriptions.params import SubscriptionsParams
 from subscriptions.serializers import (
     MySubscriptionSerializer,
@@ -47,7 +49,7 @@ class SubscribersListController(APIView):
             ),
             401: openapi.Response(description="Unauthorized - Authentication required"),
             403: openapi.Response(
-                description=str(UnauthorizedSubscriptionAccessException())
+                description=str(SubscriptionPermissionDeniedException())
             ),
             404: openapi.Response(
                 description=str(ChannelNotFoundException(ChannelId(123)))
@@ -62,13 +64,16 @@ class SubscribersListController(APIView):
         try:
             subscribers = SubscriptionService.get_subscriptions_by_channel(
                 channel_id=pk,
-                params=params,
-                user=request.user
+                requester=request.user,
+                pagination=PaginationParams(limit=params.limit, offset=params.offset),
             )
-            count = SubscriptionService.get_subscriptions_count()
-        except ChannelNotFoundException as e:
-            raise ChannelNotFoundAPIException(detail=str(e))
-        except UnauthorizedSubscriptionAccessException as e:
+            count = SubscriptionService.get_subscriptions_count_by_channel(
+                channel_id=pk,
+                requester=request.user
+            )
+        except NotFoundException as e:
+            raise NotFoundAPIException(detail=str(e))
+        except PermissionDeniedException as e:
             raise PermissionDeniedAPIException(detail=str(e))
 
         serializer = SubscriberSerializer(subscribers, many=True)
@@ -99,8 +104,8 @@ class SubscribeController(APIView):
         try:
             SubscriptionService.subscribe(pk, request.user)
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except ChannelNotFoundException as e:
-            raise ChannelNotFoundAPIException(str(e))
+        except NotFoundException as e:
+            raise NotFoundAPIException(str(e))
 
 class UnsubscribeController(APIView):
     permission_classes = [IsAuthenticated]
@@ -123,8 +128,8 @@ class UnsubscribeController(APIView):
         try:
             SubscriptionService.unsubscribe(channel_id=pk, subscriber=request.user)
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except ChannelNotFoundException as e:
-            raise ChannelNotFoundAPIException(str(e))
+        except NotFoundException as e:
+            raise NotFoundAPIException(str(e))
 
 class MySubscriptionsController(APIView):
     permission_classes = [IsAuthenticated]
@@ -147,6 +152,9 @@ class MySubscriptionsController(APIView):
                 schema=SubscriptionsQueryParamsSerializer()
             ),
             401: openapi.Response(description="Unauthorized - Authentication required"),
+            403: openapi.Response(
+                description=str(SubscriptionPermissionDeniedException())
+            ),
         },
     )
     def get(self, request: Request):
@@ -154,11 +162,18 @@ class MySubscriptionsController(APIView):
         query_serializer.is_valid(raise_exception=True)
         params = SubscriptionsParams(**query_serializer.validated_data)
 
-        subscriptions = SubscriptionService.get_subscriptions_by_subscriber(
-            subscriber=request.user,
-            params=params,
-        )
-        count = SubscriptionService.get_subscriptions_count(subscriber=request.user)
+        try:
+            subscriptions = SubscriptionService.get_subscriptions_by_subscriber(
+                subscriber=request.user,
+                requester=request.user,
+                pagination=PaginationParams(limit=params.limit, offset=params.offset),
+            )
+            count = SubscriptionService.get_subscriptions_count_by_subscriber(
+                subscriber=request.user,
+                requester=request.user,
+            )
+        except PermissionDeniedException as e:
+            raise PermissionDeniedAPIException(detail=str(e))
 
         serializer = MySubscriptionSerializer(subscriptions, many=True)
         return PaginatedResponse(

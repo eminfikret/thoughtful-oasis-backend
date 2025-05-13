@@ -1,7 +1,7 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.exceptions import NotFound as ChannelNotFoundAPIException
+from rest_framework.exceptions import NotFound as NotFoundAPIException
 from rest_framework.exceptions import PermissionDenied as PermissionDeniedAPIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -10,7 +10,11 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from channels.dtos import CreateChannelDto, UpdateChannelDto
-from channels.exceptions import ChannelNotFoundException, UnauthorizedChannelAccessException
+from channels.exceptions import (
+    ChannelNameAlreadyExistsException,
+    ChannelNotFoundException,
+    ChannelPermissionDeniedException,
+)
 from channels.params import ChannelsParams
 from channels.serializers import (
     ChannelCreateSerializer,
@@ -20,6 +24,9 @@ from channels.serializers import (
 )
 from channels.services import ChannelService
 from channels.types import ChannelId
+from common.api_exceptions import ConflictAPIException
+from common.exceptions import ConflictException, NotFoundException, PermissionDeniedException
+from common.params import PaginationParams
 from common.responses import PaginatedResponse
 from common.serializers import PaginatedResponseSerializer
 
@@ -50,10 +57,13 @@ class ChannelListController(APIView):
         query_serializer.is_valid(raise_exception=True)
         params = ChannelsParams(**query_serializer.validated_data)
 
-        channels = ChannelService.get_channels(params)
+        channels = ChannelService.get_channels(
+            search=params.search,
+            pagination=PaginationParams(limit=params.limit, offset=params.offset)
+        )
         serializer = ChannelSerializer(channels, many=True)
 
-        count = ChannelService.get_channels_count()
+        count = ChannelService.get_channels_count(search=params.search)
 
         return PaginatedResponse(
             results=serializer.data,
@@ -76,6 +86,9 @@ class ChannelListController(APIView):
                 schema=ChannelCreateSerializer()
             ),
             401: openapi.Response(description="Unauthorized - Authentication required"),
+            409: openapi.Response(
+                description=str(ChannelNameAlreadyExistsException("Example"))
+            ),
         },
     )
     def post(self, request: Request):
@@ -87,10 +100,13 @@ class ChannelListController(APIView):
             description=serializer.validated_data['description']
         )
 
-        channel = ChannelService.create_channel(
-            dto=dto,
-            owner=request.user
-        )
+        try:
+            channel = ChannelService.create_channel(
+                dto=dto,
+                owner=request.user
+            )
+        except ConflictException as e:
+            raise ConflictAPIException(detail=str(e))
 
         serializer = ChannelSerializer(channel)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -117,8 +133,8 @@ class ChannelDetailController(APIView):
     def get(self, request: Request, pk: ChannelId):
         try:
             channel = ChannelService.get_channel_by_id(pk)
-        except ChannelNotFoundException as e:
-            raise ChannelNotFoundAPIException(detail=str(e))
+        except NotFoundException as e:
+            raise NotFoundAPIException(detail=str(e))
 
         serializer = ChannelSerializer(channel)
         return Response(serializer.data)
@@ -139,10 +155,13 @@ class ChannelDetailController(APIView):
             ),
             401: openapi.Response(description="Unauthorized - Authentication required"),
             403: openapi.Response(
-                description=str(UnauthorizedChannelAccessException())
+                description=str(ChannelPermissionDeniedException())
             ),
             404: openapi.Response(
                 description=str(ChannelNotFoundException(ChannelId(123)))
+            ),
+            409: openapi.Response(
+                description=str(ChannelNameAlreadyExistsException("Example"))
             ),
         },
     )
@@ -159,12 +178,14 @@ class ChannelDetailController(APIView):
             updated_channel = ChannelService.update_channel(
                 channel_id=pk,
                 dto=dto,
-                user=request.user,
+                requester=request.user,
             )
-        except ChannelNotFoundException as e:
-            raise ChannelNotFoundAPIException(detail=str(e))
-        except UnauthorizedChannelAccessException as e:
+        except NotFoundException as e:
+            raise NotFoundAPIException(detail=str(e))
+        except PermissionDeniedException as e:
             raise PermissionDeniedAPIException(detail=str(e))
+        except ConflictException as e:
+            raise ConflictAPIException(detail=str(e))
 
         output_serializer = ChannelSerializer(updated_channel)
         return Response(output_serializer.data, status=status.HTTP_200_OK)
@@ -176,7 +197,7 @@ class ChannelDetailController(APIView):
         responses={
             204: openapi.Response(description="Channel deleted successfully"),
             401: openapi.Response(description="Unauthorized - Authentication required"),
-            403: openapi.Response(description=str(UnauthorizedChannelAccessException())),
+            403: openapi.Response(description=str(ChannelPermissionDeniedException())),
             404: openapi.Response(description=str(ChannelNotFoundException(ChannelId(123)))),
         },
     )
@@ -184,11 +205,11 @@ class ChannelDetailController(APIView):
         try:
             ChannelService.delete_channel(
                 channel_id=pk,
-                user=request.user,
+                requester=request.user,
             )
-        except ChannelNotFoundException as e:
-            raise ChannelNotFoundAPIException(detail=str(e))
-        except UnauthorizedChannelAccessException as e:
+        except NotFoundException as e:
+            raise NotFoundAPIException(detail=str(e))
+        except PermissionDeniedException as e:
             raise PermissionDeniedAPIException(detail=str(e))
 
         return Response(status=status.HTTP_204_NO_CONTENT)
