@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -23,12 +24,13 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
-    'rest_framework.authtoken', 
+    'rest_framework_simplejwt',
     'drf_yasg',  # Swagger
     
     # Local apps
     'users',
-    'channel',
+    'channels',
+    'subscriptions',
     'factcheck',
     'api',
 ]
@@ -69,10 +71,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'thoughtful_oasis'),
+        'NAME': os.environ.get('POSTGRES_DB', 'fact_check_db'),
         'USER': os.environ.get('POSTGRES_USER', 'postgres'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
@@ -106,12 +108,42 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 
-# Default primary key field type
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+    'SLIDING_TOKEN_LIFETIME': timedelta(days=30),
+    'SLIDING_TOKEN_REFRESH_LIFETIME_LATE_USER': timedelta(days=1),
+    'SLIDING_TOKEN_LIFETIME_LATE_USER': timedelta(days=30),
+}
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny', # change later
+        'rest_framework.permissions.AllowAny',
     ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 100
+}
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': (
+                'JWT Authorization header using the Bearer scheme.\n\n'
+                'Example: "Bearer <your_token>"'
+            ),
+        }
+    },
+    'DEFAULT_INFO': 'core.urls.schema_view',
 }

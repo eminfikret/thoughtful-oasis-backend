@@ -13,6 +13,7 @@ from .base import (
     STATIC_ROOT,
     STATIC_URL,
     STATICFILES_DIRS,
+    SWAGGER_SETTINGS,
     TEMPLATES,
     TIME_ZONE,
     USE_I18N,
@@ -40,4 +41,5 @@ __all__ = [
     'USE_I18N',
     'USE_TZ',
     'WSGI_APPLICATION',
+    'SWAGGER_SETTINGS'
 ]

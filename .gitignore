@@ -44,3 +44,6 @@ coverage.xml
 
 # PyCharm
 .idea/
+
+# Ruff cache
+.ruff_cache/
