@@ -3,49 +3,46 @@ from django.db import models
 from common.models import BaseModel
 
 
-class FactualClaim(BaseModel):
+class Claim(BaseModel):
     """
-    Represents a factual claim extracted from a post or comment.
-    Either post_id OR comment_id must be set, but not both.
+    Represents a claim for fact-checking.
+    Can be standalone or linked to a post or comment.
     """
-    post_id = models.ForeignKey(
-        'posts.Post',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='factual_claims'
-    )
-    comment_id = models.ForeignKey(
-        'comments.Comment',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='factual_claims'
-    )
-    content_fragment = models.TextField(help_text="The exact claim text extracted")
-    content_position = models.JSONField(help_text="Position markers in the original text")
+    # Using IntegerField instead of ForeignKey since posts/comments don't exist yet
+    post_id = models.IntegerField(null=True, blank=True, 
+                                 help_text="ID of the post containing this claim, if applicable")
+    comment_id = models.IntegerField(null=True, blank=True, 
+                                    help_text="ID of the comment containing this claim, if applicable")
+    content_fragment = models.TextField(help_text="The exact claim text to be fact-checked")
+    content_position = models.JSONField(null=True, blank=True, 
+                                       help_text="Position markers in the original text")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'factual_claims'
+        db_table = 'claims'
         indexes = [
-            models.Index(fields=['post_id', 'content_position']),
-            models.Index(fields=['comment_id', 'content_position']),
+            models.Index(fields=['post_id']),
+            models.Index(fields=['comment_id']),
         ]
-        verbose_name = 'Factual Claim'
-        verbose_name_plural = 'Factual Claims'
+        verbose_name = 'Claim'
+        verbose_name_plural = 'Claims'
 
     def __str__(self):
-        source = f"Post #{self.post_id_id}" if self.post_id else f"Comment #{self.comment_id_id}"
-        return f"Claim from {source}: {self.content_fragment[:30]}..."
+        if self.post_id:
+            source = f"Post #{self.post_id}"
+        elif self.comment_id:
+            source = f"Comment #{self.comment_id}"
+        else:
+            source = "Standalone claim"
+        return f"{source}: {self.content_fragment[:30]}..."
 
 
 class FactCheck(BaseModel):
     """
-    Represents the fact-checking result for a factual claim.
+    Represents the fact-checking result for a claim.
     """
     claim = models.ForeignKey(
-        FactualClaim,
+        Claim,
         on_delete=models.CASCADE,
         related_name='fact_checks'
     )

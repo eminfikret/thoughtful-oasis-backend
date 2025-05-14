@@ -1,29 +1,29 @@
 from django.db import transaction
 
-from .models import FactualClaim, FactCheck, FactCheckSource
+from .models import Claim, FactCheck, FactCheckSource
 
 
 class ClaimRepository:
-    """Repository for interacting with factual claims data"""
+    """Repository for interacting with claims data"""
     
-    def create_factual_claim(self, claim_data):
-        """Create a new factual claim"""
-        return FactualClaim.objects.create(**claim_data)
+    def create_claim(self, claim_data):
+        """Create a new claim"""
+        return Claim.objects.create(**claim_data)
     
     def get_claim_by_id(self, claim_id):
         """Get a claim by its ID"""
         try:
-            return FactualClaim.objects.get(id=claim_id)
-        except FactualClaim.DoesNotExist:
+            return Claim.objects.get(id=claim_id)
+        except Claim.DoesNotExist:
             return None
     
     def get_claims_for_post(self, post_id):
         """Get all claims for a specific post"""
-        return FactualClaim.objects.filter(post_id=post_id)
+        return Claim.objects.filter(post_id=post_id)
     
     def get_claims_for_comment(self, comment_id):
         """Get all claims for a specific comment"""
-        return FactualClaim.objects.filter(comment_id=comment_id)
+        return Claim.objects.filter(comment_id=comment_id)
 
 
 class FactCheckRepository:
@@ -38,7 +38,6 @@ class FactCheckRepository:
         with transaction.atomic():
             fact_check = FactCheck.objects.create(**fact_check_data)
             
-            # Add sources if any
             if sources_data:
                 sources = []
                 for source_data in sources_data:

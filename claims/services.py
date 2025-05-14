@@ -4,7 +4,7 @@ from .repositories import ClaimRepository, FactCheckRepository
 
 
 class ClaimService:
-    """Service for handling factual claims"""
+    """Service for handling claims"""
     
     def __init__(self):
         self.claim_repository = ClaimRepository()
@@ -13,22 +13,22 @@ class ClaimService:
     def create_claim_from_post(self, post_id, content_fragment, content_position):
         """Create a claim from a post"""
         claim_data = {
-            'post_id_id': post_id,
-            'comment_id_id': None,
+            'post_id': post_id,
+            'comment_id': None,  
             'content_fragment': content_fragment,
             'content_position': content_position
         }
-        return self.claim_repository.create_factual_claim(claim_data)
+        return self.claim_repository.create_claim(claim_data)
     
     def create_claim_from_comment(self, comment_id, content_fragment, content_position):
         """Create a claim from a comment"""
         claim_data = {
-            'post_id_id': None,
-            'comment_id_id': comment_id,
+            'post_id': None,     
+            'comment_id': comment_id,
             'content_fragment': content_fragment,
             'content_position': content_position
         }
-        return self.claim_repository.create_factual_claim(claim_data)
+        return self.claim_repository.create_claim(claim_data)
     
     def process_content_for_claims(self, content, source_type, source_id):
         """
@@ -43,7 +43,7 @@ class ClaimService:
             source_id (int): ID of the post or comment
             
         Returns:
-            list: List of created FactualClaim objects
+            list: List of created Claim objects
         """
         # This is where a more sophisticated claim extraction would happen
         # For now, just extract the first 100 chars as a dummy claim
