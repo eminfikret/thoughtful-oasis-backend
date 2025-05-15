@@ -1,14 +1,14 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import (
-    validate_password, get_default_password_validators,
-    MinimumLengthValidator, UserAttributeSimilarityValidator,
-    CommonPasswordValidator, NumericPasswordValidator
+    CommonPasswordValidator,
+    MinimumLengthValidator,
+    NumericPasswordValidator,
+    UserAttributeSimilarityValidator,
 )
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
 from .models import UserProfile
-
 
 PASSWORD_VALIDATORS = [
 

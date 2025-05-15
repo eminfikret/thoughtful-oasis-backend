@@ -174,4 +174,5 @@ class SerializersTest(TestCase):
         data['password'] = data['password2'] = 'Complex8$Password!'
         serializer = RegisterSerializer(data=data)
         self.assertTrue(serializer.is_valid(), 
-                       f"Valid password rejected with errors: {serializer.errors if not serializer.is_valid() else 'None'}")
+            f"Valid password rejected with errors: {serializer.errors if not serializer.is_valid() 
+                                                else 'None'}")
