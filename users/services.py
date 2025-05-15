@@ -102,3 +102,7 @@ class UserService:
 
     def update_reputation(self, user_id, amount):
         return self.user_repository.update_user_reputation(user_id, amount)
+    
+    def check_username_email_exists(self, username=None, email=None):
+        """Check if a username or email already exists."""
+        return self.user_repository.check_username_email_exists(username, email)

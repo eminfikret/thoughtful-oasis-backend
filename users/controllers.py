@@ -309,3 +309,58 @@ class UserProfileController(APIView):
             return Response(UserProfileSerializer(profile).data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CheckUsernameEmailController(APIView):
+    """Controller for checking if a username or email is already taken"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_service = UserService()
+
+    @swagger_auto_schema(
+        operation_summary="Check if username or email exists",
+        operation_description="Check if a username or email is already registered in the system",
+        manual_parameters=[
+            openapi.Parameter(
+                name='username',
+                in_=openapi.IN_QUERY,
+                description='Username to check',
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                name='email',
+                in_=openapi.IN_QUERY,
+                description='Email to check',
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Check successful",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'username_exists': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        'email_exists': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    }
+                )
+            ),
+            400: "Bad request - At least one parameter required"
+        }
+    )
+    def get(self, request):
+        """Check if username or email exists"""
+        username = request.query_params.get('username')
+        email = request.query_params.get('email')
+        
+        if not username and not email:
+            return Response(
+                {"error": "Either username or email parameter is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        result = self.user_service.check_username_email_exists(username, email)
+        return Response(result, status=status.HTTP_200_OK)

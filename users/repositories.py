@@ -73,3 +73,20 @@ class UserRepository:
         profile.reputation += amount
         profile.save()
         return profile
+    
+    def check_username_email_exists(self, username=None, email=None):
+        """Check if a username or email already exists in the system."""
+        result = {
+            'username_exists': False,
+            'email_exists': False
+        }
+        
+        if username:
+            # Use case-insensitive comparison with __iexact
+            result['username_exists'] = User.objects.filter(username__iexact=username).exists()
+        
+        if email:
+            # Use case-insensitive comparison with __iexact
+            result['email_exists'] = User.objects.filter(email__iexact=email).exists()
+        
+        return result
