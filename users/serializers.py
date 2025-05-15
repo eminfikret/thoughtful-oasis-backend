@@ -1,8 +1,25 @@
 from django.contrib.auth.models import User
-from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.password_validation import (
+    validate_password, get_default_password_validators,
+    MinimumLengthValidator, UserAttributeSimilarityValidator,
+    CommonPasswordValidator, NumericPasswordValidator
+)
+from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
 from .models import UserProfile
+
+
+PASSWORD_VALIDATORS = [
+
+    UserAttributeSimilarityValidator(
+        user_attributes=['username', 'email', 'first_name', 'last_name'],
+        max_similarity=0.7
+    ),
+    MinimumLengthValidator(min_length=8),
+    CommonPasswordValidator(),
+    NumericPasswordValidator()
+]
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -59,7 +76,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password = serializers.CharField(write_only=True, required=True)
     password2 = serializers.CharField(write_only=True, required=True)
 
     class Meta:
@@ -69,6 +86,37 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
+        
+        # Manual password validation
+        password = attrs['password']
+        
+        # Create a test user for validation
+        user = User(
+            username=attrs.get('username', ''),
+            email=attrs.get('email', ''),
+            first_name=attrs.get('first_name', ''),
+            last_name=attrs.get('last_name', '')
+        )
+        
+        # For email similarity, do an explicit check
+        if attrs.get('email'):
+            email_parts = attrs['email'].split('@')[0]  # Get username part of email
+            if email_parts in password:
+                raise serializers.ValidationError({
+                    "password": ["Password too similar to email address."]
+                })
+        
+        # Run all validators
+        errors = []
+        for validator in PASSWORD_VALIDATORS:
+            try:
+                validator.validate(password, user)
+            except ValidationError as e:
+                errors.extend(e.messages)
+        
+        if errors:
+            raise serializers.ValidationError({"password": errors})
+            
         return attrs
 
     def create(self, validated_data):
