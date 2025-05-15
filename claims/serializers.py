@@ -58,5 +58,5 @@ class ClaimModelSerializer(serializers.ModelSerializer):
             'post_id': {'help_text': 'ID of the post containing this claim, if applicable'},
             'comment_id': {'help_text': 'ID of the comment containing this claim, if applicable'},
             'content_fragment': {'help_text': 'The extracted claim text'},
-            'content_position': {'help_text': 'Position markers of the claim in the original content'}
+        'content_position': {'help_text': 'Position markers of the claim in the original content'}
         }

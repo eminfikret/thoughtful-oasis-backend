@@ -1,4 +1,3 @@
-from django.db import transaction
 
 from .repositories import ClaimRepository, FactCheckRepository
 

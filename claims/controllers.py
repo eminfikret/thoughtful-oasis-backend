@@ -35,7 +35,8 @@ class ClaimController(APIView):
                 ),
                 'content_position': openapi.Schema(
                     type=openapi.TYPE_OBJECT,
-                    description="Optional position data if this claim is extracted from larger content",
+                    description="Optional position data if this claim is extracted from larger" \
+                    " content",
                     properties={
                         'start': openapi.Schema(type=openapi.TYPE_INTEGER, example=0),
                         'end': openapi.Schema(type=openapi.TYPE_INTEGER, example=67),
@@ -63,7 +64,8 @@ class ClaimController(APIView):
                                 ),
                                 'content_fragment': openapi.Schema(
                                     type=openapi.TYPE_STRING,
-                                    example="The Great Wall of China is visible from the Moon with the naked eye."
+                                    example="The Great Wall of China is visible from the" \
+                                    " Moon with the naked eye."
                                 ),
                             }
                         )
@@ -84,7 +86,8 @@ class ClaimController(APIView):
                 )
             ),
             401: openapi.Response(
-                description="Unauthorized - Authentication credentials were not provided or are invalid",
+                description="Unauthorized - Authentication credentials were not provided " \
+                "or are invalid",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -105,7 +108,8 @@ class ClaimController(APIView):
         
         if serializer.is_valid():
             content = serializer.validated_data['content']
-            content_position = serializer.validated_data.get('content_position') or {"start": 0, "end": len(content)}
+            content_position = serializer.validated_data.get('content_position') or {"start": 0, 
+                                                                            "end": len(content)}
             
             # Create a standalone claim (not tied to post or comment)
             claim = Claim.objects.create(
@@ -149,10 +153,13 @@ class ClaimDetailController(APIView):
                         'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
                         'content_fragment': openapi.Schema(
                             type=openapi.TYPE_STRING,
-                            example="The Great Wall of China is visible from the Moon with the naked eye."
+                            example="The Great Wall of China is visible from the Moon with" \
+                            " the naked eye."
                         ),
-                        'post_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=None, nullable=True),
-                        'comment_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=None, nullable=True),
+                        'post_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=None,
+                                                nullable=True),
+                        'comment_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=None,
+                                                 nullable=True),
                         'content_position': openapi.Schema(
                             type=openapi.TYPE_OBJECT,
                             example={"start": 0, "end": 67}
