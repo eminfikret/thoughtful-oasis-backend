@@ -81,6 +81,29 @@ class UserControllersTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('password', response.data)
     
+    def test_register_controller_post_duplicate_email(self):
+        """Test user registration with duplicate email"""
+
+        User.objects.create_user(
+            username='existinguser',
+            email='duplicate@example.com',
+            password='password123'
+        )
+        
+        # try to register with the same email
+        url = reverse('user-register')
+        data = {
+            'username': 'newuser',
+            'email': 'duplicate@example.com', 
+            'password': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
+    
     def test_login_controller_post_valid(self):
         """Test valid login"""
         url = reverse('user-login')
@@ -183,3 +206,84 @@ class UserControllersTest(APITestCase):
         }
         response = self.client.patch(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    
+    def test_check_username_email_controller_get_username_exists(self):
+        """Test checking if an existing username exists"""
+        url = reverse('check-availability')
+        response = self.client.get(f"{url}?username={self.test_user.username}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['username_exists'])
+
+        if 'email_exists' in response.data:
+            self.assertFalse(response.data['email_exists'])
+
+    def test_check_username_email_controller_get_username_not_exists(self):
+        """Test checking if a non-existing username exists"""
+        url = reverse('check-availability')
+        response = self.client.get(f"{url}?username=nonexistentuser")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['username_exists'])
+
+        if 'email_exists' in response.data:
+            self.assertFalse(response.data['email_exists'])
+
+    def test_check_username_email_controller_get_email_exists(self):
+        """Test checking if an existing email exists"""
+        url = reverse('check-availability')
+        response = self.client.get(f"{url}?email={self.test_user.email}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['email_exists'])
+
+        if 'username_exists' in response.data:
+            self.assertFalse(response.data['username_exists'])
+
+    def test_check_username_email_controller_get_email_not_exists(self):
+        """Test checking if a non-existing email exists"""
+        url = reverse('check-availability')
+        response = self.client.get(f"{url}?email=nonexistent@example.com")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['email_exists'])
+
+        if 'username_exists' in response.data:
+            self.assertFalse(response.data['username_exists'])
+
+    def test_check_username_email_controller_get_both(self):
+        """Test checking both username and email"""
+        url = reverse('check-availability')
+        response = self.client.get(
+            f"{url}?username={self.test_user.username}&email=nonexistent@example.com"
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['username_exists'])
+        self.assertFalse(response.data['email_exists'])
+
+    def test_check_username_email_controller_get_no_params(self):
+        """Test checking without any parameters"""
+        url = reverse('check-availability')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+
+    def test_check_username_email_controller_get_case_insensitive_username(self):
+        """Test that username checking is case-insensitive"""
+        url = reverse('check-availability')
+        upper_username = self.test_user.username.upper()
+        response = self.client.get(f"{url}?username={upper_username}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['username_exists'])
+
+    def test_check_username_email_controller_get_case_insensitive_email(self):
+        """Test that email checking is case-insensitive"""
+        url = reverse('check-availability')
+        upper_email = self.test_user.email.upper()
+        response = self.client.get(f"{url}?email={upper_email}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['email_exists'])

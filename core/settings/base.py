@@ -15,6 +15,7 @@ ALLOWED_HOSTS = ['*']  # For development only
 
 # Application definition
 INSTALLED_APPS = [
+    # Django apps
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -24,15 +25,13 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
-    'rest_framework_simplejwt',
-    'drf_yasg',  # Swagger
+    'drf_yasg',
     
-    # Local apps
+    # Project apps
     'users',
     'channels',
     'subscriptions',
-    'factcheck',
-    'api',
+    'claims',
 ]
 
 MIDDLEWARE = [
@@ -86,6 +85,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
