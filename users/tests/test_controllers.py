@@ -81,6 +81,29 @@ class UserControllersTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('password', response.data)
     
+    def test_register_controller_post_duplicate_email(self):
+        """Test user registration with duplicate email"""
+
+        User.objects.create_user(
+            username='existinguser',
+            email='duplicate@example.com',
+            password='password123'
+        )
+        
+        # try to register with the same email
+        url = reverse('user-register')
+        data = {
+            'username': 'newuser',
+            'email': 'duplicate@example.com', 
+            'password': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
+    
     def test_login_controller_post_valid(self):
         """Test valid login"""
         url = reverse('user-login')

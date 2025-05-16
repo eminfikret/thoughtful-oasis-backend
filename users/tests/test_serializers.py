@@ -177,3 +177,26 @@ class SerializersTest(TestCase):
             serializer.is_valid(), 
             f"Valid password rejected with errors: "
             f"{serializer.errors if not serializer.is_valid() else 'None'}")
+    
+    def test_register_serializer_with_duplicate_email(self):
+        """Test that duplicate emails are rejected"""
+    
+        User.objects.create_user(
+            username='existinguser',
+            email='duplicate@example.com',
+            password='password123'
+        )
+        
+        # try to register another user with the same email
+        data = {
+            'username': 'newuser',
+            'email': 'duplicate@example.com',
+            'password': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        
+        serializer = RegisterSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('email', serializer.errors)
