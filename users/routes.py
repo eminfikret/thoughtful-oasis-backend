@@ -1,5 +1,7 @@
 from django.urls import path
 
+from subscriptions.controllers import SubscriptionsListController
+
 from . import controllers
 
 urlpatterns = [
@@ -13,5 +15,10 @@ urlpatterns = [
         '<int:user_id>/profile/',
         controllers.UserProfileController.as_view(),
         name='user-profile'
+    ),
+    path(
+        '<int:user_id>/subscriptions/',
+        SubscriptionsListController.as_view(),
+        name='user-subscriptions'
     ),
 ]
