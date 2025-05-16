@@ -1,5 +1,7 @@
 from django.urls import path
+
 from subscriptions.controllers import SubscriptionsListController
+
 from .controllers import (
     CheckUsernameEmailController,
     LoginController,
