@@ -7,25 +7,25 @@ urlpatterns = [
     path(
         '',
         channel_controllers.ChannelListController.as_view(),
-        name='channels'
+        name='channel-list'
     ),
     path(
-        '<int:pk>/',
+        '<int:channel_id>/',
         channel_controllers.ChannelDetailController.as_view(),
         name='channel-detail'
     ),
     path(
-        '<int:pk>/subscriptions',
+        '<int:channel_id>/subscriptions',
         subscription_controllers.SubscribersListController.as_view(),
         name='channel-subscribers'
     ),
     path(
-        '<int:pk>/subscribe',
+        '<int:channel_id>/subscribe',
         subscription_controllers.SubscribeController.as_view(),
         name='channel-subscribe'
     ),
     path(
-        '<int:pk>/unsubscribe',
+        '<int:channel_id>/unsubscribe',
         subscription_controllers.UnsubscribeController.as_view(),
         name='channel-unsubscribe'
     ),

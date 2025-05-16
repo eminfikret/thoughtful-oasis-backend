@@ -8,11 +8,14 @@ from common.params import PaginationParams
 from subscriptions.exceptions import SubscriptionPermissionDeniedException
 from subscriptions.models import Subscription
 from subscriptions.repositories import SubscriptionRepository
+from users.exceptions import UserNotFoundException
+from users.services import UserService
+from users.types import UserId
 
 
 class SubscriptionService:
     @staticmethod
-    def get_subscriptions_by_channel(
+    def get_subscriptions_by_channel_id(
             channel_id: ChannelId,
             requester: User,
             pagination: Optional[PaginationParams] = None,
@@ -35,17 +38,22 @@ class SubscriptionService:
         )
 
     @staticmethod
-    def get_subscriptions_by_subscriber(
-            subscriber: User,
+    def get_subscriptions_by_user_id(
+            user_id: UserId,
             requester: User,
             pagination: Optional[PaginationParams] = None,
     ) -> List[Subscription]:
         """
         Raises:
+            UserNotFoundException: if no user exists with the given ID.
             SubscriptionPermissionDeniedException:
                 If the requester is neither the subscriber nor an admin.
         """
         pagination = pagination or PaginationParams()
+
+        subscriber = UserService().get_user_by_id(user_id)
+        if not subscriber:
+            raise UserNotFoundException(user_id)
 
         if subscriber != requester and not requester.is_staff:
             raise SubscriptionPermissionDeniedException()
@@ -56,7 +64,7 @@ class SubscriptionService:
         )
 
     @staticmethod
-    def get_subscriptions_count_by_channel(channel_id: ChannelId, requester: User) -> int:
+    def get_subscriptions_count_by_channel_id(channel_id: ChannelId, requester: User) -> int:
         """
         Raises:
             ChannelNotFoundException: if no channel exists with the given ID.
@@ -71,12 +79,17 @@ class SubscriptionService:
         return SubscriptionRepository.get_subscriptions_count(channel=channel)
 
     @staticmethod
-    def get_subscriptions_count_by_subscriber(subscriber: User, requester: User) -> int:
+    def get_subscriptions_count_by_user_id(user_id: UserId, requester: User) -> int:
         """
         Raises:
+            UserNotFoundException: if no user exists with the given ID.
             SubscriptionPermissionDeniedException:
                 If the requester is neither the subscriber nor an admin.
         """
+        subscriber = UserService().get_user_by_id(user_id)
+        if not subscriber:
+            raise UserNotFoundException(user_id)
+
         if subscriber != requester and not requester.is_staff:
             raise SubscriptionPermissionDeniedException()
 

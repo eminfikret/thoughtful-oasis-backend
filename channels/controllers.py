@@ -130,9 +130,9 @@ class ChannelDetailController(APIView):
             )
         }
     )
-    def get(self, request: Request, pk: ChannelId):
+    def get(self, request: Request, channel_id: ChannelId):
         try:
-            channel = ChannelService.get_channel_by_id(pk)
+            channel = ChannelService.get_channel_by_id(channel_id)
         except NotFoundException as e:
             raise NotFoundAPIException(detail=str(e))
 
@@ -165,7 +165,7 @@ class ChannelDetailController(APIView):
             ),
         },
     )
-    def patch(self, request: Request, pk: ChannelId):
+    def patch(self, request: Request, channel_id: ChannelId):
         serializer = ChannelUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -176,7 +176,7 @@ class ChannelDetailController(APIView):
 
         try:
             updated_channel = ChannelService.update_channel(
-                channel_id=pk,
+                channel_id=channel_id,
                 dto=dto,
                 requester=request.user,
             )
@@ -201,10 +201,10 @@ class ChannelDetailController(APIView):
             404: openapi.Response(description=str(ChannelNotFoundException(ChannelId(123)))),
         },
     )
-    def delete(self, request: Request, pk: ChannelId):
+    def delete(self, request: Request, channel_id: ChannelId):
         try:
             ChannelService.delete_channel(
-                channel_id=pk,
+                channel_id=channel_id,
                 requester=request.user,
             )
         except NotFoundException as e:

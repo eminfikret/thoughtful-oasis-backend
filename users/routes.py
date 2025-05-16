@@ -1,5 +1,5 @@
 from django.urls import path
-
+from subscriptions.controllers import SubscriptionsListController
 from .controllers import (
     CheckUsernameEmailController,
     LoginController,
@@ -23,4 +23,9 @@ urlpatterns = [
         name='user-profile'
     ),
     path('check-availability/', CheckUsernameEmailController.as_view(), name='check-availability'),
+    path(
+        '<int:user_id>/subscriptions/',
+        SubscriptionsListController.as_view(),
+        name='user-subscriptions'
+    ),
 ]
