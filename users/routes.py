@@ -7,6 +7,7 @@ from .controllers import (
     LoginController,
     RefreshTokenView,
     RegisterController,
+    UserDeleteController,
     UserDetailController,
     UserListController,
     UserProfileController,
@@ -24,6 +25,7 @@ urlpatterns = [
         UserProfileController.as_view(),
         name='user-profile'
     ),
+    path('<int:user_id>/delete/', UserDeleteController.as_view(), name='user-delete'),
     path('check-availability/', CheckUsernameEmailController.as_view(), name='check-availability'),
     path(
         '<int:user_id>/subscriptions/',
