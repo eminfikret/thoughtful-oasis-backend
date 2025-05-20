@@ -105,3 +105,14 @@ class UserServiceTest(TestCase):
         
         updated_profile = self.service.update_reputation(self.test_user.id, 5)
         self.assertEqual(updated_profile.reputation, 15)
+    
+    def test_delete_user_existing(self):
+        """Test deleting an existing user"""
+        result = self.service.delete_user(self.test_user.id)
+        self.assertTrue(result)
+        self.assertFalse(User.objects.filter(id=self.test_user.id).exists())
+
+    def test_delete_user_non_existing(self):
+        """Test deleting a non-existing user"""
+        result = self.service.delete_user(999)
+        self.assertFalse(result)

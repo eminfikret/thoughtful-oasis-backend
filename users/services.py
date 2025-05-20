@@ -106,3 +106,11 @@ class UserService:
     def check_username_email_exists(self, username=None, email=None):
         """Check if a username or email already exists."""
         return self.user_repository.check_username_email_exists(username, email)
+
+    def delete_user(self, user_id):
+        """Delete a user by their ID."""
+        user = self.user_repository.get_user_by_id(user_id)
+        if not user:
+            return False
+        user.delete()
+        return True

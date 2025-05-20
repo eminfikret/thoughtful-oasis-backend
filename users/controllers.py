@@ -194,15 +194,15 @@ class RefreshTokenView(APIView):
     def post(self, request):
         refresh_token = request.data.get("refresh_token")
         if not refresh_token:
-            return Response({"error": "Refresh token is required"},
-            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Refresh token is required"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
 
         user_service = UserService()
         tokens = user_service.refresh_token(refresh_token)
 
         if tokens is None:
-            return Response({"error": "Invalid or expired refresh token"},
-            status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "Invalid or expired refresh token"}, 
+                            status=status.HTTP_401_UNAUTHORIZED)
 
         return Response(tokens, status=status.HTTP_200_OK)
 
@@ -298,19 +298,38 @@ class UserProfileController(APIView):
         responses={
             200: UserProfileSerializer(),
             400: "Bad request",
-            403: "Permission denied",
-            404: "Profile not found"
+            403: openapi.Response(
+                description="Permission denied",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                                example="You can only update your own profile")
+                    }
+                )
+            ),
+            404: openapi.Response(
+                description="Not found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                                example="Profile not found")
+                    }
+                )
+            )
         }
     )
     def patch(self, request, user_id):
         """Update a specific user's profile"""
         # Only allow users to update their own profile
         if request.user.id != int(user_id):
-            raise PermissionDenied("You can only update your own profile")
+            return Response({"error": "You can only update your own profile"}, 
+                            status=status.HTTP_403_FORBIDDEN)
 
         profile = self.user_service.get_user_profile(user_id)
         if not profile:
-            raise NotFound("Profile not found")
+            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
@@ -374,3 +393,61 @@ class CheckUsernameEmailController(APIView):
             
         result = self.user_service.check_username_email_exists(username, email)
         return Response(result, status=status.HTTP_200_OK)
+
+
+class UserDeleteController(APIView):
+    """Controller for deleting a user account"""
+    permission_classes = [IsAuthenticated]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_service = UserService()
+
+    @swagger_auto_schema(
+        operation_summary="Delete user account",
+        operation_description="Delete your own user account permanently",
+        tags=["Users"],
+        responses={
+            204: openapi.Response(description="User deleted successfully"),
+            401: openapi.Response(description="Unauthorized - Authentication required"),
+            403: openapi.Response(
+                description="Permission denied",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="You can only delete your own account"
+                        )
+                    }
+                )
+            ),
+            404: openapi.Response(
+                description="User not found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, example="User not found")
+                    }
+                )
+            )
+        }
+    )
+    def delete(self, request, user_id):
+        """Delete a user account"""
+        user = self.user_service.get_user_by_id(user_id)
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.user.id != int(user_id):
+            return Response(
+                {"error": "You can only delete your own account"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        success = self.user_service.delete_user(user_id)
+        if not success:
+            return Response({"error": "Failed to delete user"}, 
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+        return Response(status=status.HTTP_204_NO_CONTENT)
