@@ -313,7 +313,8 @@ class UserProfileController(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING, example="Profile not found")
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                                example="Profile not found")
                     }
                 )
             )

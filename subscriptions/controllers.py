@@ -73,7 +73,8 @@ class SubscribersListController(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING, example="Channel with id 123 not found.")
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                                example="Channel with id 123 not found.")
                     }
                 )
             ),
