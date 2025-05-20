@@ -287,3 +287,40 @@ class UserControllersTest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['email_exists'])
+
+    def test_user_delete_controller_delete_own_account(self):
+        """Test deleting your own account"""
+        url = reverse('user-delete', args=[self.test_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        self.assertFalse(User.objects.filter(id=self.test_user.id).exists())
+
+    def test_user_delete_controller_delete_other_user(self):
+        """Test attempting to delete another user's account (should fail)"""
+        url = reverse('user-delete', args=[self.other_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('error', response.data)
+        
+        self.assertTrue(User.objects.filter(id=self.other_user.id).exists())
+
+    def test_user_delete_controller_delete_nonexistent(self):
+        """Test attempting to delete a non-existent account"""
+        url = reverse('user-delete', args=[999])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('error', response.data)
+
+    def test_user_delete_controller_delete_unauthorized(self):
+        """Test attempting to delete without authentication"""
+        url = reverse('user-delete', args=[self.test_user.id])
+
+        self.client.credentials()
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        self.assertTrue(User.objects.filter(id=self.test_user.id).exists())
