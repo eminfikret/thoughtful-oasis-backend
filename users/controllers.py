@@ -435,6 +435,10 @@ class UserDeleteController(APIView):
     )
     def delete(self, request, user_id):
         """Delete a user account"""
+        user = self.user_service.get_user_by_id(user_id)
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
         if request.user.id != int(user_id):
             return Response(
                 {"error": "You can only delete your own account"},
@@ -442,7 +446,4 @@ class UserDeleteController(APIView):
             )
 
         result = self.user_service.delete_user(user_id)
-        if not result:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
         return Response(status=status.HTTP_204_NO_CONTENT)
