@@ -444,5 +444,10 @@ class UserDeleteController(APIView):
                 {"error": "You can only delete your own account"},
                 status=status.HTTP_403_FORBIDDEN
             )
-
+        
+        success = self.user_service.delete_user(user_id)
+        if not success:
+            return Response({"error": "Failed to delete user"}, 
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
         return Response(status=status.HTTP_204_NO_CONTENT)
