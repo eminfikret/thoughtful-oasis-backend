@@ -85,9 +85,25 @@ class ChannelListController(APIView):
                 description="Invalid input data",
                 schema=ChannelCreateSerializer()
             ),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
+            401: openapi.Response(
+                description="Unauthorized - Authentication required",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                    example="Authentication credentials were not provided.")
+                    }
+                )
+            ),
             409: openapi.Response(
-                description=str(ChannelNameAlreadyExistsException("Example"))
+                description="Conflict",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                    example="A channel with name 'Example' already exists.")
+                    }
+                )
             ),
         },
     )

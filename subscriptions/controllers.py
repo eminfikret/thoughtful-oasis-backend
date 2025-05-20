@@ -48,12 +48,34 @@ class SubscribersListController(APIView):
                 description="Invalid query parameters",
                 schema=SubscribersQueryParamsSerializer()
             ),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
+            401: openapi.Response(
+                description="Unauthorized - Authentication required",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                    example="Authentication credentials were not provided.")
+                    }
+                )
+            ),
             403: openapi.Response(
-                description=str(SubscriptionPermissionDeniedException())
+                description="Permission denied",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                    example="You do not have permission to view subscribers.")
+                    }
+                )
             ),
             404: openapi.Response(
-                description=str(ChannelNotFoundException(ChannelId(123)))
+                description="Not found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, example="Channel with id 123 not found.")
+                    }
+                )
             ),
         },
     )
