@@ -15,17 +15,17 @@ urlpatterns = [
         name='channel-detail'
     ),
     path(
-        '<int:channel_id>/subscriptions',
+        '<int:channel_id>/subscriptions/', 
         subscription_controllers.SubscribersListController.as_view(),
         name='channel-subscribers'
     ),
     path(
-        '<int:channel_id>/subscribe',
+        '<int:channel_id>/subscribe/', 
         subscription_controllers.SubscribeController.as_view(),
         name='channel-subscribe'
     ),
     path(
-        '<int:channel_id>/unsubscribe',
+        '<int:channel_id>/unsubscribe/',
         subscription_controllers.UnsubscribeController.as_view(),
         name='channel-unsubscribe'
     ),
