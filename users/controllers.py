@@ -445,5 +445,4 @@ class UserDeleteController(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        result = self.user_service.delete_user(user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
