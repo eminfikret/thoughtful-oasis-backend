@@ -1,15 +1,15 @@
 from django.db import models
 from django.contrib.auth.models import User
-from posts.models import Post
-from comments.models import Comment
 from common.models import BaseModel
 
 
 class Claim(BaseModel):
     """Model for representing a factual claim extracted from text"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="claims")
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, null=True, blank=True, related_name="claims")
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, null=True, blank=True, related_name="claims")
+    
+    # Store IDs without foreign key constraints since posts/comments aren't implemented yet
+    post_id = models.IntegerField(null=True, blank=True)
+    comment_id = models.IntegerField(null=True, blank=True)
     
     extracted_claim = models.TextField()
     claim_index = models.IntegerField()
@@ -25,22 +25,23 @@ class Claim(BaseModel):
     class Meta:
         db_table = 'claims'
         indexes = [
-            models.Index(fields=['post']),
-            models.Index(fields=['comment']),
+            models.Index(fields=['post_id']),
+            models.Index(fields=['comment_id']),
         ]
         verbose_name = 'Claim'
         verbose_name_plural = 'Claims'
     
     def __str__(self):
         source = "Unknown"
-        if self.source_type == 'post' and self.post:
-            source = f"Post #{self.post.id}"
-        elif self.source_type == 'comment' and self.comment:
-            source = f"Comment #{self.comment.id}"
+        if self.source_type == 'post' and self.post_id:
+            source = f"Post #{self.post_id}"
+        elif self.source_type == 'comment' and self.comment_id:
+            source = f"Comment #{self.comment_id}"
         elif self.source_type == 'raw':
             source = "Raw text"
         
         return f"{source}: {self.extracted_claim[:50]}..."
+
 
 class FactCheck(BaseModel):
     """Model for storing fact check results for a claim"""
@@ -61,6 +62,7 @@ class FactCheck(BaseModel):
     
     def __str__(self):
         return f"Fact check for claim #{self.claim.id}: {self.verdict}"
+
 
 class FactCheckSource(BaseModel):
     """Model for storing sources used in fact checking"""
