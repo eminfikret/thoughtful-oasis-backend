@@ -26,32 +26,41 @@ def call_gemini(prompt: str) -> str:
 
 def extract_claims_from_text(text: str) -> List[str]:
     """Extract factual claims from text using Gemini"""
-    prompt = f"""Extract all factual claims from the following text. 
-A factual claim is an assertion about the external world that can be independently verified using objective evidence.
+    prompt = f"""Extract only the **main factual claims explicitly asserted** in the following text.
 
-IMPORTANT RULES:
-- DO NOT include claims about the speaker/writer themselves (e.g., their job, location, appearance, or personal experiences).
-- DO NOT include statements that start with or imply "I", "my", "we", "us", or any form of personal reference.
-- DO NOT include opinions, subjective descriptions, or unverifiable experiences.
+    A **factual claim** is a specific assertion about the external world that can be independently verified using objective evidence.
 
-You must only include claims that can be verified *without any reference to the speaker or their personal context.*
+    ### IMPORTANT RULES:
 
-EXAMPLES:
+    - Only include **claims that the speaker directly asserts or implies as their main point**.
+    - **Do NOT extract background facts** or context unless the speaker is **clearly asserting them as claims**.
+    - Do NOT include claims about the speaker/writer themselves (e.g., their job, location, appearance, or personal experiences).
+    - Do NOT include statements that start with or imply "I", "my", "we", "us", or any form of personal reference.
+    - Do NOT include opinions, subjective descriptions, or unverifiable experiences.
+    - Do NOT infer multiple claims from one sentence unless **each is clearly presented as a distinct assertion**.
 
-Input: "I'm a nurse in Chicago. I see a lot of flu cases every winter."
-Output:
-CLAIM: Flu cases increase every winter in Chicago.
+    ### EXAMPLES:
 
-Input: "As someone who grew up in Alaska, I know the winters are long."
-Output:
-CLAIM: Winters in Alaska are long.
+    Input: "I'm a nurse in Chicago. I see a lot of flu cases every winter."
+    Output:
+    CLAIM: Flu cases increase every winter in Chicago.
 
-Now apply the same logic to this text:
+    Input: "Yorkshire pudding is the best part of a Sunday roast."
+    Output:
+    (No output — this is a subjective opinion.)
 
-Text: {text}
+    Input: "Yorkshire pudding is a food from England that people have been eating since the 1700s."
+    Output:
+    CLAIM: Yorkshire pudding is a food from England.
+    CLAIM: People have been eating Yorkshire pudding since the 1700s.
 
-List each distinct claim on a new line starting with "CLAIM:".
-"""  # noqa: E501
+    Now apply this to the following text:
+
+    Text: {text}
+
+    List each **clearly asserted** claim on a new line starting with "CLAIM:".
+    If there are **no clear factual claims**, write: (No factual claims found.)
+    """ # noqa: E501
     result = call_gemini(prompt)
     claims = []
     for line in result.split("\n"):

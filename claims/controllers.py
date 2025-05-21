@@ -75,7 +75,7 @@ class TextAnalysisController(APIView):
                                             ),
                                             'summary': openapi.Schema(
                                                 type=openapi.TYPE_STRING,
-                                                example="The claim is contradicted by available evidence. According to research, the Amazon rainforest produces approximately 6-9% of the world's oxygen, not 20%."
+                                                example="The claim is contradicted by available evidence. According to wikipedia, the Amazon rainforest produces approximately 6-9% of the world's oxygen, not 20%."
                                             ),
                                             'sources': openapi.Schema(
                                                 type=openapi.TYPE_ARRAY,
