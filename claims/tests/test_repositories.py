@@ -1,191 +1,454 @@
 from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.utils import IntegrityError
 
 from claims.models import Claim, FactCheck, FactCheckSource
 from claims.repositories import ClaimRepository, FactCheckRepository
 
+User = get_user_model()
+
 
 class ClaimRepositoryTest(TestCase):
-    """Tests for the ClaimRepository class"""
+    """Tests for the ClaimRepository"""
     
     def setUp(self):
         self.claim_repo = ClaimRepository()
-        
-        self.claim_data = {
-            'content_fragment': 'Test claim content',
-            'content_position': {'start': 0, 'end': 18},
-            'post_id': 123
-        }
-        
-        self.standalone_claim = Claim.objects.create(
-            content_fragment='Standalone claim',
-            content_position={'start': 0, 'end': 15}
+
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='password123'
+        )
+
+        self.user_claim = Claim.objects.create(
+            user=self.user,
+            extracted_claim="User's claim",
+            claim_index=1,
+            source_type="raw",
+            source_text="Original text"
         )
         
         self.post_claim = Claim.objects.create(
             post_id=42,
-            content_fragment='Post claim',
-            content_position={'start': 5, 'end': 15}
+            extracted_claim="Post claim",
+            claim_index=1,
+            source_type="post"
         )
         
         self.comment_claim = Claim.objects.create(
             comment_id=24,
-            content_fragment='Comment claim',
-            content_position={'start': 3, 'end': 16}
+            extracted_claim="Comment claim",
+            claim_index=1,
+            source_type="comment"
         )
+
+        self.claim_data = {
+            'user_id': self.user.id,
+            'extracted_claim': "New test claim",
+            'claim_index': 2,
+            'source_type': "raw",
+            'source_text': "Test source text"
+        }
     
     def test_create_claim(self):
         """Test creating a claim through the repository"""
-        claim = self.claim_repo.create_claim(self.claim_data)
+        claim = self.claim_repo.create_claim(**self.claim_data)
         
-        self.assertEqual(claim.content_fragment, 'Test claim content')
-        self.assertEqual(claim.post_id, 123)
+        self.assertEqual(claim.user_id, self.user.id)
+        self.assertEqual(claim.extracted_claim, "New test claim")
+        self.assertEqual(claim.claim_index, 2)
+        self.assertEqual(claim.source_type, "raw")
+        self.assertEqual(claim.source_text, "Test source text")
+
+        saved_claim = Claim.objects.get(id=claim.id)
+        self.assertEqual(saved_claim.extracted_claim, "New test claim")
+    
+    def test_create_claim_post_source(self):
+        """Test creating a claim with post source"""
+        claim = self.claim_repo.create_claim(
+            user_id=self.user.id,
+            extracted_claim="Post source claim",
+            claim_index=3,
+            source_type="post",
+            post_id=99
+        )
+        
+        self.assertEqual(claim.post_id, 99)
+        self.assertEqual(claim.source_type, "post")
+        self.assertIsNone(claim.source_text)
         self.assertIsNone(claim.comment_id)
-        self.assertEqual(claim.content_position, {'start': 0, 'end': 18})
+    
+    def test_create_claim_comment_source(self):
+        """Test creating a claim with comment source"""
+        claim = self.claim_repo.create_claim(
+            user_id=self.user.id,
+            extracted_claim="Comment source claim",
+            claim_index=4,
+            source_type="comment",
+            comment_id=88
+        )
         
-        db_claim = Claim.objects.get(id=claim.id)
-        self.assertEqual(db_claim.content_fragment, 'Test claim content')
+        self.assertEqual(claim.comment_id, 88)
+        self.assertEqual(claim.source_type, "comment")
+        self.assertIsNone(claim.source_text)
+        self.assertIsNone(claim.post_id)
     
     def test_get_claim_by_id(self):
         """Test retrieving a claim by ID"""
+        claim = self.claim_repo.get_claim_by_id(self.user_claim.id)
+        self.assertEqual(claim.id, self.user_claim.id)
+        self.assertEqual(claim.extracted_claim, "User's claim")
 
-        claim = self.claim_repo.get_claim_by_id(self.standalone_claim.id)
-        self.assertEqual(claim.id, self.standalone_claim.id)
-        self.assertEqual(claim.content_fragment, 'Standalone claim')
-        
-        claim = self.claim_repo.get_claim_by_id(99999)
-        self.assertIsNone(claim)
+        non_existent_claim = self.claim_repo.get_claim_by_id(99999)
+        self.assertIsNone(non_existent_claim)
+    
+    def test_get_claims_for_user(self):
+        """Test getting claims for a specific user"""
+        claims = self.claim_repo.get_claims_for_user(self.user.id)
+        self.assertEqual(len(claims), 1)
+        self.assertEqual(claims[0].extracted_claim, "User's claim")
+
+        other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='password123'
+        )
+        other_claims = self.claim_repo.get_claims_for_user(other_user.id)
+        self.assertEqual(len(other_claims), 0)
     
     def test_get_claims_for_post(self):
         """Test getting claims for a specific post"""
-
-        Claim.objects.create(
-            post_id=42,
-            content_fragment='Another post claim',
-            content_position={'start': 20, 'end': 38}
-        )
-
         claims = self.claim_repo.get_claims_for_post(42)
-        
-        self.assertEqual(len(claims), 2)
-        self.assertTrue(all(c.post_id == 42 for c in claims))
+        self.assertEqual(len(claims), 1)
+        self.assertEqual(claims[0].extracted_claim, "Post claim")
 
-        claims = self.claim_repo.get_claims_for_post(999)
-        self.assertEqual(len(claims), 0)
+        no_claims = self.claim_repo.get_claims_for_post(999)
+        self.assertEqual(len(no_claims), 0)
     
     def test_get_claims_for_comment(self):
         """Test getting claims for a specific comment"""
+        claims = self.claim_repo.get_claims_for_comment(24)
+        self.assertEqual(len(claims), 1)
+        self.assertEqual(claims[0].extracted_claim, "Comment claim")
 
-        Claim.objects.create(
-            comment_id=24,
-            content_fragment='Another comment claim',
-            content_position={'start': 25, 'end': 45}
+        no_claims = self.claim_repo.get_claims_for_comment(999)
+        self.assertEqual(len(no_claims), 0)
+    
+    def test_search_claims(self):
+        """Test searching claims by text"""
+        claims = self.claim_repo.search_claims("User")
+        self.assertEqual(len(claims), 1)
+        self.assertEqual(claims[0].id, self.user_claim.id)
+
+        claims = self.claim_repo.search_claims("Original")
+        self.assertEqual(len(claims), 1)
+        self.assertEqual(claims[0].id, self.user_claim.id)
+
+        claims = self.claim_repo.search_claims("nonexistent")
+        self.assertEqual(len(claims), 0)
+    
+    def test_search_claims_case_insensitive(self):
+        """Test that search is case-insensitive"""
+        claims = self.claim_repo.search_claims("user")
+        self.assertEqual(len(claims), 1)
+        self.assertEqual(claims[0].id, self.user_claim.id)
+        
+        claims = self.claim_repo.search_claims("ORIGINAL")
+        self.assertEqual(len(claims), 1)
+        self.assertEqual(claims[0].id, self.user_claim.id)
+        
+    def test_search_claims_partial_match(self):
+        """Test that search works with partial matches"""
+        claims = self.claim_repo.search_claims("claim")
+        self.assertEqual(len(claims), 3) 
+    
+    def test_bulk_create_claims(self):
+        """Test bulk creation of claims"""
+        claims_data = [
+            {
+                'user_id': self.user.id,
+                'extracted_claim': "Bulk claim 1",
+                'claim_index': 5,
+                'source_type': "raw"
+            },
+            {
+                'user_id': self.user.id,
+                'extracted_claim': "Bulk claim 2",
+                'claim_index': 6,
+                'source_type': "raw"
+            }
+        ]
+        
+        claims = self.claim_repo.bulk_create_claims(claims_data)
+        
+        self.assertEqual(len(claims), 2)
+        self.assertEqual(claims[0].extracted_claim, "Bulk claim 1")
+        self.assertEqual(claims[1].extracted_claim, "Bulk claim 2")
+        
+        # Verify claims are saved in DB
+        db_claims = Claim.objects.filter(extracted_claim__startswith="Bulk")
+        self.assertEqual(len(db_claims), 2)
+    
+    def test_update_claim(self):
+        """Test updating a claim"""
+        updated = self.claim_repo.update_claim(
+            self.user_claim.id, 
+            extracted_claim="Updated claim text"
         )
         
-
-        claims = self.claim_repo.get_claims_for_comment(24)
-
-        self.assertEqual(len(claims), 2)
-        self.assertTrue(all(c.comment_id == 24 for c in claims))
-
-        claims = self.claim_repo.get_claims_for_comment(999)
-        self.assertEqual(len(claims), 0)
+        self.assertTrue(updated)
+        
+        refreshed_claim = Claim.objects.get(id=self.user_claim.id)
+        self.assertEqual(refreshed_claim.extracted_claim, "Updated claim text")
+    
+    def test_update_nonexistent_claim(self):
+        """Test updating a non-existent claim"""
+        updated = self.claim_repo.update_claim(
+            99999,  
+            extracted_claim="This won't work"
+        )
+        
+        self.assertFalse(updated)
+    
+    def test_delete_claim(self):
+        """Test deleting a claim"""
+        claim_id = self.user_claim.id
+        deleted = self.claim_repo.delete_claim(claim_id)
+        
+        self.assertTrue(deleted)
+        
+        with self.assertRaises(Claim.DoesNotExist):
+            Claim.objects.get(id=claim_id)
+    
+    def test_delete_nonexistent_claim(self):
+        """Test deleting a non-existent claim"""
+        deleted = self.claim_repo.delete_claim(99999) 
+        
+        self.assertFalse(deleted)
 
 
 class FactCheckRepositoryTest(TestCase):
-    """Tests for the FactCheckRepository class"""
+    """Tests for the FactCheckRepository"""
     
     def setUp(self):
         self.fact_check_repo = FactCheckRepository()
         
-        self.claim = Claim.objects.create(
-            content_fragment='Test claim',
-            content_position={'start': 0, 'end': 10}
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='password123'
         )
         
-        self.fact_check_data = {
-            'claim': self.claim,
-            'verdict': 'supported',
-            'summary': 'This claim is supported by evidence'
+        self.claim = Claim.objects.create(
+            user=self.user,
+            extracted_claim="Test claim for fact checking",
+            claim_index=1,
+            source_type="raw"
+        )
+        
+        self.another_claim = Claim.objects.create(
+            user=self.user,
+            extracted_claim="Another test claim",
+            claim_index=2,
+            source_type="raw"
+        )
+    
+    def test_create_fact_check(self):
+        """Test creating a fact check"""
+        fact_check = self.fact_check_repo.create_fact_check(
+            claim_id=self.claim.id,
+            verdict="supported",
+            summary="Test summary"
+        )
+        
+        self.assertEqual(fact_check.claim_id, self.claim.id)
+        self.assertEqual(fact_check.verdict, "supported")
+        self.assertEqual(fact_check.summary, "Test summary")
+        
+        db_fact_check = FactCheck.objects.get(id=fact_check.id)
+        self.assertEqual(db_fact_check.verdict, "supported")
+    
+    def test_create_fact_check_source(self):
+        """Test creating a fact check source"""
+        fact_check = self.fact_check_repo.create_fact_check(
+            claim_id=self.claim.id,
+            verdict="supported",
+            summary="Test summary"
+        )
+        
+        source = self.fact_check_repo.create_fact_check_source(
+            fact_check_id=fact_check.id,
+            url="https://example.com/test",
+            title="Test Source",
+            description="Test description",
+            relevance_score=0.8
+        )
+        
+        self.assertEqual(source.fact_check_id, fact_check.id)
+        self.assertEqual(source.url, "https://example.com/test")
+        self.assertEqual(source.title, "Test Source")
+        self.assertEqual(source.description, "Test description")
+        self.assertEqual(source.relevance_score, 0.8)
+
+        db_source = FactCheckSource.objects.get(id=source.id)
+        self.assertEqual(db_source.title, "Test Source")
+    
+    def test_create_fact_check_with_sources(self):
+        """Test creating a fact check with sources in one transaction"""
+        fact_check_data = {
+            'claim_id': self.claim.id,
+            'verdict': 'contradicted',
+            'summary': 'Test summary with sources'
         }
         
-        self.sources_data = [
+        sources_data = [
             {
                 'url': 'https://example.com/source1',
                 'title': 'Source 1',
-                'description': 'Description of source 1',
-                'relevance_score': 0.85
+                'description': 'First test source'
             },
             {
                 'url': 'https://example.com/source2',
                 'title': 'Source 2',
-                'description': 'Description of source 2',
-                'relevance_score': 0.75
+                'description': 'Second test source',
+                'relevance_score': 0.9
             }
         ]
-    
-    def test_create_fact_check(self):
-        """Test creating a fact check through the repository"""
-        fact_check = self.fact_check_repo.create_fact_check(self.fact_check_data)
         
-        self.assertEqual(fact_check.claim, self.claim)
-        self.assertEqual(fact_check.verdict, 'supported')
-        self.assertEqual(fact_check.summary, 'This claim is supported by evidence')
-        
-        db_fact_check = FactCheck.objects.get(id=fact_check.id)
-        self.assertEqual(db_fact_check.verdict, 'supported')
-    
-    def test_create_fact_check_with_sources(self):
-        """Test creating a fact check with sources in a transaction"""
         fact_check = self.fact_check_repo.create_fact_check_with_sources(
-            self.fact_check_data, self.sources_data
+            fact_check_data, sources_data
         )
-
-        self.assertEqual(fact_check.claim, self.claim)
-        self.assertEqual(fact_check.verdict, 'supported')
+        
+        self.assertEqual(fact_check.claim_id, self.claim.id)
+        self.assertEqual(fact_check.verdict, 'contradicted')
 
         sources = FactCheckSource.objects.filter(fact_check=fact_check)
         self.assertEqual(sources.count(), 2)
-
-        source_urls = [source.url for source in sources]
-        self.assertIn('https://example.com/source1', source_urls)
-        self.assertIn('https://example.com/source2', source_urls)
+        self.assertEqual(sources[0].title, 'Source 1')
+        self.assertEqual(sources[1].title, 'Source 2')
     
     def test_get_fact_check_by_id(self):
         """Test retrieving a fact check by ID"""
-        fact_check = self.fact_check_repo.create_fact_check(self.fact_check_data)
-
+        fact_check = self.fact_check_repo.create_fact_check(
+            claim_id=self.claim.id,
+            verdict="supported",
+            summary="Test summary"
+        )
+        
         retrieved = self.fact_check_repo.get_fact_check_by_id(fact_check.id)
         self.assertEqual(retrieved.id, fact_check.id)
-        self.assertEqual(retrieved.verdict, 'supported')
+        self.assertEqual(retrieved.verdict, "supported")
         
-        retrieved = self.fact_check_repo.get_fact_check_by_id(99999)
-        self.assertIsNone(retrieved)
+        non_existent = self.fact_check_repo.get_fact_check_by_id(99999)
+        self.assertIsNone(non_existent)
+    
+    def test_get_fact_check_by_claim_id(self):
+        """Test retrieving a fact check by claim ID"""
+        fact_check = self.fact_check_repo.create_fact_check(
+            claim_id=self.claim.id,
+            verdict="supported",
+            summary="Test summary"
+        )
+        
+        retrieved = self.fact_check_repo.get_fact_check_by_claim_id(self.claim.id)
+        self.assertEqual(retrieved.id, fact_check.id)
+        self.assertEqual(retrieved.verdict, "supported")
+
+        non_existent = self.fact_check_repo.get_fact_check_by_claim_id(99999)
+        self.assertIsNone(non_existent)
     
     def test_get_fact_checks_for_claim(self):
         """Test getting fact checks for a specific claim"""
-
-        self.fact_check_repo.create_fact_check({
-            'claim': self.claim,
-            'verdict': 'supported',
-            'summary': 'First fact check'
-        })
+        self.fact_check_repo.create_fact_check(
+            claim_id=self.claim.id,
+            verdict="supported",
+            summary="Test summary"
+        )
         
-        self.fact_check_repo.create_fact_check({
-            'claim': self.claim,
-            'verdict': 'contradicted',
-            'summary': 'Second fact check'
-        })
-        
-
         fact_checks = self.fact_check_repo.get_fact_checks_for_claim(self.claim.id)
+        self.assertEqual(len(fact_checks), 1)
+        self.assertEqual(fact_checks[0].verdict, "supported")
+
+        no_checks = self.fact_check_repo.get_fact_checks_for_claim(self.another_claim.id)
+        self.assertEqual(len(no_checks), 0)
+    
+    def test_update_fact_check(self):
+        """Test updating a fact check"""
+        fact_check = self.fact_check_repo.create_fact_check(
+            claim_id=self.claim.id,
+            verdict="supported",
+            summary="Original summary"
+        )
         
-        self.assertEqual(fact_checks.count(), 2)
-        self.assertTrue(all(fc.claim_id == self.claim.id for fc in fact_checks))
+        updated = self.fact_check_repo.update_fact_check(
+            fact_check.id,
+            verdict="contradicted",
+            summary="Updated summary"
+        )
+        
+        self.assertTrue(updated)
+        
+        refreshed = FactCheck.objects.get(id=fact_check.id)
+        self.assertEqual(refreshed.verdict, "contradicted")
+        self.assertEqual(refreshed.summary, "Updated summary")
+    
+    def test_update_nonexistent_fact_check(self):
+        """Test updating a non-existent fact check"""
+        updated = self.fact_check_repo.update_fact_check(
+            99999,  
+            verdict="not_found",
+            summary="This won't work"
+        )
+        
+        self.assertFalse(updated)
+    
+    def test_delete_fact_check(self):
+        """Test deleting a fact check"""
+        fact_check = self.fact_check_repo.create_fact_check(
+            claim_id=self.claim.id,
+            verdict="supported",
+            summary="Test summary"
+        )
+        
+        fact_check_id = fact_check.id
+        deleted = self.fact_check_repo.delete_fact_check(fact_check_id)
+        
+        self.assertTrue(deleted)
+        
+        with self.assertRaises(FactCheck.DoesNotExist):
+            FactCheck.objects.get(id=fact_check_id)
+    
+    def test_delete_nonexistent_fact_check(self):
+        """Test deleting a non-existent fact check"""
+        deleted = self.fact_check_repo.delete_fact_check(99999)
+        
+        self.assertFalse(deleted)
+    
+    def test_transaction_rollback(self):
+        """Test that transactions are rolled back on error"""
+        fact_check_data = {
+            'claim_id': self.claim.id,
+            'verdict': 'supported',
+            'summary': 'Test transaction'
+        }
+        
+        sources_data = [
+            {
+                'url': 'https://example.com/source1',
+                'title': 'Valid Source'
+            },
+            {
 
-        verdicts = [fc.verdict for fc in fact_checks]
-        self.assertIn('supported', verdicts)
-        self.assertIn('contradicted', verdicts)
-
-        other_claim = Claim.objects.create(content_fragment='Other claim')
-        fact_checks = self.fact_check_repo.get_fact_checks_for_claim(other_claim.id)
-        self.assertEqual(fact_checks.count(), 0)
+                'title': 'Invalid Source'
+            }
+        ]
+        
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.fact_check_repo.create_fact_check_with_sources(
+                    fact_check_data, sources_data
+                )
+        
+        self.assertEqual(FactCheck.objects.filter(claim_id=self.claim.id).count(), 0)
+        self.assertEqual(FactCheckSource.objects.filter(title='Valid Source').count(), 0)
