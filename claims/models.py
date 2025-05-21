@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from common.models import BaseModel
+from rest_framework import serializers
 
 
 class Claim(BaseModel):
@@ -21,6 +22,8 @@ class Claim(BaseModel):
     )
     source_type = models.CharField(max_length=10, choices=SOURCE_TYPES)
     source_text = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         db_table = 'claims'
@@ -54,6 +57,7 @@ class FactCheck(BaseModel):
     )
     verdict = models.CharField(max_length=20, choices=VERDICT_CHOICES)
     summary = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         db_table = 'fact_checks'
