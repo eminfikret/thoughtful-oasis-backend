@@ -7,25 +7,25 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-GEMINI_URL = os.environ.get("GEMINI_URL", "")
+LLM_URL = os.environ.get("LLM_URL", "")
 WIKIPEDIA_API_URL = os.environ.get("WIKIPEDIA_API_URL", "")
 
-def call_gemini(prompt: str) -> str:
-    """Call Gemini API with the given prompt"""
+def call_llm(prompt: str) -> str:
+    """Call LLM API with the given prompt"""
     headers = {"Content-Type": "application/json"}
     body = {"contents": [{"parts": [{"text": prompt}]}]}
     
     try:
-        response = requests.post(GEMINI_URL, headers=headers, json=body)
+        response = requests.post(LLM_URL, headers=headers, json=body)
         response.raise_for_status()
         data = response.json()
         return data["candidates"][0]["content"]["parts"][0]["text"]
     except Exception as e:
-        logger.error(f"Error calling Gemini API: {e}")
-        raise RuntimeError(f"Failed to process with Gemini: {str(e)}")
+        logger.error(f"Error calling LLM API: {e}")
+        raise RuntimeError(f"Failed to process with LLM: {str(e)}")
 
 def extract_claims_from_text(text: str) -> List[str]:
-    """Extract factual claims from text using Gemini"""
+    """Extract factual claims from text using LLM"""
     prompt = f"""Extract only the **main factual claims explicitly asserted** in the following text.
 
     A **factual claim** is a specific assertion about the external world that can be independently verified using objective evidence.
@@ -61,7 +61,7 @@ def extract_claims_from_text(text: str) -> List[str]:
     List each **clearly asserted** claim on a new line starting with "CLAIM:".
     If there are **no clear factual claims**, write: (No factual claims found.)
     """ # noqa: E501
-    result = call_gemini(prompt)
+    result = call_llm(prompt)
     claims = []
     for line in result.split("\n"):
         if line.strip().lower().startswith("claim:"):
@@ -136,7 +136,7 @@ Respond in this format:
 Verdict: <one of supported, contradicted, not_found>
 Summary: <short explanation>
 """  # noqa: E501
-    result = call_gemini(prompt)
+    result = call_llm(prompt)
 
     lines = result.strip().split('\n')
     verdict = ""
