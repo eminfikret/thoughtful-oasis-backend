@@ -1,11 +1,10 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APIClient, APITestCase
 
 from claims.models import Claim, FactCheck, FactCheckSource
-from claims.serializers import ClaimSerializer, ClaimModelSerializer
 
 
 class ClaimControllerTest(APITestCase):
@@ -100,7 +99,8 @@ class ClaimDetailControllerTest(APITestCase):
         self.nonexistent_url = reverse('claim-detail', args=[99999])
 
         self.perm_patcher = patch('claims.controllers.ClaimDetailController.permission_classes', [])
-        self.auth_patcher = patch('claims.controllers.ClaimDetailController.authentication_classes', [])
+        self.auth_patcher = patch('claims.controllers.ClaimDetailController.authentication_classes',
+                                   [])
         self.perm_patcher.start()
         self.auth_patcher.start()
     

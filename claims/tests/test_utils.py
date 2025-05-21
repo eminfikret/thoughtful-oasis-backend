@@ -1,11 +1,11 @@
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
 from claims.models import Claim
-from claims.services import ClaimService
-from claims.utils import extract_claims_sync, extract_claims_async
+from claims.utils import extract_claims_async, extract_claims_sync
+
 
 class ClaimsUtilsTest(TestCase):
     """Tests for claims utility functions"""

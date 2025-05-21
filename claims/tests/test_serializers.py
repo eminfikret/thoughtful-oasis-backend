@@ -2,8 +2,10 @@ from django.test import TestCase
 
 from claims.models import Claim, FactCheck, FactCheckSource
 from claims.serializers import (
-    ClaimSerializer, ClaimModelSerializer,
-    FactCheckSerializer, FactCheckSourceSerializer
+    ClaimModelSerializer,
+    ClaimSerializer,
+    FactCheckSerializer,
+    FactCheckSourceSerializer,
 )
 
 
@@ -140,7 +142,8 @@ class FactCheckSerializerTest(TestCase):
         self.assertTrue(serializer.is_valid())
         
         self.assertEqual(serializer.validated_data['verdict'], "supported")
-        self.assertEqual(serializer.validated_data['summary'], "This claim is supported by evidence")
+        self.assertEqual(serializer.validated_data['summary'], 
+                         "This claim is supported by evidence")
 
 
 class ClaimModelSerializerTest(TestCase):
