@@ -57,14 +57,15 @@ class FactCheckSourceSerializerTest(TestCase):
         
         self.source = FactCheckSource.objects.create(
             fact_check=self.fact_check,
-            url="https://wikipedia/wiki",
+            url="https://wikipedia.com/facts",
             title="NASA Earth Facts",
             description="Scientific evidence about Earth's shape",
             relevance_score=0.95
         )
         
+
         self.source_data = {
-            'url': "https://wikipedia/wiki",
+            'url': "https://wikipedia.com/facts",
             'title': "Example Facts",
             'description': "Some description",
             'relevance_score': 0.75
@@ -75,7 +76,7 @@ class FactCheckSourceSerializerTest(TestCase):
         serializer = FactCheckSourceSerializer(self.source)
         data = serializer.data
         
-        self.assertEqual(data['url'], "https://wikipedia/wiki")
+        self.assertEqual(data['url'], "https://wikipedia.com/facts")
         self.assertEqual(data['title'], "NASA Earth Facts")
         self.assertEqual(data['description'], "Scientific evidence about Earth's shape")
         self.assertEqual(float(data['relevance_score']), 0.95)
@@ -87,7 +88,7 @@ class FactCheckSourceSerializerTest(TestCase):
         serializer = FactCheckSourceSerializer(data=self.source_data)
         self.assertTrue(serializer.is_valid())
         
-        self.assertEqual(serializer.validated_data['url'], "https://wikipedia/wiki")
+        self.assertEqual(serializer.validated_data['url'], "https://wikipedia.com/facts")
         self.assertEqual(serializer.validated_data['title'], "Example Facts")
         self.assertEqual(serializer.validated_data['relevance_score'], 0.75)
 
@@ -109,7 +110,7 @@ class FactCheckSerializerTest(TestCase):
         
         self.source = FactCheckSource.objects.create(
             fact_check=self.fact_check,
-            url="https://wikipedia/wiki",
+            url="https://wikipedia.com/facts",
             title="NASA Earth Facts"
         )
         
@@ -129,17 +130,15 @@ class FactCheckSerializerTest(TestCase):
         self.assertIn('created_at', data)
         self.assertIn('updated_at', data)
         
-        # Check that sources are included
         self.assertIn('sources', data)
         self.assertEqual(len(data['sources']), 1)
-        self.assertEqual(data['sources'][0]['url'], "https://wikipedia/wiki")
+        self.assertEqual(data['sources'][0]['url'], "https://wikipedia.com/facts")
     
     def test_deserialization(self):
         """Test deserializing to create a FactCheck"""
-        serializer = FactCheckSerializer(data=self.fact_check_data)
+        serializer = FactCheckSerializer(data=self.fact_check_data) 
         self.assertTrue(serializer.is_valid())
         
-        # Cannot save without claim, just validate fields
         self.assertEqual(serializer.validated_data['verdict'], "supported")
         self.assertEqual(serializer.validated_data['summary'], "This claim is supported by evidence")
 
@@ -162,7 +161,7 @@ class ClaimModelSerializerTest(TestCase):
         
         FactCheckSource.objects.create(
             fact_check=self.fact_check,
-            url="https://wikipedia/wiki",
+            url="https://wikipedia.com/facts",
             title="NASA Earth Facts"
         )
     
@@ -184,4 +183,4 @@ class ClaimModelSerializerTest(TestCase):
 
         self.assertIn('sources', data['fact_checks'][0])
         self.assertEqual(len(data['fact_checks'][0]['sources']), 1)
-        self.assertEqual(data['fact_checks'][0]['sources'][0]['url'], "https://wikipedia/wiki")
+        self.assertEqual(data['fact_checks'][0]['sources'][0]['url'], "https://wikipedia.com/facts")
