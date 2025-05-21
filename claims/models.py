@@ -5,9 +5,9 @@ from common.models import BaseModel
 
 class Claim(BaseModel):
     """Model for representing a factual claim extracted from text"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="claims")
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="claims", null=True)
     
-    # Store IDs without foreign key constraints since posts/comments aren't implemented yet
     post_id = models.IntegerField(null=True, blank=True)
     comment_id = models.IntegerField(null=True, blank=True)
     

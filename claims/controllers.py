@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import NotFound
+from django.core.exceptions import FieldError
 
 from .models import Claim
 from .serializers import TextSubmissionSerializer, ClaimWithFactCheckSerializer
@@ -35,7 +37,7 @@ class TextAnalysisController(APIView):
                     properties={
                         'message': openapi.Schema(
                             type=openapi.TYPE_STRING,
-                            example="Text analyzed successfully"
+                            example="Text analysed successfully"
                         ),
                         'claims_count': openapi.Schema(
                             type=openapi.TYPE_INTEGER,
@@ -159,7 +161,7 @@ class TextAnalysisController(APIView):
             results = claim_service.process_raw_text(user_id, text)
             
             return Response({
-                'message': "Text analyzed successfully",
+                'message': "Text analysed successfully",
                 'claims_count': len(results),
                 'results': results
             }, status=status.HTTP_201_CREATED)
@@ -293,6 +295,13 @@ class ClaimDetailController(APIView):
                 return Response({"error": "Claim not found"}, status=status.HTTP_404_NOT_FOUND)
             
             return Response(result)
+        
+        except FieldError as e:
+    
+            return Response(
+                {'error': "Database schema mismatch. Run migrations to update the database."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
             
         except Exception as e:
             return Response(

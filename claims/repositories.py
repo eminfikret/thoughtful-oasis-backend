@@ -1,5 +1,7 @@
 from typing import List, Dict, Optional, Any, Union
 from django.db import transaction
+from django.db.utils import ProgrammingError
+from django.core.exceptions import FieldError
 
 from .models import Claim, FactCheck, FactCheckSource
 
@@ -7,12 +9,12 @@ from .models import Claim, FactCheck, FactCheckSource
 class ClaimRepository:
     """Repository for interacting with claims data"""
     
-    def create_claim(self, user_id: int, source_type: str, extracted_claim: str, 
-                   claim_index: int, source_text: Optional[str] = None,
-                   post_id: Optional[int] = None, comment_id: Optional[int] = None) -> Claim:
+    def create_claim(self, user_id: Optional[int] = None, source_type: str = "", 
+                   extracted_claim: str = "", claim_index: int = 1,
+                   source_text: Optional[str] = None, post_id: Optional[int] = None, 
+                   comment_id: Optional[int] = None) -> Claim:
         """Create a new claim"""
         claim_data = {
-            'user_id': user_id,
             'post_id': post_id,
             'comment_id': comment_id,
             'extracted_claim': extracted_claim,
@@ -20,6 +22,10 @@ class ClaimRepository:
             'source_type': source_type,
             'source_text': source_text if source_type == 'raw' else None
         }
+        
+        if user_id is not None:
+            claim_data['user_id'] = user_id
+            
         return Claim.objects.create(**claim_data)
     
     def get_claim_by_id(self, claim_id: int) -> Optional[Claim]:
@@ -28,6 +34,8 @@ class ClaimRepository:
             return Claim.objects.get(id=claim_id)
         except Claim.DoesNotExist:
             return None
+        except (FieldError, ProgrammingError):
+            raise FieldError("Database schema mismatch. Run migrations to update the database.")
     
     def get_claims_for_post(self, post_id: int) -> List[Claim]:
         """Get all claims for a specific post"""

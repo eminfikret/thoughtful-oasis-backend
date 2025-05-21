@@ -43,6 +43,6 @@ class TextSubmissionSerializer(serializers.Serializer):
     """Serializer for submitting text for claim extraction and fact checking"""
     text = serializers.CharField(
         required=True,
-        help_text='Text content to analyze for factual claims',
+        help_text='Text content to analyse for factual claims',
         max_length=10000 
     )
