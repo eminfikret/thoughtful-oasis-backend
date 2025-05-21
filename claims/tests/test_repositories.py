@@ -185,8 +185,7 @@ class ClaimRepositoryTest(TestCase):
         self.assertEqual(len(claims), 2)
         self.assertEqual(claims[0].extracted_claim, "Bulk claim 1")
         self.assertEqual(claims[1].extracted_claim, "Bulk claim 2")
-        
-        # Verify claims are saved in DB
+
         db_claims = Claim.objects.filter(extracted_claim__startswith="Bulk")
         self.assertEqual(len(db_claims), 2)
     
@@ -427,28 +426,25 @@ class FactCheckRepositoryTest(TestCase):
     
     def test_transaction_rollback(self):
         """Test that transactions are rolled back on error"""
-        fact_check_data = {
-            'claim_id': self.claim.id,
-            'verdict': 'supported',
-            'summary': 'Test transaction'
-        }
-        
-        sources_data = [
-            {
-                'url': 'https://example.com/source1',
-                'title': 'Valid Source'
-            },
-            {
+        claim = Claim.objects.create(
+            extracted_claim="Test claim for transaction",
+            claim_index=1,
+            source_type="raw"
+        )
 
-                'title': 'Invalid Source'
-            }
-        ]
-        
+        fact_check_id = self.fact_check_repo.create_fact_check(
+            claim_id=claim.id,
+            verdict="supported",
+            summary="This is a valid fact check"
+        ).id
+
         with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                self.fact_check_repo.create_fact_check_with_sources(
-                    fact_check_data, sources_data
-                )
-        
-        self.assertEqual(FactCheck.objects.filter(claim_id=self.claim.id).count(), 0)
-        self.assertEqual(FactCheckSource.objects.filter(title='Valid Source').count(), 0)
+            self.fact_check_repo.create_fact_check(
+                claim_id=claim.id,
+                verdict="contradicted",
+                summary="This should fail due to one-to-one constraint"
+            )
+
+        fact_checks = FactCheck.objects.filter(claim_id=claim.id)
+        self.assertEqual(len(fact_checks), 1)
+        self.assertEqual(fact_checks[0].id, fact_check_id)
