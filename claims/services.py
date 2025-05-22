@@ -222,3 +222,83 @@ class ClaimService:
             }
             
         return result
+    
+    def get_user_claims(self, user_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all claims for the current user
+        
+        Args:
+            user_id: ID of the current user
+            
+        Returns:
+            List of claims with their fact check information
+        """
+        claims = self.claim_repository.get_claims_for_user(user_id)
+        results = []
+        
+        for claim in claims:
+            claim_data = {
+                "id": claim.id,
+                "extracted_claim": claim.extracted_claim,
+                "source_type": claim.source_type,
+                "created_at": claim.created_at,
+                "claim_index": claim.claim_index
+            }
+            
+            if claim.source_type == 'post' and claim.post_id:
+                claim_data["post_id"] = claim.post_id
+            elif claim.source_type == 'comment' and claim.comment_id:
+                claim_data["comment_id"] = claim.comment_id
+            elif claim.source_type == 'raw':
+                claim_data["source_text"] = claim.source_text
+                
+            fact_check = self.fact_check_repository.get_fact_check_by_claim_id(claim.id)
+            
+            result = {"claim": claim_data}
+            
+            if fact_check:
+                sources = fact_check.sources.all()
+                result["fact_check"] = {
+                    "id": fact_check.id,
+                    "verdict": fact_check.verdict,
+                    "summary": fact_check.summary,
+                    "created_at": fact_check.created_at,
+                    "sources": [
+                        {
+                            "id": source.id,
+                            "url": source.url,
+                            "title": source.title,
+                            "description": source.description
+                        } for source in sources
+                    ]
+                }
+            
+            results.append(result)
+            
+        return results
+    
+    def delete_claim(self, claim_id: int, user_id: int) -> Tuple[bool, str]:
+        """
+        Delete a claim and its associated fact check
+        
+        Args:
+            claim_id: ID of the claim to delete
+            user_id: ID of the user requesting deletion
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        claim = self.claim_repository.get_claim_by_id(claim_id)
+        
+        if not claim:
+            return False, "Claim not found"
+            
+        if claim.user_id != user_id:
+            return False, "You don't have permission to delete this claim"
+            
+        deleted = self.claim_repository.delete_claim(claim_id)
+        
+        if deleted:
+            return True, "Claim deleted successfully"
+        else:
+            return False, "Error deleting claim"

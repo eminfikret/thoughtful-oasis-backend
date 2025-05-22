@@ -53,6 +53,15 @@ class ClaimRepository:
         """Create multiple claims at once"""
         claims = [Claim(**data) for data in claims_data]
         return Claim.objects.bulk_create(claims)
+    
+    def delete_claim(self, claim_id: int) -> bool:
+        """Delete a claim by ID"""
+        try:
+            claim = Claim.objects.get(id=claim_id)
+            claim.delete()
+            return True
+        except Claim.DoesNotExist:
+            return False
 
 class FactCheckRepository:
     """Repository for interacting with fact check data"""

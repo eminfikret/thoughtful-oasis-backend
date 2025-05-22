@@ -308,3 +308,91 @@ class ClaimDetailController(APIView):
                 {'error': f"Error retrieving claim: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class DeleteClaimController(APIView):
+    """
+    Controller for deleting a user's claim
+    """
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    @swagger_auto_schema(
+        operation_summary="Delete a claim",
+        operation_description="Delete a claim and its associated fact check. Only the user who created the claim can delete it.",
+        tags=["Claims"],
+        responses={
+            200: openapi.Response(
+                description="Claim deleted successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Claim deleted successfully")
+                    }
+                )
+            ),
+            404: openapi.Response(description="Claim not found"),
+            403: openapi.Response(description="Forbidden - Not authorized to delete this claim"),
+            401: openapi.Response(description="Unauthorized"),
+            500: openapi.Response(description="Server error")
+        }
+    )
+    def delete(self, request, claim_id):
+        """Delete a user's claim"""
+        user_id = request.user.id
+        
+        try:
+            claim_service = ClaimService()
+            success, message = claim_service.delete_claim(claim_id, user_id)
+            
+            if success:
+                return Response({'message': message}, status=status.HTTP_200_OK)
+            elif message == "Claim not found":
+                return Response({'error': message}, status=status.HTTP_404_NOT_FOUND)
+            elif message == "You don't have permission to delete this claim":
+                return Response({'error': message}, status=status.HTTP_403_FORBIDDEN)
+            else:
+                return Response({'error': message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except Exception as e:
+            return Response(
+                {'error': f"Error deleting claim: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class UserClaimsController(APIView):
+    """
+    Controller for retrieving the current user's claims
+    """
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    @swagger_auto_schema(
+        operation_summary="Get your claims",
+        operation_description="Retrieve all claims created by the authenticated user with their fact check information",
+        tags=["Claims"],
+        responses={
+            200: openapi.Response(description="Claims retrieved successfully"),
+            401: openapi.Response(description="Unauthorized"),
+            500: openapi.Response(description="Server error")
+        }
+    )
+    def get(self, request):
+        """Get the current user's claims"""
+        user_id = request.user.id
+        
+        try:
+            claim_service = ClaimService()
+            claims = claim_service.get_user_claims(user_id)
+            
+            return Response({
+                'claims_count': len(claims),
+                'claims': claims
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': f"Error retrieving claims: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
