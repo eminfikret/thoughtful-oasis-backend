@@ -10,12 +10,10 @@ from ..utils import (
     call_llm, extract_claims_from_text, check_claim_with_wikipedia,
     get_verdict_and_summary, extract_claims_sync, extract_claims_async
 )
-# Import the mock response helpers
 from .mock_responses import (
     mock_llm_response, mock_extract_claims_response, 
     mock_verdict_and_summary_response, mock_wikipedia_response
 )
-
 
 class CallllmTest(TestCase):
     """Tests for the llm API call utility function"""
@@ -141,8 +139,6 @@ class GetVerdictAndSummaryTest(TestCase):
             "Earth is nearly spherical in shape."
         )
 
-        # Update this test to match your actual implementation's behavior
-        # Based on failures, it seems your implementation doesn't convert "partially_supported" to "not_found"
         self.assertEqual(result["verdict"], "not_found")
         self.assertEqual(result["summary"], summary)
 
@@ -152,11 +148,7 @@ class GetVerdictAndSummaryTest(TestCase):
 
         summary = """The claim is supported by available evidence.
         
-According to Wikipedia, the Earth is nearly spherical in shape. 
-Multiple lines of evidence confirm this, including:
-1. Photos from space
-2. Scientific measurements
-3. The curvature visible from high altitudes"""
+According to Wikipedia, the Earth is nearly "spherical in shape"."""
 
         mock_call_llm.return_value = mock_verdict_and_summary_response("supported", summary)
 
@@ -177,8 +169,7 @@ class CheckClaimWithWikipediaTest(TestCase):
     @patch('claims.utils.requests.get')
     def test_check_claim_with_results(self, mock_get):
         """Test checking a claim with Wikipedia results"""
-        
-        # First call (search) response
+
         search_response = MagicMock()
         search_response.raise_for_status.return_value = None
         search_response.json.return_value = mock_wikipedia_response(
@@ -186,13 +177,11 @@ class CheckClaimWithWikipediaTest(TestCase):
             page_title="Earth",
             page_content="Earth is the third planet from the Sun and the only astronomical object known to harbor life."
         )
-        
-        # Configure mock to return appropriate response
+
         mock_get.return_value = search_response
         
         result = check_claim_with_wikipedia("The Earth is round")
-        
-        # Verify the result has expected structure
+
         self.assertIn("evidence", result)
         self.assertIn("sources", result)
         self.assertGreaterEqual(len(result["sources"]), 1)
@@ -201,8 +190,7 @@ class CheckClaimWithWikipediaTest(TestCase):
     @patch('claims.utils.requests.get')
     def test_check_claim_no_results(self, mock_get):
         """Test checking a claim with no Wikipedia results"""
-        
-        # Create response with no results
+
         no_results_response = MagicMock()
         no_results_response.raise_for_status.return_value = None
         no_results_response.json.return_value = mock_wikipedia_response(has_results=False)
@@ -210,8 +198,7 @@ class CheckClaimWithWikipediaTest(TestCase):
         mock_get.return_value = no_results_response
         
         result = check_claim_with_wikipedia("A completely made up claim with no results")
-        
-        # Verify empty results
+
         self.assertEqual(result["evidence"], "No relevant Wikipedia data found.")
         self.assertEqual(result["sources"], [])
 
@@ -220,8 +207,7 @@ class CheckClaimWithWikipediaTest(TestCase):
         """Test error handling when Wikipedia API fails"""
         
         mock_get.side_effect = Exception("Mock HTTP error")
-        
-        # The function should handle the exception and return a default response
+
         result = check_claim_with_wikipedia("Any claim")
         
         self.assertEqual(result["evidence"], "Error fetching data from Wikipedia.")
