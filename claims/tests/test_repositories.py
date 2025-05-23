@@ -1,10 +1,9 @@
-from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.db.utils import IntegrityError
+from django.test import TestCase
 
-from ..models import Claim, FactCheck, FactCheckSource
+from ..models import Claim, FactCheckSource
 from ..repositories import ClaimRepository, FactCheckRepository
-from common.params import PaginationParams
 
 User = get_user_model()
 
@@ -182,7 +181,8 @@ class FactCheckRepositoryTest(TestCase):
 
     def test_get_fact_check_by_claim_id_non_existing(self):
         """Test getting a fact check by claim ID when it doesn't exist"""
-        fact_check = self.fact_check_repository.get_fact_check_by_claim_id(self.claim_without_check.id)
+        fact_check = self.fact_check_repository.get_fact_check_by_claim_id(
+            self.claim_without_check.id)
         
         self.assertIsNone(fact_check)
 

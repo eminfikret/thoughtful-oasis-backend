@@ -1,3 +1,4 @@
+from django.core.exceptions import FieldError
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -5,11 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.exceptions import NotFound
-from django.core.exceptions import FieldError
 
-from .models import Claim
-from .serializers import TextSubmissionSerializer, ClaimWithFactCheckSerializer
+from .serializers import TextSubmissionSerializer
 from .services import ClaimService
 
 
@@ -51,10 +49,12 @@ class TextAnalysisController(APIView):
                                     'claim': openapi.Schema(
                                         type=openapi.TYPE_OBJECT,
                                         properties={
-                                            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+                                            'id': openapi.Schema(type=openapi.TYPE_INTEGER,
+                                                                  example=1),
                                             'extracted_claim': openapi.Schema(
                                                 type=openapi.TYPE_STRING,
-                                                example="The Amazon rainforest produces 20% of the world's oxygen"
+                                                example="The Amazon rainforest produces " \
+                                                "20% of the world's oxygen"
                                             ),
                                             'claim_index': openapi.Schema(
                                                 type=openapi.TYPE_INTEGER,
@@ -75,7 +75,10 @@ class TextAnalysisController(APIView):
                                             ),
                                             'summary': openapi.Schema(
                                                 type=openapi.TYPE_STRING,
-                                                example="The claim is contradicted by available evidence. According to wikipedia, the Amazon rainforest produces approximately 6-9% of the world's oxygen, not 20%."
+                                                example="The claim is contradicted by available " \
+                                                "evidence. According to wikipedia, " \
+                                                "the Amazon rainforest produces approximately" \
+                                                " 6-9% of the world's oxygen, not 20%."
                                             ),
                                             'sources': openapi.Schema(
                                                 type=openapi.TYPE_ARRAY,
@@ -196,7 +199,8 @@ class ClaimDetailController(APIView):
                                 'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
                                 'extracted_claim': openapi.Schema(
                                     type=openapi.TYPE_STRING,
-                                    example="The Amazon rainforest produces 20% of the world's oxygen"
+                                    example="The Amazon rainforest " \
+                                    "produces 20% of the world's oxygen"
                                 ),
                                 'source_type': openapi.Schema(
                                     type=openapi.TYPE_STRING,
@@ -247,7 +251,9 @@ class ClaimDetailController(APIView):
                                             ),
                                             'description': openapi.Schema(
                                                 type=openapi.TYPE_STRING,
-                                                example="The Amazon rainforest, also called the Amazonia, Amazon jungle or Amazonian forest..."
+                                                example="The Amazon rainforest, " \
+                                                "also called the Amazonia, Amazon jungle "
+                                                "or Amazonian forest..."
                                             )
                                         }
                                     )
@@ -296,7 +302,7 @@ class ClaimDetailController(APIView):
             
             return Response(result)
         
-        except FieldError as e:
+        except FieldError:
     
             return Response(
                 {'error': "Database schema mismatch. Run migrations to update the database."},
@@ -319,7 +325,8 @@ class DeleteClaimController(APIView):
     
     @swagger_auto_schema(
         operation_summary="Delete a claim",
-        operation_description="Delete a claim and its associated fact check. Only the user who created the claim can delete it.",
+        operation_description="Delete a claim and its associated fact check." \
+        " Only the user who created the claim can delete it.",
         tags=["Claims"],
         responses={
             200: openapi.Response(
@@ -327,7 +334,8 @@ class DeleteClaimController(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Claim deleted successfully")
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, 
+                                                  example="Claim deleted successfully")
                     }
                 )
             ),
@@ -370,7 +378,8 @@ class UserClaimsController(APIView):
     
     @swagger_auto_schema(
         operation_summary="Get your claims",
-        operation_description="Retrieve all claims created by the authenticated user with their fact check information",
+        operation_description="Retrieve all claims created by the authenticated " \
+        "user with their fact check information",
         tags=["Claims"],
         responses={
             200: openapi.Response(description="Claims retrieved successfully"),

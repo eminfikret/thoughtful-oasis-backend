@@ -1,12 +1,13 @@
+from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from django.contrib.auth import get_user_model
 from ..models import Claim, FactCheck, FactCheckSource
 from ..services import ClaimService
-from unittest.mock import patch, MagicMock
 
 User = get_user_model()
 
@@ -83,7 +84,8 @@ class ClaimControllersTest(APITestCase):
             self.assertEqual(response.data['claims_count'], 1)
             self.assertEqual(len(response.data['results']), 1)
 
-            mock_process.assert_called_once_with(self.test_user.id, "The Earth is round. This is a fact.")
+            mock_process.assert_called_once_with(self.test_user.id,
+                                                  "The Earth is round. This is a fact.")
 
     def test_text_analysis_invalid_data(self):
         """Test submitting invalid data for analysis"""

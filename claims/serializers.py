@@ -1,7 +1,5 @@
 from rest_framework import serializers
 
-from .models import Claim, FactCheck, FactCheckSource
-
 
 class FactCheckSourceSerializer(serializers.Serializer):
     """Serializer for fact check sources"""

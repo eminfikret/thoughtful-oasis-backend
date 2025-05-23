@@ -1,14 +1,13 @@
-import unittest
-from unittest.mock import patch, MagicMock, AsyncMock
-import asyncio
-import json
 import os
+import unittest
+
 from django.test import TestCase
-import requests
 
 from ..utils import (
-    call_llm, extract_claims_from_text, check_claim_with_wikipedia,
-    get_verdict_and_summary, extract_claims_sync, extract_claims_async
+    call_llm,
+    check_claim_with_wikipedia,
+    extract_claims_from_text,
+    get_verdict_and_summary,
 )
 
 LLM_URL_SET = bool(os.environ.get("LLM_URL", ""))
@@ -33,7 +32,8 @@ class ExtractClaimsFromTextTest(TestCase):
     def test_extract_claims_real(self):
         """Test actual extraction of claims from text when environment variable is set"""
         if LLM_URL_SET:
-            result = extract_claims_from_text("The Earth is round. Water freezes at 0 degrees Celsius.")
+            result = extract_claims_from_text("The Earth is round. Water " \
+            "freezes at 0 degrees Celsius.")
             self.assertIsNotNone(result)
             self.assertIsInstance(result, list)
 

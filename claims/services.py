@@ -1,9 +1,9 @@
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 from django.db import transaction
-from concurrent.futures import ThreadPoolExecutor
 
 from .repositories import ClaimRepository, FactCheckRepository
-from .utils import extract_claims_from_text, check_claim_with_wikipedia, get_verdict_and_summary
+from .utils import check_claim_with_wikipedia, extract_claims_from_text, get_verdict_and_summary
 
 
 class ClaimService:
@@ -88,7 +88,8 @@ class ClaimService:
                 
         return results
     
-    def process_content_for_claims(self, user_id: int, content: str, source_type: str, source_id: int) -> List[Dict[str, Any]]:
+    def process_content_for_claims(self, user_id: int, content: str, source_type: str, 
+                                   source_id: int) -> List[Dict[str, Any]]:
         """
         Process content from a post or comment to extract and fact-check claims
         

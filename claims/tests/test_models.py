@@ -1,7 +1,7 @@
-from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.db.utils import IntegrityError
 from django.core.exceptions import ValidationError
+from django.db.utils import IntegrityError
+from django.test import TestCase
 
 from claims.models import Claim, FactCheck, FactCheckSource
 
@@ -53,7 +53,8 @@ class ClaimModelTest(TestCase):
         self.assertIsNone(self.standalone_claim.comment_id)
         self.assertEqual(self.standalone_claim.extracted_claim, "The Earth is flat")
         self.assertEqual(self.standalone_claim.source_type, "raw")
-        self.assertEqual(self.standalone_claim.source_text, "The Earth is flat and sits on the back of a turtle.")
+        self.assertEqual(self.standalone_claim.source_text, 
+                         "The Earth is flat and sits on the back of a turtle.")
         
         self.assertEqual(self.post_claim.post_id, 1)
         self.assertIsNone(self.post_claim.comment_id)

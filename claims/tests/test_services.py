@@ -1,10 +1,10 @@
-from django.test import TestCase
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
-from unittest.mock import patch, MagicMock
+from django.test import TestCase
 
 from ..models import Claim, FactCheck, FactCheckSource
 from ..services import ClaimService
-from ..repositories import ClaimRepository, FactCheckRepository
 
 User = get_user_model()
 
@@ -75,25 +75,30 @@ class ClaimServiceTest(TestCase):
     @patch('claims.services.extract_claims_from_text')
     @patch('claims.services.check_claim_with_wikipedia')
     @patch('claims.services.get_verdict_and_summary')
-    def test_process_raw_text_successful(self, mock_get_verdict, mock_check_claim, mock_extract_claims):
+    def test_process_raw_text_successful(self, mock_get_verdict, mock_check_claim, 
+                                         mock_extract_claims):
         """Test successful extraction and fact checking of claims from raw text"""
 
         mock_extract_claims.return_value = self.mock_extracted_claims
         mock_check_claim.return_value = self.mock_wiki_result
         mock_get_verdict.return_value = self.mock_verdict_result
 
-        results = self.service.process_raw_text(self.user.id, "The Earth is round. This is a scientific fact.")
+        results = self.service.process_raw_text(self.user.id,
+                                                 "The Earth is round. This is a scientific fact.")
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["claim"]["extracted_claim"], "The Earth is round")
         self.assertEqual(results[0]["fact_check"]["verdict"], "supported")
-        self.assertEqual(results[0]["fact_check"]["summary"], "This claim is supported by scientific evidence")
+        self.assertEqual(results[0]["fact_check"]["summary"], 
+                         "This claim is supported by scientific evidence")
         self.assertEqual(len(results[0]["fact_check"]["sources"]), 1)
         self.assertEqual(results[0]["fact_check"]["sources"][0]["url"], "https://en.wikipedia.org/wiki/Earth")
         
-        mock_extract_claims.assert_called_once_with("The Earth is round. This is a scientific fact.")
+        mock_extract_claims.assert_called_once_with("The Earth is round. " \
+        "This is a scientific fact.")
         mock_check_claim.assert_called_once_with("The Earth is round")
-        mock_get_verdict.assert_called_once_with("The Earth is round", self.mock_wiki_result["evidence"])
+        mock_get_verdict.assert_called_once_with("The Earth is round", 
+                                                 self.mock_wiki_result["evidence"])
     
     @patch('claims.services.extract_claims_from_text')
     def test_process_raw_text_no_claims_found(self, mock_extract_claims):
@@ -110,7 +115,8 @@ class ClaimServiceTest(TestCase):
     @patch('claims.services.extract_claims_from_text')
     @patch('claims.services.check_claim_with_wikipedia')
     @patch('claims.services.get_verdict_and_summary')
-    def test_process_content_for_claims_post(self, mock_get_verdict, mock_check_claim, mock_extract_claims):
+    def test_process_content_for_claims_post(self, mock_get_verdict, mock_check_claim,
+                                              mock_extract_claims):
         """Test extracting claims from post content"""
 
         mock_extract_claims.return_value = self.mock_extracted_claims
@@ -126,12 +132,14 @@ class ClaimServiceTest(TestCase):
 
         self.assertEqual(len(results), 1)
 
-        mock_extract_claims.assert_called_once_with("The Earth is round. This is a scientific fact.")
+        mock_extract_claims.assert_called_once_with("The Earth is round. " \
+        "This is a scientific fact.")
     
     @patch('claims.services.extract_claims_from_text')
     @patch('claims.services.check_claim_with_wikipedia')
     @patch('claims.services.get_verdict_and_summary')
-    def test_process_content_for_claims_comment(self, mock_get_verdict, mock_check_claim, mock_extract_claims):
+    def test_process_content_for_claims_comment(self, mock_get_verdict, mock_check_claim,
+                                                 mock_extract_claims):
         """Test extracting claims from comment content"""
 
         mock_extract_claims.return_value = self.mock_extracted_claims
@@ -206,7 +214,8 @@ class ClaimServiceTest(TestCase):
     @patch('claims.services.extract_claims_from_text')
     @patch('claims.services.check_claim_with_wikipedia')
     @patch('claims.services.get_verdict_and_summary')
-    def test_process_raw_text_multiple_claims(self, mock_get_verdict, mock_check_claim, mock_extract_claims):
+    def test_process_raw_text_multiple_claims(self, mock_get_verdict, mock_check_claim,
+                                               mock_extract_claims):
         """Test processing multiple claims from raw text"""
 
         mock_extract_claims.return_value = ["Claim 1", "Claim 2", "Claim 3"]

@@ -1,10 +1,7 @@
 from django.urls import path
 
 from . import controllers
-from .controllers import (
-    DeleteClaimController,
-    UserClaimsController
-)
+from .controllers import DeleteClaimController, UserClaimsController
 
 urlpatterns = [
     path('analyse/', controllers.TextAnalysisController.as_view(), name='analyse-text'),

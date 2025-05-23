@@ -1,14 +1,13 @@
-from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.utils import timezone
+from django.test import TestCase
 
 from ..models import Claim, FactCheck, FactCheckSource
 from ..serializers import (
-    FactCheckSourceSerializer,
-    FactCheckSerializer,
     ClaimSerializer,
     ClaimWithFactCheckSerializer,
-    TextSubmissionSerializer
+    FactCheckSerializer,
+    FactCheckSourceSerializer,
+    TextSubmissionSerializer,
 )
 
 User = get_user_model()

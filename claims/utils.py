@@ -1,9 +1,10 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-import os
-import requests
 import logging
-from typing import List, Dict, Any, Optional
+import os
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List
+
+import requests
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
-from typing import List, Dict, Optional, Any, Union
-from django.db import transaction
-from django.db.utils import ProgrammingError
+from typing import List, Optional
+
 from django.core.exceptions import FieldError
+from django.db.utils import ProgrammingError
 
 from .models import Claim, FactCheck, FactCheckSource
 
