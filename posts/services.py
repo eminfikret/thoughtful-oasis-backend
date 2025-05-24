@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from django.contrib.auth.models import User
 from posts.dtos import CreatePostDto, UpdatePostDto
@@ -7,12 +7,55 @@ from posts.models import Post
 from posts.params import PostsParams
 from posts.repositories import PostRepository
 from posts.types import PostId
+from common.params import PaginationParams
+from channels.types import ChannelId
 
+from channels.exceptions import (
+    ChannelNotFoundException,
+)
+from channels.services import (
+ChannelService
+)
 
 class PostService:
     @staticmethod
     def get_all_posts(params: PostsParams) -> List[Post]:
         return PostRepository.get_all_posts(params)
+
+    @staticmethod
+    def get_posts_by_channel(
+            channel_id: int,
+            requester: User,
+            search: Optional[str] = None,
+            pagination: Optional[PaginationParams] = None
+    ) -> List[Post]:
+        """
+        Returns posts for a given channel with optional pagination.
+        Raises:
+            ChannelNotFoundException: if no channel exists with the given ID.
+            PermissionDenied: if requester isn't allowed (optional).
+        """
+        pagination = pagination or PaginationParams()
+
+        channel = ChannelService.get_channel_by_id(channel_id)
+        if not channel:
+            raise ChannelNotFoundException()
+
+
+        return PostRepository.get_all_posts(channel=channel, pagination=pagination)
+
+    @staticmethod
+    def get_posts_count_by_channel(
+            channel_id: ChannelId,
+            requester: User,
+            search: Optional[str] = None,
+    ) -> int:
+        channel = ChannelService.get_channel_by_id(channel_id)
+
+        if not (channel.owner == requester or requester.is_staff):
+            raise PostNotFoundException()
+
+        return PostRepository.get_posts_count_by_channel(channel=channel, search=search)
 
     @staticmethod
     def get_posts_count() -> int:

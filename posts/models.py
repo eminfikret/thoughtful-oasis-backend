@@ -1,12 +1,13 @@
 from django.db import models
 from django.contrib.auth.models import User
 from channels.models import Channel
+from common.models import BaseModel
 
-class Post(models.Model):
+class Post(BaseModel):
     channel = models.ForeignKey(
         Channel,
         on_delete=models.CASCADE,
-        related_name='posts'
+        related_name='channels'
     )
     author = models.ForeignKey(
         User,
@@ -21,8 +22,8 @@ class Post(models.Model):
     class Meta:
         db_table = 'posts'
         ordering = ['created_at', 'updated_at']
-        verbose_name = 'Channel'
-        verbose_name_plural = 'Channels'
+        verbose_name = 'Post'
+        verbose_name_plural = 'Posts'
         get_latest_by = 'created_at'
 
     def __str__(self):
