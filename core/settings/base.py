@@ -33,7 +33,8 @@ INSTALLED_APPS = [
     'subscriptions',
     'factcheck',
     'api',
-    'posts'
+    'posts',
+    'comments'
 ]
 
 MIDDLEWARE = [
