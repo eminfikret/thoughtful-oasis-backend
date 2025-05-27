@@ -20,7 +20,6 @@ def process_post_fact_checking(sender, instance, created, **kwargs):
         instance: The actual post instance
         created: Boolean indicating if this is a new instance
     """
-
     if not instance.content:
         return
 
@@ -29,9 +28,12 @@ def process_post_fact_checking(sender, instance, created, **kwargs):
             claims = Claim.objects.filter(post_id=instance.id)
             claims.delete()
 
+    # put the title and content together for fact checking so that all the context is available
+    combined_text = f"TITLE: {instance.title}\n\nCONTENT:\n{instance.content}"
+
     claim_service.process_content_for_claims(
         user_id=instance.author_id, 
-        content=instance.content,
+        content=combined_text,
         source_type='post',
         source_id=instance.id
     )

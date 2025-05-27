@@ -6,4 +6,4 @@ class ClaimsConfig(AppConfig):
     name = 'claims'
     
     def ready(self):
-        pass
+        import claims.signals  
