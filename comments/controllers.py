@@ -19,7 +19,9 @@ from .services import CommentService
     tags=["Comments"],
     request_body=CreateCommentSerializer,
     responses={
-        201: openapi.Response(description="Comment created successfully", schema=PostCommentSerializer),
+        201: openapi.Response(
+            description="Comment created successfully",
+            schema=PostCommentSerializer),
         400: openapi.Response(description="Invalid input"),
         401: openapi.Response(description="Unauthorized - Authentication required"),
         404: openapi.Response(description="Post not found"),
@@ -47,7 +49,8 @@ class CreateCommentView(views.APIView):
     tags=["Comments"],
     request_body=ReplyCommentSerializer,
     responses={
-        201: openapi.Response(description="Reply created successfully", schema=PostCommentSerializer),
+        201: openapi.Response(description="Reply created successfully",
+                              schema=PostCommentSerializer),
         400: openapi.Response(description="Invalid input"),
         401: openapi.Response(description="Unauthorized - Authentication required"),
         404: openapi.Response(description="Parent comment not found"),
@@ -71,7 +74,8 @@ class CreateReplyView(views.APIView):
 
 @swagger_auto_schema(
     operation_summary="Get all comments for a post",
-    operation_description="Fetches all top-level comments for a post, using post_id in the request body.",
+    operation_description=
+    "Fetches all top-level comments for a post, using post_id in the request body.",
     tags=["Comments"],
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -81,7 +85,8 @@ class CreateReplyView(views.APIView):
         },
     ),
     responses={
-        200: openapi.Response(description="List of comments", schema=PostCommentSerializer(many=True)),
+        200: openapi.Response(description="List of comments",
+                              schema=PostCommentSerializer(many=True)),
         400: openapi.Response(description="Missing or invalid post_id"),
         404: openapi.Response(description="Post not found"),
     },
@@ -102,7 +107,8 @@ class PostCommentsView(views.APIView):
     operation_description="Returns all replies for a given comment by comment_id (passed in URL).",
     tags=["Comments"],
     responses={
-        200: openapi.Response(description="List of replies", schema=PostCommentSerializer(many=True)),
+        200: openapi.Response(description="List of replies"
+            , schema=PostCommentSerializer(many=True)),
         404: openapi.Response(description="Comment not found"),
     },
 )

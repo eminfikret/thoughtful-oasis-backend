@@ -1,5 +1,7 @@
 from typing import List, Optional
 
+from django.db.models import Q
+
 from common.params import PaginationParams
 from posts.models import Channel, Post
 from posts.types import PostId
