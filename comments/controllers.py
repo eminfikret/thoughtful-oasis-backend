@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from claims.services import ClaimService
 from posts.models import Post
 
 from .exceptions import CommentNotFound, PostNotFound
@@ -41,7 +42,13 @@ class CreateCommentView(views.APIView):
             content=serializer.validated_data['content']
         )
 
-        return Response(PostCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+        claim_service = ClaimService()
+        claims = claim_service.get_claims_for_content('comment', comment.id)
+
+        response_data = PostCommentSerializer(comment).data
+        response_data['claims'] = claims
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 @swagger_auto_schema(
     operation_summary="Reply to a comment",
@@ -70,7 +77,13 @@ class CreateReplyView(views.APIView):
             content=serializer.validated_data['content']
         )
 
-        return Response(PostCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+        claim_service = ClaimService()
+        claims = claim_service.get_claims_for_content('comment', comment.id)
+        
+        response_data = PostCommentSerializer(comment).data
+        response_data['claims'] = claims
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 @swagger_auto_schema(
     operation_summary="Get all comments for a post",

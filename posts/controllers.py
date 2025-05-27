@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from channels.types import ChannelId
+from claims.services import ClaimService
 from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
@@ -67,16 +68,20 @@ class ChannelPostsController(APIView):
 def create_post(request):
     serializer = PostCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    dto = CreatePostDto(**serializer.validated_data)
 
-    dto = CreatePostDto(
-        channel_id=serializer.validated_data['channel_id'],
-        title=serializer.validated_data['title'],
-        content=serializer.validated_data['content'],
-    )
-
-    post = PostService.create_post(dto, author=request.user)
-    serializer = PostSerializer(post)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+    try:
+        post = PostService.create_post(dto, author=request.user)
+        
+        claim_service = ClaimService()
+        claims = claim_service.get_claims_for_content('post', post.id)
+        
+        response_data = PostSerializer(post).data
+        response_data['claims'] = claims
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    except PermissionDeniedException as e:
+        raise PermissionDeniedAPIException(detail=str(e))
 
 
 @api_view(['GET'])
@@ -94,20 +99,22 @@ def get_post(request, post_id: int):
 def update_post(request, post_id: int):
     serializer = PostUpdateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-
-    dto = UpdatePostDto(
-        title=serializer.validated_data.get('title'),
-        content=serializer.validated_data.get('content'),
-    )
+    dto = UpdatePostDto(**serializer.validated_data)
 
     try:
-        post = PostService.update_post(PostId(post_id), dto, request.user)
-        serializer = PostSerializer(post)
-        return Response(serializer.data)
-    except PostNotFoundException:
-        return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
-    except UnauthorizedPostAccessException:
-        return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        post = PostService.update_post(post_id, dto, request.user)
+
+        claim_service = ClaimService()
+        claims = claim_service.get_claims_for_content('post', post.id)
+
+        response_data = PostSerializer(post).data
+        response_data['claims'] = claims
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+    except NotFoundException as e:
+        raise NotFoundAPIException(detail=str(e))
+    except PermissionDeniedException as e:
+        raise PermissionDeniedAPIException(detail=str(e))
 
 
 @api_view(['DELETE'])

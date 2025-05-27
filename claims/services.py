@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from django.db import transaction
 
+from .models import Claim
 from .repositories import ClaimRepository, FactCheckRepository
 from .utils import check_claim_with_wikipedia, extract_claims_from_text, get_verdict_and_summary
 
@@ -13,18 +14,7 @@ class ClaimService:
         self.claim_repository = ClaimRepository()
         self.fact_check_repository = FactCheckRepository()
     
-    def process_raw_text(self, user_id: int, text: str) -> List[Dict[str, Any]]:
-        """
-        Process raw text to extract claims and perform fact checking
-        
-        Args:
-            user_id: ID of the user submitting the text
-            text: Raw text to process
-            
-        Returns:
-            List of dictionaries with claim and fact check information
-        """
-   
+    def process_raw_text(self, user_id: int, text: str) -> List[Dict[str, Any]]:   
         extracted_claims = extract_claims_from_text(text)
         
         if not extracted_claims:
@@ -90,18 +80,6 @@ class ClaimService:
     
     def process_content_for_claims(self, user_id: int, content: str, source_type: str, 
                                    source_id: int) -> List[Dict[str, Any]]:
-        """
-        Process content from a post or comment to extract and fact-check claims
-        
-        Args:
-            user_id: ID of the user who created the post/comment
-            content: Text content to process
-            source_type: Either 'post' or 'comment'
-            source_id: ID of the post or comment
-            
-        Returns:
-            List of dictionaries with claim and fact check information
-        """
         if source_type not in ['post', 'comment']:
             raise ValueError(f"Invalid source_type: {source_type}. Must be 'post' or 'comment'")
         
@@ -174,15 +152,7 @@ class ClaimService:
         return results
 
     def get_claim_with_fact_check(self, claim_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get claim details along with fact check information
-        
-        Args:
-            claim_id: ID of the claim
-            
-        Returns:
-            Dictionary with claim and fact check information, or None if not found
-        """
+
         claim = self.claim_repository.get_claim_by_id(claim_id)
         if not claim:
             return None
@@ -225,15 +195,6 @@ class ClaimService:
         return result
     
     def get_user_claims(self, user_id: int) -> List[Dict[str, Any]]:
-        """
-        Get all claims for the current user
-        
-        Args:
-            user_id: ID of the current user
-            
-        Returns:
-            List of claims with their fact check information
-        """
         claims = self.claim_repository.get_claims_for_user(user_id)
         results = []
         
@@ -279,16 +240,6 @@ class ClaimService:
         return results
     
     def delete_claim(self, claim_id: int, user_id: int) -> Tuple[bool, str]:
-        """
-        Delete a claim and its associated fact check
-        
-        Args:
-            claim_id: ID of the claim to delete
-            user_id: ID of the user requesting deletion
-            
-        Returns:
-            Tuple of (success, message)
-        """
         claim = self.claim_repository.get_claim_by_id(claim_id)
         
         if not claim:
@@ -303,3 +254,61 @@ class ClaimService:
             return True, "Claim deleted successfully"
         else:
             return False, "Error deleting claim"
+    
+    def get_claims_for_content(self, source_type: str, source_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all claims for a specific post or comment
+        
+        Args:
+            source_type: Either 'post' or 'comment'
+            source_id: ID of the post or comment
+            
+        Returns:
+            List of claims with their fact check information
+        """
+        if source_type not in ['post', 'comment']:
+            raise ValueError(f"Invalid source_type: {source_type}. Must be 'post' or 'comment'")
+        
+        if source_type == 'post':
+            claims = Claim.objects.filter(post_id=source_id)
+        else:
+            claims = Claim.objects.filter(comment_id=source_id)
+        
+        results = []
+        
+        for claim in claims:
+            claim_data = {
+                "id": claim.id,
+                "extracted_claim": claim.extracted_claim,
+                "source_type": claim.source_type,
+                "created_at": claim.created_at,
+                "claim_index": claim.claim_index
+            }
+            
+            fact_check = self.fact_check_repository.get_fact_check_by_claim_id(claim.id)
+            if fact_check:
+                sources = fact_check.sources.all()
+                fact_check_data = {
+                    "id": fact_check.id,
+                    "verdict": fact_check.verdict,
+                    "summary": fact_check.summary,
+                    "created_at": fact_check.created_at,
+                    "sources": [
+                        {
+                            "id": source.id,
+                            "url": source.url,
+                            "title": source.title,
+                            "description": source.description
+                        } for source in sources
+                    ]
+                }
+                results.append({
+                    "claim": claim_data,
+                    "fact_check": fact_check_data
+                })
+            else:
+                results.append({
+                    "claim": claim_data
+                })
+        
+        return results
