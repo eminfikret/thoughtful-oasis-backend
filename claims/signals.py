@@ -2,8 +2,9 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from posts.models import Post
 from comments.models import Comment
+from posts.models import Post
+
 from .models import Claim
 from .services import ClaimService
 
