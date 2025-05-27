@@ -6,4 +6,4 @@ class ClaimsConfig(AppConfig):
     name = 'claims'
     
     def ready(self):
-        import claims.signals  
+        import claims.signals  # noqa
