@@ -4,4 +4,5 @@ urlpatterns = [
     path('users/', include('users.routes')),
     path('channels/', include('channels.routes')),
     path('claims/', include('claims.routes')),
+    path('posts/', include('posts.routes')),
 ]
