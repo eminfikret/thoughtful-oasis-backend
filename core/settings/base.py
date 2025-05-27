@@ -32,11 +32,9 @@ INSTALLED_APPS = [
     'channels',
     'subscriptions',
     'claims',
-    'posts'
-    'api',
     'posts',
+    'api',
     'comments'
-    'claims',
 ]
 
 MIDDLEWARE = [
