@@ -1,9 +1,11 @@
-from posts.models import Post
-from users.models import User
+from django.shortcuts import get_object_or_404
+
+from comments.exceptions import CommentNotFound, InvalidReplyDepth
 from comments.models import Comment
 from comments.repositories import CommentRepository
-from django.shortcuts import get_object_or_404
-from comments.exceptions import CommentNotFound, InvalidReplyDepth
+from posts.models import Post
+from users.models import User
+
 
 class CommentService:
 

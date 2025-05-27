@@ -1,22 +1,21 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from common.exceptions import NotFoundException, PermissionDeniedException
 from rest_framework.request import Request
-from channels.types import ChannelId
+from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from channels.types import ChannelId
+from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
-from common.serializers import PaginatedResponseSerializer
 from posts.dtos import CreatePostDto, UpdatePostDto
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
-from posts.params import PostsParams
 from posts.serializers import (
-    PostSerializer,
     PostCreateSerializer,
-    PostUpdateSerializer,
+    PostSerializer,
     PostsQueryParamsSerializer,
+    PostUpdateSerializer,
 )
 from posts.services import PostService
 from posts.types import PostId

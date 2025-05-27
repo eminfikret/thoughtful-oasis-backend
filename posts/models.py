@@ -1,7 +1,9 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
+
 from channels.models import Channel
 from common.models import BaseModel
+
 
 class Post(BaseModel):
     channel = models.ForeignKey(

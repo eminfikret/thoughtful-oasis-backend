@@ -1,16 +1,18 @@
-from rest_framework import status, views
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status, views
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
-
-from .serializers import CreateCommentSerializer, ReplyCommentSerializer, PostCommentSerializer
-from .services import CommentService
 from posts.models import Post
+
+from .exceptions import CommentNotFound, PostNotFound
 from .models import Comment
-from .exceptions import PostNotFound, CommentNotFound
+from .serializers import CreateCommentSerializer, PostCommentSerializer, ReplyCommentSerializer
+from .services import CommentService
+
+
 @swagger_auto_schema(
     operation_summary="Create a comment on a post",
     operation_description="Creates a new top-level comment on the specified post by post_id.",

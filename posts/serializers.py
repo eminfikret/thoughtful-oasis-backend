@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from common.serializers import PaginationQueryParams
+
 from .models import Post
 
 

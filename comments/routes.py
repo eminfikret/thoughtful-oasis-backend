@@ -1,4 +1,5 @@
 from django.urls import path
+
 from comments import controllers as comment_controllers
 
 urlpatterns = [

@@ -1,7 +1,6 @@
-from comments.models import Comment
-from posts.models import Post
-from common.serializers import PaginationQueryParams
 from rest_framework import serializers
+
+from comments.models import Comment
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):

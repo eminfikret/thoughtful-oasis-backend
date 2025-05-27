@@ -1,5 +1,6 @@
-from .models import Comment
 from django.db.models import Prefetch
+
+from .models import Comment
 
 
 class CommentRepository:
