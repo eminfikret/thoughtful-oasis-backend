@@ -1,15 +1,10 @@
-from typing import Optional, List
+from typing import List, Optional
 
-from django.db.models import QuerySet
+from django.db.models import Q
 
-
-from posts.models import Post
-from posts.models import Channel
-from posts.params import PostsParams
-from posts.types import PostId
 from common.params import PaginationParams
-from common.optional_query import OptionalQ
-
+from posts.models import Channel, Post
+from posts.types import PostId
 
 
 class PostRepository:

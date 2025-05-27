@@ -5,5 +5,6 @@ urlpatterns = [
     path('channels/', include('channels.routes')),
     path('subscriptions/', include('subscriptions.routes')),
     path('posts/', include('posts.routes')),
+    path('comments/', include('comments.routes')),
 
 ]

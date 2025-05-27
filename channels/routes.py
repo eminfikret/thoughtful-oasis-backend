@@ -1,8 +1,8 @@
 from django.urls import path
 
 from channels import controllers as channel_controllers
-from subscriptions import controllers as subscription_controllers
 from posts import controllers as post_controllers
+from subscriptions import controllers as subscription_controllers
 
 urlpatterns = [
     path(

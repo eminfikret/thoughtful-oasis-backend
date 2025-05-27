@@ -1,21 +1,20 @@
 from typing import List, Optional
 
 from django.contrib.auth.models import User
+
+from channels.exceptions import (
+    ChannelNotFoundException,
+)
+from channels.services import ChannelService
+from channels.types import ChannelId
+from common.params import PaginationParams
 from posts.dtos import CreatePostDto, UpdatePostDto
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
 from posts.models import Post
 from posts.params import PostsParams
 from posts.repositories import PostRepository
 from posts.types import PostId
-from common.params import PaginationParams
-from channels.types import ChannelId
 
-from channels.exceptions import (
-    ChannelNotFoundException,
-)
-from channels.services import (
-ChannelService
-)
 
 class PostService:
     @staticmethod
