@@ -1,6 +1,7 @@
 from django.urls import path
 
 from channels import controllers as channel_controllers
+from posts import controllers as post_controllers
 from subscriptions import controllers as subscription_controllers
 
 urlpatterns = [
@@ -29,4 +30,9 @@ urlpatterns = [
         subscription_controllers.UnsubscribeController.as_view(),
         name='channel-unsubscribe'
     ),
+    path(
+        '<int:pk>/posts/',
+        post_controllers.ChannelPostsController.as_view(),
+        name='get_posts_by_channel'),
+
 ]

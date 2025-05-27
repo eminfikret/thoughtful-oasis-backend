@@ -5,4 +5,7 @@ urlpatterns = [
     path('channels/', include('channels.routes')),
     path('claims/', include('claims.routes')),
     path('posts/', include('posts.routes')),
+    path('posts/', include('posts.routes')),
+    path('comments/', include('comments.routes')),
+    path('claims/', include('claims.routes')),
 ]

@@ -1,16 +1,23 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import NotFound as NotFoundAPIException
+from rest_framework.exceptions import PermissionDenied as PermissionDeniedAPIException
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from channels.types import ChannelId
+from common.exceptions import NotFoundException, PermissionDeniedException
+from common.params import PaginationParams
+from common.responses import PaginatedResponse
 from posts.dtos import CreatePostDto, UpdatePostDto
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
-from posts.params import PostsParams
 from posts.serializers import (
-    PostSerializer,
     PostCreateSerializer,
-    PostUpdateSerializer,
+    PostSerializer,
     PostsQueryParamsSerializer,
+    PostUpdateSerializer,
 )
 from posts.services import PostService
 from posts.types import PostId
@@ -25,7 +32,35 @@ def list_posts(request):
     serializer = PostSerializer(posts, many=True)
 
     return Response(serializer.data)
+class ChannelPostsController(APIView):
+    def get(self, request: Request, pk: ChannelId):
+        query_serializer = PostsQueryParamsSerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        params = query_serializer.validated_data
 
+        try:
+            posts = PostService.get_posts_by_channel(
+                channel_id=pk,
+                requester=request.user,
+                pagination=PaginationParams(limit=params.get('limit'), offset=params.get('offset')),
+                search=params.get('search')
+            )
+            count = PostService.get_posts_count_by_channel(
+                channel_id=pk,
+                requester=request.user,
+                search=params.get('search')
+            )
+        except NotFoundException as e:
+            raise NotFoundAPIException(detail=str(e))
+        except PermissionDeniedException as e:
+            raise PermissionDeniedAPIException(detail=str(e))
+
+        serializer = PostSerializer(posts, many=True)
+        return PaginatedResponse(
+            results=serializer.data,
+            count=count,
+            request=request
+        )
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -40,7 +75,6 @@ def create_post(request):
     )
 
     post = PostService.create_post(dto, author=request.user)
-
     serializer = PostSerializer(post)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 

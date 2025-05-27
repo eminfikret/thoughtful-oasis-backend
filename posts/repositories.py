@@ -1,32 +1,27 @@
-from typing import Optional, List
+from typing import List, Optional
 
-from django.db.models import QuerySet
+from django.db.models import Q
 
-from posts.models import Post
-from posts.params import PostsParams
+from common.params import PaginationParams
+from posts.models import Channel, Post
 from posts.types import PostId
 
 
 class PostRepository:
     @staticmethod
-    def get_all_posts(params: PostsParams) -> List[Post]:
-        """
-        Returns a paginated, ordered list of Posts.
-        """
-        qs: QuerySet = Post.objects.select_related('author', 'channel').all()
+    def get_all_posts(
+            search: Optional[str] = None,
+            pagination: Optional[PaginationParams] = None,
+            channel: Optional[Channel] = None,
+    ) -> List[Post]:
+        pagination = pagination or PaginationParams()
 
-        # Apply ordering if provided
-        if params.ordering:
-            qs = qs.order_by(params.ordering)
+        queryset = Post.objects.select_related('channel', 'author').all()
 
-        # Pagination
-        if params.page is not None and params.page_size is not None:
-            offset = (params.page - 1) * params.page_size
-            limit = offset + params.page_size
-            qs = qs[offset:limit]
+        if channel:
+            queryset = queryset.filter(channel=channel)
 
-        return list(qs)
-
+        return list(queryset[pagination.offset:pagination.offset + pagination.limit])
     @staticmethod
     def get_posts_count() -> int:
         """
@@ -43,6 +38,20 @@ class PostRepository:
             return Post.objects.select_related('author', 'channel').get(pk=post_id)
         except Post.DoesNotExist:
             return None
+
+    @staticmethod
+    def get_posts_count_by_channel(
+            channel: Channel,
+            search: Optional[str] = None
+    ) -> int:
+        queryset = Post.objects.filter(channel=channel)
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(content__icontains=search)
+            )
+
+        return queryset.count()
 
     @staticmethod
     def create_post(
