@@ -12,14 +12,6 @@ claim_service = ClaimService()
 
 @receiver(post_save, sender=Post)
 def process_post_fact_checking(sender, instance, created, **kwargs):
-    """
-    Process fact checking when a post is created or updated
-    
-    Args:
-        sender: The model class
-        instance: The actual post instance
-        created: Boolean indicating if this is a new instance
-    """
     if not instance.content:
         return
 
@@ -41,14 +33,6 @@ def process_post_fact_checking(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Comment)
 def process_comment_fact_checking(sender, instance, created, **kwargs):
-    """
-    Process fact checking when a comment is created
-    
-    Args:
-        sender: The model class
-        instance: The actual comment instance
-        created: Boolean indicating if this is a new instance
-    """
     if not instance.content or not created:
         return
 
