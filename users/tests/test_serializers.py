@@ -104,6 +104,26 @@ class SerializersTest(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn('password', serializer.errors)
     
+    def test_register_serializer_with_too_short_password(self):
+        """Test that weak passwords are rejected"""
+        data = {
+            'username': 'newuser',
+            'password': 'weak',  # test with too short password
+            'password2': 'weak',
+            'email': 'new@example.com',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        serializer = RegisterSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('password', serializer.errors)
+        
+        # Test numeric-only password
+        data['password'] = data['password2'] = '12345678'
+        serializer = RegisterSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('password', serializer.errors)
+    
     def test_login_serializer(self):
         data = {
             'username': 'testuser',
@@ -125,3 +145,58 @@ class SerializersTest(TestCase):
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data['bio'], 'New bio content')
         self.assertEqual(serializer.validated_data['website'], 'https://newsite.com')
+    
+    def test_password_validation_variations(self):
+        """Test various password patterns against Django's validation rules"""
+        base_data = {
+            'username': 'newuser',
+            'email': 'new@example.com',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        
+        # password too similar to username
+        data = base_data.copy()
+        data['password'] = data['password2'] = 'newuser123'
+        serializer = RegisterSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('password', serializer.errors)
+        
+        # common password from Django's list
+        data = base_data.copy()
+        data['password'] = data['password2'] = 'password123'
+        serializer = RegisterSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('password', serializer.errors)
+        
+        # valid and complex password
+        data = base_data.copy()
+        data['password'] = data['password2'] = 'Complex8$Password!'
+        serializer = RegisterSerializer(data=data)
+        self.assertTrue(
+            serializer.is_valid(), 
+            f"Valid password rejected with errors: "
+            f"{serializer.errors if not serializer.is_valid() else 'None'}")
+    
+    def test_register_serializer_with_duplicate_email(self):
+        """Test that duplicate emails are rejected"""
+    
+        User.objects.create_user(
+            username='existinguser',
+            email='duplicate@example.com',
+            password='password123'
+        )
+        
+        # try to register another user with the same email
+        data = {
+            'username': 'newuser',
+            'email': 'duplicate@example.com',
+            'password': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        
+        serializer = RegisterSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('email', serializer.errors)

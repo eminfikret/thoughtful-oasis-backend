@@ -28,6 +28,7 @@ class UserListController(APIView):
     @swagger_auto_schema(
         operation_summary="List all users",
         operation_description="Get a list of all users",
+        tags=["Users"],
         responses={200: openapi.Response(
             description="List of users",
             schema=openapi.Schema(
@@ -62,6 +63,7 @@ class RegisterController(APIView):
     @swagger_auto_schema(
         operation_summary="Register a new user",
         operation_description="Register a new user",
+        tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['username', 'password', 'password2', 'email'],
@@ -110,6 +112,7 @@ class LoginController(APIView):
     @swagger_auto_schema(
         operation_summary="Login a user",
         operation_description="Login a user and receive an authentication token",
+        tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['username', 'password'],
@@ -163,9 +166,11 @@ class LoginController(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class RefreshTokenView(APIView):
     @swagger_auto_schema(
         operation_description="Refresh an access token using a valid refresh token",
+        tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['refresh_token'],
@@ -189,15 +194,15 @@ class RefreshTokenView(APIView):
     def post(self, request):
         refresh_token = request.data.get("refresh_token")
         if not refresh_token:
-            return Response({"error": "Refresh token is required"},
-            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Refresh token is required"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
 
         user_service = UserService()
         tokens = user_service.refresh_token(refresh_token)
 
         if tokens is None:
-            return Response({"error": "Invalid or expired refresh token"},
-            status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "Invalid or expired refresh token"}, 
+                            status=status.HTTP_401_UNAUTHORIZED)
 
         return Response(tokens, status=status.HTTP_200_OK)
 
@@ -213,6 +218,7 @@ class UserDetailController(APIView):
     @swagger_auto_schema(
         operation_summary="Get user details",
         operation_description="Get details for a specific user",
+        tags=["Users"],
         responses={
             200: UserDetailSerializer(),
             404: "User not found"
@@ -230,6 +236,7 @@ class UserDetailController(APIView):
     @swagger_auto_schema(
         operation_summary="Update user details",
         operation_description="Update details for a specific user",
+        tags=["Users"],
         request_body=UserDetailSerializer,
         responses={
             200: UserDetailSerializer(),
@@ -268,6 +275,7 @@ class UserProfileController(APIView):
     @swagger_auto_schema(
         operation_summary="Get user profile",
         operation_description="Get profile for a specific user",
+        tags=["Users"],
         responses={
             200: UserProfileSerializer(),
             404: "Profile not found"
@@ -285,23 +293,43 @@ class UserProfileController(APIView):
     @swagger_auto_schema(
         operation_summary="Update user profile",
         operation_description="Update profile for a specific user",
+        tags=["Users"],
         request_body=UserProfileUpdateSerializer,
         responses={
             200: UserProfileSerializer(),
             400: "Bad request",
-            403: "Permission denied",
-            404: "Profile not found"
+            403: openapi.Response(
+                description="Permission denied",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                                example="You can only update your own profile")
+                    }
+                )
+            ),
+            404: openapi.Response(
+                description="Not found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
+                                                example="Profile not found")
+                    }
+                )
+            )
         }
     )
     def patch(self, request, user_id):
         """Update a specific user's profile"""
         # Only allow users to update their own profile
         if request.user.id != int(user_id):
-            raise PermissionDenied("You can only update your own profile")
+            return Response({"error": "You can only update your own profile"}, 
+                            status=status.HTTP_403_FORBIDDEN)
 
         profile = self.user_service.get_user_profile(user_id)
         if not profile:
-            raise NotFound("Profile not found")
+            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
@@ -309,3 +337,117 @@ class UserProfileController(APIView):
             return Response(UserProfileSerializer(profile).data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CheckUsernameEmailController(APIView):
+    """Controller for checking if a username or email is already taken"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_service = UserService()
+
+    @swagger_auto_schema(
+        operation_summary="Check if username or email exists",
+        operation_description="Check if a username or email is already registered in the system",
+        tags=["Users"],
+        manual_parameters=[
+            openapi.Parameter(
+                name='username',
+                in_=openapi.IN_QUERY,
+                description='Username to check',
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                name='email',
+                in_=openapi.IN_QUERY,
+                description='Email to check',
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Check successful",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'username_exists': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        'email_exists': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    }
+                )
+            ),
+            400: "Bad request - At least one parameter required"
+        }
+    )
+    def get(self, request):
+        """Check if username or email exists"""
+        username = request.query_params.get('username')
+        email = request.query_params.get('email')
+        
+        if not username and not email:
+            return Response(
+                {"error": "Either username or email parameter is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        result = self.user_service.check_username_email_exists(username, email)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class UserDeleteController(APIView):
+    """Controller for deleting a user account"""
+    permission_classes = [IsAuthenticated]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_service = UserService()
+
+    @swagger_auto_schema(
+        operation_summary="Delete user account",
+        operation_description="Delete your own user account permanently",
+        tags=["Users"],
+        responses={
+            204: openapi.Response(description="User deleted successfully"),
+            401: openapi.Response(description="Unauthorized - Authentication required"),
+            403: openapi.Response(
+                description="Permission denied",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="You can only delete your own account"
+                        )
+                    }
+                )
+            ),
+            404: openapi.Response(
+                description="User not found",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(type=openapi.TYPE_STRING, example="User not found")
+                    }
+                )
+            )
+        }
+    )
+    def delete(self, request, user_id):
+        """Delete a user account"""
+        user = self.user_service.get_user_by_id(user_id)
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.user.id != int(user_id):
+            return Response(
+                {"error": "You can only delete your own account"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        success = self.user_service.delete_user(user_id)
+        if not success:
+            return Response({"error": "Failed to delete user"}, 
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+        return Response(status=status.HTTP_204_NO_CONTENT)

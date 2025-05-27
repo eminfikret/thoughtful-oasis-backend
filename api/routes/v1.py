@@ -7,4 +7,5 @@ urlpatterns = [
     path('posts/', include('posts.routes')),
     path('comments/', include('comments.routes')),
 
+    path('claims/', include('claims.routes')),
 ]

@@ -28,8 +28,15 @@ The application comes with pre-configured users for testing:
 
 The Django admin panel is available at `localhost:8000/admin`.
 
+
+### Testing
+This project consists of tests for each module. To run all tests, navigate to the `/docker` folder and run:
+```bash
+docker compose exec app python manage.py test
+```
+
 ### Linting
-This project uses Ruff for Python code linting. To run linting checks, Navigate to the `/docker` folder and run:
+This project uses Ruff for Python code linting. To run linting checks, navigate to the `/docker` folder and run:
 
 ```bash
 docker-compose -f docker-compose.yml run --rm lint

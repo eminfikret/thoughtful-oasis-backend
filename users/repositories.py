@@ -1,5 +1,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 
 from .models import UserProfile
@@ -27,14 +29,30 @@ class UserRepository:
             return None
     
     def create_user(self, user_data):
+        """Create a new user with password validation"""
+        password = user_data.get('password')
+        
+        validate_password(password)
+
         return User.objects.create_user(**user_data)
     
     def authenticate_user(self, username, password):
         return authenticate(username=username, password=password)
     
-    def update_user(self, user, user_data):
-        for field, value in user_data.items():
-            setattr(user, field, value)
+    def update_user(self, user, update_data):
+        """Update user fields"""
+        # If password is being updated, validate it
+        if 'password' in update_data:
+            try:
+                validate_password(update_data['password'])
+                user.set_password(update_data.pop('password'))
+            except ValidationError as e:
+                raise e
+        
+        # Update other fields
+        for key, value in update_data.items():
+            setattr(user, key, value)
+        
         user.save()
         return user
     
@@ -55,3 +73,20 @@ class UserRepository:
         profile.reputation += amount
         profile.save()
         return profile
+    
+    def check_username_email_exists(self, username=None, email=None):
+        """Check if a username or email already exists in the system."""
+        result = {
+            'username_exists': False,
+            'email_exists': False
+        }
+        
+        if username:
+            # Use case-insensitive comparison with __iexact
+            result['username_exists'] = User.objects.filter(username__iexact=username).exists()
+        
+        if email:
+            # Use case-insensitive comparison with __iexact
+            result['email_exists'] = User.objects.filter(email__iexact=email).exists()
+        
+        return result

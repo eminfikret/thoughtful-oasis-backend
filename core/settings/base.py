@@ -24,10 +24,9 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
-    'rest_framework_simplejwt',
-    'drf_yasg',  # Swagger
+    'drf_yasg',
     
-    # Local apps
+    # Project apps
     'users',
     'channels',
     'subscriptions',
@@ -35,6 +34,7 @@ INSTALLED_APPS = [
     'api',
     'posts',
     'comments'
+    'claims',
 ]
 
 MIDDLEWARE = [
@@ -75,7 +75,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('POSTGRES_DB', 'fact_check_db'),
         'USER': os.environ.get('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', '12345678'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
         'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
@@ -88,6 +88,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -128,7 +131,8 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-    'PAGE_SIZE': 100
+    'PAGE_SIZE': 100,
+    'EXCEPTION_HANDLER': 'common.exception_handler.custom_exception_handler'
 }
 
 MEDIA_URL = '/media/'

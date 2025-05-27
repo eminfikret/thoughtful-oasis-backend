@@ -7,7 +7,7 @@ from common.serializers import PaginationQueryParams
 from .models import Subscription
 
 
-class SubscriptionSerializer(serializers.ModelSerializer):
+class SubscriptionRawSerializer(serializers.ModelSerializer):
     channel_id = serializers.PrimaryKeyRelatedField(source='channel', read_only=True)
     subscriber_id = serializers.PrimaryKeyRelatedField(source='subscriber', read_only=True)
 
@@ -39,7 +39,7 @@ class ChannelSummarySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'created_at']
         read_only_fields = fields
 
-class MySubscriptionSerializer(serializers.ModelSerializer):
+class SubscriptionSerializer(serializers.ModelSerializer):
     channel = ChannelSummarySerializer(read_only=True)
     subscribed_at = serializers.DateTimeField(source='created_at')
 
