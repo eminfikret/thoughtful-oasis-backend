@@ -3,9 +3,9 @@ from django.db.utils import IntegrityError
 from django.test import TestCase
 
 from comments.models import Comment
-from posts.models import Post, Channel
-from votes.models import PostVote, CommentVote
 from common.test_utils import disable_fact_checking_signals
+from posts.models import Channel, Post
+from votes.models import CommentVote, PostVote
 
 
 class VoteModelsTest(TestCase):
@@ -65,13 +65,15 @@ class VoteModelsTest(TestCase):
         self.assertEqual(vote.comment, self.comment)
         self.assertEqual(vote.user, self.user)
         self.assertTrue(vote.is_upvote)
-        self.assertEqual(vote.__str__(), f"Upvote on comment {self.comment.id} by {self.user.username}")
+        self.assertEqual(vote.__str__(),
+                          f"Upvote on comment {self.comment.id} by {self.user.username}")
         
         vote.is_upvote = False
         vote.save()
         vote.refresh_from_db()
         self.assertFalse(vote.is_upvote)
-        self.assertEqual(vote.__str__(), f"Downvote on comment {self.comment.id} by {self.user.username}")
+        self.assertEqual(vote.__str__(),
+                          f"Downvote on comment {self.comment.id} by {self.user.username}")
 
     def test_comment_vote_unique_constraint(self):
         """Test that a user can't have multiple votes on the same comment"""

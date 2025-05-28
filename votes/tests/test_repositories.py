@@ -2,10 +2,10 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from comments.models import Comment
-from posts.models import Post, Channel
-from votes.models import PostVote, CommentVote
-from votes.repositories import VoteRepository
 from common.test_utils import disable_fact_checking_signals
+from posts.models import Channel, Post
+from votes.models import CommentVote, PostVote
+from votes.repositories import VoteRepository
 
 
 class VoteRepositoryTest(TestCase):

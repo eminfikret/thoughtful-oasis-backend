@@ -5,9 +5,9 @@ from rest_framework.test import APIClient, APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from comments.models import Comment
-from posts.models import Post, Channel
-from votes.models import PostVote, CommentVote
 from common.test_utils import disable_fact_checking_signals
+from posts.models import Channel, Post
+from votes.models import CommentVote, PostVote
 
 
 class VoteControllersTest(APITestCase):
@@ -53,8 +53,10 @@ class VoteControllersTest(APITestCase):
         self.downvote_post_url = reverse('downvote_post', kwargs={'post_id': self.post.id})
         self.get_post_votes_url = reverse('get_post_votes', kwargs={'post_id': self.post.id})
         self.upvote_comment_url = reverse('upvote_comment', kwargs={'comment_id': self.comment.id})
-        self.downvote_comment_url = reverse('downvote_comment', kwargs={'comment_id': self.comment.id})
-        self.get_comment_votes_url = reverse('get_comment_votes', kwargs={'comment_id': self.comment.id})
+        self.downvote_comment_url = reverse('downvote_comment', 
+                                            kwargs={'comment_id': self.comment.id})
+        self.get_comment_votes_url = reverse('get_comment_votes', 
+                                             kwargs={'comment_id': self.comment.id})
 
     def authenticate(self):
         """Helper method to authenticate requests"""

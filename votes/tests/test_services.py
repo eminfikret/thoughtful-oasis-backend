@@ -3,11 +3,11 @@ from django.test import TestCase
 
 from comments.exceptions import CommentNotFound
 from comments.models import Comment
-from posts.exceptions import PostNotFoundException
-from posts.models import Post, Channel
-from votes.models import PostVote, CommentVote
-from votes.services import VoteService
 from common.test_utils import disable_fact_checking_signals
+from posts.exceptions import PostNotFoundException
+from posts.models import Channel, Post
+from votes.models import CommentVote, PostVote
+from votes.services import VoteService
 
 
 class VoteServiceTest(TestCase):
