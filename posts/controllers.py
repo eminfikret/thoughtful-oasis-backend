@@ -88,8 +88,14 @@ def create_post(request):
 def get_post(request, post_id: int):
     try:
         post = PostService.get_post_by_id(PostId(post_id))
-        serializer = PostSerializer(post)
-        return Response(serializer.data)
+        
+        claim_service = ClaimService()
+        claims = claim_service.get_claims_for_content('post', post.id)
+        
+        response_data = PostSerializer(post).data
+        response_data['claims'] = claims
+        
+        return Response(response_data)
     except PostNotFoundException:
         return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
 

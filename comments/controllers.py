@@ -104,6 +104,7 @@ class CreateReplyView(views.APIView):
         404: openapi.Response(description="Post not found"),
     },
 )
+
 class PostCommentsView(views.APIView):
     def get(self, request):
         post_id = request.data.get('post_id')
@@ -112,8 +113,16 @@ class PostCommentsView(views.APIView):
         except Post.DoesNotExist:
             raise PostNotFound()
 
-        serializer = PostCommentSerializer(comments, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        claim_service = ClaimService()
+        response_data = []
+        
+        for comment in comments:
+            comment_data = PostCommentSerializer(comment).data
+            claims = claim_service.get_claims_for_content('comment', comment.id)
+            comment_data['claims'] = claims
+            response_data.append(comment_data)
+            
+        return Response(response_data, status=status.HTTP_200_OK)
 
 @swagger_auto_schema(
     operation_summary="Get replies to a comment",
@@ -125,6 +134,7 @@ class PostCommentsView(views.APIView):
         404: openapi.Response(description="Comment not found"),
     },
 )
+
 class CommentRepliesView(views.APIView):
     def get(self, request, comment_id):
         try:
@@ -132,5 +142,13 @@ class CommentRepliesView(views.APIView):
         except Comment.DoesNotExist:
             raise CommentNotFound()
 
-        serializer = PostCommentSerializer(replies, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        claim_service = ClaimService()
+        response_data = []
+        
+        for reply in replies:
+            reply_data = PostCommentSerializer(reply).data
+            claims = claim_service.get_claims_for_content('comment', reply.id)
+            reply_data['claims'] = claims
+            response_data.append(reply_data)
+            
+        return Response(response_data, status=status.HTTP_200_OK)
