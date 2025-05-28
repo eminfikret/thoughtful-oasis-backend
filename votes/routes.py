@@ -1,4 +1,5 @@
 from django.urls import path
+
 from . import controllers
 
 urlpatterns = [
@@ -9,6 +10,8 @@ urlpatterns = [
     
     # Comment voting
     path('comments/<int:comment_id>/upvote/', controllers.upvote_comment, name='upvote_comment'),
-    path('comments/<int:comment_id>/downvote/', controllers.downvote_comment, name='downvote_comment'),
-    path('comments/<int:comment_id>/votes/', controllers.get_comment_votes, name='get_comment_votes'),
+    path('comments/<int:comment_id>/downvote/', 
+         controllers.downvote_comment, name='downvote_comment'),
+    path('comments/<int:comment_id>/votes/', 
+         controllers.get_comment_votes, name='get_comment_votes'),
 ]

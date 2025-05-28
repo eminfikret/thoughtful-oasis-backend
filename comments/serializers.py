@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from votes.repositories import VoteRepository
 from comments.models import Comment
+from votes.repositories import VoteRepository
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):

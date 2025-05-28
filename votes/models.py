@@ -1,9 +1,9 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
 
+from comments.models import Comment
 from common.models import BaseModel
 from posts.models import Post
-from comments.models import Comment
 
 
 class PostVote(BaseModel):

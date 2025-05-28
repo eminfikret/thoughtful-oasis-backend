@@ -1,9 +1,6 @@
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q, Sum, Case, When, IntegerField
 
-from posts.models import Post
-from comments.models import Comment
-from .models import PostVote, CommentVote
+from .models import CommentVote, PostVote
 
 
 class VoteRepository:
@@ -88,7 +85,7 @@ class VoteRepository:
                     
                 # Get updated vote counts
                 upvotes = CommentVote.objects.filter(comment_id=comment_id, is_upvote=True).count()
-                downvotes = CommentVote.objects.filter(comment_id=comment_id, is_upvote=False).count()
+                downvotes=CommentVote.objects.filter(comment_id=comment_id, is_upvote=False).count()
                 
                 return {
                     "comment_id": comment_id,

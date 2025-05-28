@@ -1,9 +1,11 @@
 from django.contrib.auth.models import User
-from posts.models import Post
-from comments.models import Comment
-from .repositories import VoteRepository
-from posts.exceptions import PostNotFoundException
+
 from comments.exceptions import CommentNotFound
+from comments.models import Comment
+from posts.exceptions import PostNotFoundException
+from posts.models import Post
+
+from .repositories import VoteRepository
 
 
 class VoteService:
@@ -11,8 +13,8 @@ class VoteService:
     def upvote_post(post_id: int, user: User) -> dict:
         """Upvote a post"""
         try:
-            # Check if post exists
-            post = Post.objects.get(id=post_id)
+
+            Post.objects.get(id=post_id)
             return VoteRepository.vote_post(post_id, user.id, is_upvote=True)
         except Post.DoesNotExist:
             raise PostNotFoundException(post_id)
@@ -21,8 +23,7 @@ class VoteService:
     def downvote_post(post_id: int, user: User) -> dict:
         """Downvote a post"""
         try:
-            # Check if post exists
-            post = Post.objects.get(id=post_id)
+            Post.objects.get(id=post_id)
             return VoteRepository.vote_post(post_id, user.id, is_upvote=False)
         except Post.DoesNotExist:
             raise PostNotFoundException(post_id)
@@ -31,8 +32,8 @@ class VoteService:
     def upvote_comment(comment_id: int, user: User) -> dict:
         """Upvote a comment"""
         try:
-            # Check if comment exists
-            comment = Comment.objects.get(id=comment_id)
+
+            Comment.objects.get(id=comment_id)
             return VoteRepository.vote_comment(comment_id, user.id, is_upvote=True)
         except Comment.DoesNotExist:
             raise CommentNotFound()
@@ -41,8 +42,8 @@ class VoteService:
     def downvote_comment(comment_id: int, user: User) -> dict:
         """Downvote a comment"""
         try:
-            # Check if comment exists
-            comment = Comment.objects.get(id=comment_id)
+
+            Comment.objects.get(id=comment_id)
             return VoteRepository.vote_comment(comment_id, user.id, is_upvote=False)
         except Comment.DoesNotExist:
             raise CommentNotFound()
