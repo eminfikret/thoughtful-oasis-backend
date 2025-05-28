@@ -68,7 +68,6 @@ class VoteRepositoryTest(TestCase):
         self.assertEqual(result["upvotes"], 0)
         self.assertEqual(result["downvotes"], 1)
         self.assertEqual(result["score"], -1)
-        
         vote = PostVote.objects.get(post=self.post, user=self.user)
         self.assertFalse(vote.is_upvote)
 

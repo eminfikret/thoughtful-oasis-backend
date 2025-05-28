@@ -14,29 +14,26 @@ class VoteRepository:
         """
         try:
             with transaction.atomic():
-                # Try to get existing vote
+
                 try:
                     vote = PostVote.objects.get(post_id=post_id, user_id=user_id)
-                    
-                    # If vote exists with same value, remove it (toggle off)
+
                     if vote.is_upvote == is_upvote:
                         vote.delete()
                         action = "removed"
                     else:
-                        # If vote exists with different value, update it
+
                         vote.is_upvote = is_upvote
                         vote.save()
                         action = "changed"
                 except PostVote.DoesNotExist:
-                    # Create new vote
+
                     PostVote.objects.create(
                         post_id=post_id,
                         user_id=user_id,
                         is_upvote=is_upvote
                     )
                     action = "added"
-                    
-                # Get updated vote counts
                 upvotes = PostVote.objects.filter(post_id=post_id, is_upvote=True).count()
                 downvotes = PostVote.objects.filter(post_id=post_id, is_upvote=False).count()
                 
@@ -61,29 +58,26 @@ class VoteRepository:
         """
         try:
             with transaction.atomic():
-                # Try to get existing vote
+
                 try:
                     vote = CommentVote.objects.get(comment_id=comment_id, user_id=user_id)
-                    
-                    # If vote exists with same value, remove it (toggle off)
+
                     if vote.is_upvote == is_upvote:
                         vote.delete()
                         action = "removed"
                     else:
-                        # If vote exists with different value, update it
                         vote.is_upvote = is_upvote
                         vote.save()
                         action = "changed"
                 except CommentVote.DoesNotExist:
-                    # Create new vote
+
                     CommentVote.objects.create(
                         comment_id=comment_id,
                         user_id=user_id,
                         is_upvote=is_upvote
                     )
                     action = "added"
-                    
-                # Get updated vote counts
+
                 upvotes = CommentVote.objects.filter(comment_id=comment_id, is_upvote=True).count()
                 downvotes=CommentVote.objects.filter(comment_id=comment_id, is_upvote=False).count()
                 

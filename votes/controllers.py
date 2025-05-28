@@ -315,10 +315,8 @@ def downvote_comment(request, comment_id: int):
 def get_post_votes(request, post_id: int):
     """Get vote counts for a post"""
     try:
-        # Check if post exists
         Post.objects.get(id=post_id)
         
-        # Get vote data
         if request.user.is_authenticated:
             result = VoteService.get_post_vote_status(post_id, request.user.id)
         else:
@@ -375,10 +373,9 @@ def get_post_votes(request, post_id: int):
 def get_comment_votes(request, comment_id: int):
     """Get vote counts for a comment"""
     try:
-        # Check if comment exists
+
         Comment.objects.get(id=comment_id)
-        
-        # Get vote data
+
         if request.user.is_authenticated:
             result = VoteService.get_comment_vote_status(comment_id, request.user.id)
         else:
