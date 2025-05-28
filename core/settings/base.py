@@ -34,7 +34,8 @@ INSTALLED_APPS = [
     'claims',
     'posts',
     'api',
-    'comments'
+    'comments',
+    'votes'
 ]
 
 MIDDLEWARE = [

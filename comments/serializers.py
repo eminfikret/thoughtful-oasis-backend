@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from votes.repositories import VoteRepository
 from comments.models import Comment
 
 
@@ -19,16 +20,26 @@ class ReplyCommentSerializer(serializers.ModelSerializer):
 
 class PostCommentSerializer(serializers.ModelSerializer):
     replies = serializers.SerializerMethodField()
+    votes = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'author_id', 'created_at', 'replies']
+        fields = ['id', 'content', 'author_id', 'created_at', 'replies', 'votes']
 
     def get_replies(self, obj):
         replies = obj.children.all()
         return CommentReplySerializer(replies, many=True).data
+        
+    def get_votes(self, obj):
+        return VoteRepository.get_comment_votes(obj.id)
+
 
 class CommentReplySerializer(serializers.ModelSerializer):
+    votes = serializers.SerializerMethodField()
+    
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'author_id', 'created_at']
+        fields = ['id', 'content', 'author_id', 'created_at', 'votes']
+        
+    def get_votes(self, obj):
+        return VoteRepository.get_comment_votes(obj.id)

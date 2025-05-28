@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from common.serializers import PaginationQueryParams
+from votes.repositories import VoteRepository
 
 from .models import Post
 
@@ -8,11 +9,16 @@ from .models import Post
 class PostSerializer(serializers.ModelSerializer):
     author_id = serializers.PrimaryKeyRelatedField(source='author', read_only=True)
     channel_id = serializers.PrimaryKeyRelatedField(source='channel', read_only=True)
+    votes = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ['id', 'title', 'content', 'channel_id', 'author_id', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'channel_id', 'author_id', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'content', 'channel_id', 'author_id', 'created_at', 'updated_at',
+                   'votes']
+        read_only_fields = ['id', 'channel_id', 'author_id', 'created_at', 'updated_at', 'votes']
+
+    def get_votes(self, obj):
+        return VoteRepository.get_post_votes(obj.id)
 
 
 class PostCreateSerializer(serializers.ModelSerializer):
