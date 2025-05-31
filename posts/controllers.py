@@ -6,8 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from posts.models import Post
 from channels.types import ChannelId
+from django.db import IntegrityError
 from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
@@ -22,101 +25,221 @@ from posts.serializers import (
 from posts.services import PostService
 from posts.types import PostId
 
-
-@api_view(['GET'])
-def list_posts(request):
-    serializer = PostsQueryParamsSerializer(data=request.query_params)
-    serializer.is_valid(raise_exception=True)
-
-    posts = PostService.get_all_posts(serializer.validated_data)
-    serializer = PostSerializer(posts, many=True)
-
-    return Response(serializer.data)
 class ChannelPostsController(APIView):
-    def get(self, request: Request, pk: ChannelId):
-        query_serializer = PostsQueryParamsSerializer(data=request.query_params)
-        query_serializer.is_valid(raise_exception=True)
-        params = query_serializer.validated_data
+    @swagger_auto_schema(
+        operation_summary="List posts in a channel",
+        operation_description="Returns posts in the specified channel.",
+        tags=["Posts"],
+        manual_parameters=[
+            openapi.Parameter("limit", openapi.IN_QUERY, "Page size", type=openapi.TYPE_INTEGER, default=10),
+            openapi.Parameter("offset", openapi.IN_QUERY, "Pagination offset", type=openapi.TYPE_INTEGER, default=0),
+            openapi.Parameter("search", openapi.IN_QUERY, "Search term", type=openapi.TYPE_STRING),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Paginated list of posts",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "results": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema( type=openapi.TYPE_OBJECT,
+                                                  properties={
+                                                      "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                      "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                      "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                      "title": openapi.Schema(type=openapi.TYPE_STRING),
+                                                      "content": openapi.Schema(type=openapi.TYPE_STRING),
+                                                      "created_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                                      "updated_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                                  })
+                        )
+                    }
+                )
+            ),
+            401: openapi.Response(description="Unauthorized"),
+            403: openapi.Response(description="Permission denied"),
+            404: openapi.Response(description="Channel not found"),
+        }
+    )
+    def get(self, request, pk: int):
+        params = PostsQueryParamsSerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        data = params.validated_data
+
+        limit = data.get('limit') if data.get('limit') is not None else 10
+        offset = data.get('offset') if data.get('offset') is not None else 0
+
+        pagination = PaginationParams(limit=limit, offset=offset)
+        search = data.get('search')
 
         try:
             posts = PostService.get_posts_by_channel(
                 channel_id=pk,
                 requester=request.user,
-                pagination=PaginationParams(limit=params.get('limit'), offset=params.get('offset')),
-                search=params.get('search')
+                pagination=pagination,
+                search=search
             )
-            count = PostService.get_posts_count_by_channel(
-                channel_id=pk,
-                requester=request.user,
-                search=params.get('search')
-            )
+            count = PostService.get_posts_count_by_channel( channel_id=pk,search=search)
         except NotFoundException as e:
             raise NotFoundAPIException(detail=str(e))
         except PermissionDeniedException as e:
             raise PermissionDeniedAPIException(detail=str(e))
 
-        serializer = PostSerializer(posts, many=True)
         return PaginatedResponse(
-            results=serializer.data,
+            results=PostSerializer(posts, many=True).data,
             count=count,
             request=request
         )
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_post(request):
-    serializer = PostCreateSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
 
-    dto = CreatePostDto(
-        channel_id=serializer.validated_data['channel_id'],
-        title=serializer.validated_data['title'],
-        content=serializer.validated_data['content'],
+# ─── Create Post ─────────────────────────────────────────────────────────────────
+
+    @swagger_auto_schema(
+        method="post",
+        operation_summary="Create a new post",
+        operation_description="Creates a post in the specified channel. Requires authentication.",
+        tags=["Posts"],
+        request_body=PostCreateSerializer,
+        responses={
+            201: openapi.Response(
+                description="Post created",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT,
+                                       properties={
+                                           "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                           "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                           "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                           "title": openapi.Schema(type=openapi.TYPE_STRING),
+                                           "content": openapi.Schema(type=openapi.TYPE_STRING),
+                                           "created_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                           "updated_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                       })
+            ),
+            400: openapi.Response(description="Invalid input or invalid channel ID"),
+            401: openapi.Response(description="Unauthorized"),
+            404: openapi.Response(description="Channel not found"),
+        }
     )
+    @api_view(['POST'])
+    @permission_classes([IsAuthenticated])
+    def create_post(request):
+        serializer = PostCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-    post = PostService.create_post(dto, author=request.user)
-    serializer = PostSerializer(post)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+        dto = CreatePostDto(**serializer.validated_data)
+        try:
+                post = PostService.create_post(dto, author=request.user)
+        except IntegrityError as e:
+            return Response({"error": "Invalid channel ID"}, status=status.HTTP_400_BAD_REQUEST)
+        out = PostSerializer(post)
+        return Response(out.data, status=status.HTTP_201_CREATED)
 
 
-@api_view(['GET'])
-def get_post(request, post_id: int):
-    try:
-        post = PostService.get_post_by_id(PostId(post_id))
-        serializer = PostSerializer(post)
-        return Response(serializer.data)
-    except PostNotFoundException:
-        return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+    # ─── Retrieve Single Post ────────────────────────────────────────────────────────
 
-
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def update_post(request, post_id: int):
-    serializer = PostUpdateSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    dto = UpdatePostDto(
-        title=serializer.validated_data.get('title'),
-        content=serializer.validated_data.get('content'),
+    @swagger_auto_schema(
+        method="get",
+        operation_summary="Retrieve a post",
+        operation_description="Fetches a post by its ID.",
+        tags=["Posts"],
+        responses={
+            200: openapi.Response(description="Post data", schema=openapi.Schema( type=openapi.TYPE_OBJECT,
+                                                                                  properties={
+                                                                                      "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                                                      "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                                                      "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                                                      "title": openapi.Schema(type=openapi.TYPE_STRING),
+                                                                                      "content": openapi.Schema(type=openapi.TYPE_STRING),
+                                                                                      "created_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                                                                      "updated_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                                                                  })),
+            404: openapi.Response(description="Post not found"),
+        }
     )
+    @api_view(['GET'])
+    def get_post(request, post_id: int):
+        try:
+            post = PostService.get_post_by_id(PostId(post_id))
+        except PostNotFoundException:
+            raise NotFoundAPIException(detail="Post not found")
 
-    try:
-        post = PostService.update_post(PostId(post_id), dto, request.user)
-        serializer = PostSerializer(post)
-        return Response(serializer.data)
-    except PostNotFoundException:
-        return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
-    except UnauthorizedPostAccessException:
-        return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        out = PostSerializer(post)
+        return Response(out.data)
 
 
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_post(request, post_id: int):
-    try:
-        PostService.delete_post(PostId(post_id), request.user)
+
+    # ─── Delete Post ─────────────────────────────────────────────────────────────────
+
+    @swagger_auto_schema(
+        method="delete",
+        operation_summary="Delete a post",
+        operation_description="Deletes a post by its ID. Requires authentication.",
+        tags=["Posts"],
+        responses={
+            204: openapi.Response(description="Deleted successfully"),
+            401: openapi.Response(description="Unauthorized"),
+            403: openapi.Response(description="Forbidden"),
+            404: openapi.Response(description="Post not found"),
+        }
+    )
+    @api_view(['DELETE'])
+    @permission_classes([IsAuthenticated])
+    def delete_post(request, post_id: int):
+        try:
+            PostService.delete_post(PostId(post_id), request.user)
+        except PostNotFoundException:
+            raise NotFoundAPIException(detail="Post not found")
+        except UnauthorizedPostAccessException:
+            raise PermissionDeniedAPIException(detail="Forbidden")
+
         return Response(status=status.HTTP_204_NO_CONTENT)
-    except PostNotFoundException:
-        return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
-    except UnauthorizedPostAccessException:
-        return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+    @api_view(['GET'])
+    def list_posts(request):
+        serializer = PostsQueryParamsSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        posts = PostService.get_all_posts(serializer.validated_data)
+        serializer = PostSerializer(posts, many=True)
+
+        return Response(serializer.data)
+class PostDetailController(APIView):
+
+    permission_classes([IsAuthenticated])
+    @swagger_auto_schema(
+        operation_summary="Update a post",
+        operation_description="Updates title/content of an existing post. Requires authentication.",
+        tags=["Posts"],
+        request_body=PostUpdateSerializer,
+        responses={
+            200: openapi.Response(description="Updated post", schema=openapi.Schema( type=openapi.TYPE_OBJECT,
+                                                                                     properties={
+                                                                                         "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                                                         "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                                                         "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                                                         "title": openapi.Schema(type=openapi.TYPE_STRING),
+                                                                                         "content": openapi.Schema(type=openapi.TYPE_STRING),
+                                                                                         "created_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                                                                         "updated_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                                                                     })),
+            400: openapi.Response(description="Invalid input"),
+            401: openapi.Response(description="Unauthorized"),
+            403: openapi.Response(description="Forbidden"),
+            404: openapi.Response(description="Post not found"),
+        }
+    )
+    def put(self, request, post_id: int):
+        serializer = PostUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        dto = UpdatePostDto(**serializer.validated_data)
+
+        try:
+            post = PostService.update_post(PostId(post_id), dto, request.user)
+        except Post.DoesNotExist:
+            raise NotFoundAPIException("Post not found")
+        except UnauthorizedPostAccessException:
+            raise PermissionDeniedAPIException("Forbidden")
+
+        return Response(PostSerializer(post).data, status=status.HTTP_200_OK)
+

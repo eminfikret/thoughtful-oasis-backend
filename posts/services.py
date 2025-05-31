@@ -11,14 +11,14 @@ from common.params import PaginationParams
 from posts.dtos import CreatePostDto, UpdatePostDto
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
 from posts.models import Post
-from posts.params import PostsParams
+from posts.params import PaginationParams
 from posts.repositories import PostRepository
 from posts.types import PostId
 
 
 class PostService:
     @staticmethod
-    def get_all_posts(params: PostsParams) -> List[Post]:
+    def get_all_posts(params: PaginationParams) -> List[Post]:
         return PostRepository.get_all_posts(params)
 
     @staticmethod
@@ -46,19 +46,16 @@ class PostService:
     @staticmethod
     def get_posts_count_by_channel(
             channel_id: ChannelId,
-            requester: User,
             search: Optional[str] = None,
     ) -> int:
         channel = ChannelService.get_channel_by_id(channel_id)
 
-        if not (channel.owner == requester or requester.is_staff):
-            raise PostNotFoundException()
 
         return PostRepository.get_posts_count_by_channel(channel=channel, search=search)
 
     @staticmethod
-    def get_posts_count() -> int:
-        return PostRepository.get_posts_count()
+    def get_posts_count(search: Optional[str] = None) -> int:
+        return PostRepository.get_posts_count(search)
 
     @staticmethod
     def get_post_by_id(post_id: PostId) -> Post:
@@ -90,9 +87,10 @@ class PostService:
             PostNotFoundException: if no post exists with the given ID.
             UnauthorizedPostAccessException: if the user is not the post's author nor staff.
         """
+        has_changes = False
+
         post = PostService.get_post_by_id(post_id)
 
-        # only the author or staff can update
         if not (post.author == user or user.is_staff):
             raise UnauthorizedPostAccessException(post_id)
 
@@ -101,8 +99,8 @@ class PostService:
         if dto.content is not None:
             post.content = dto.content
 
-        # if anything changed, persist
-        if post.has_changed():  # or use your DirtyFieldsMixin
+
+        if has_changes:
             return PostRepository.update_post(post)
 
         return post
