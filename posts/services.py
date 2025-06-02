@@ -11,7 +11,6 @@ from common.params import PaginationParams
 from posts.dtos import CreatePostDto, UpdatePostDto
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
 from posts.models import Post
-from posts.params import PaginationParams
 from posts.repositories import PostRepository
 from posts.types import PostId
 
