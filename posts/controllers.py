@@ -257,9 +257,27 @@ class PostDetailController(APIView):
         dto = UpdatePostDto(**serializer.validated_data)
 
         try:
+
+            try:
+                post = PostService.get_post_by_id(PostId(post_id))
+            except PostNotFoundException:
+                return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+
             post = PostService.update_post(PostId(post_id), dto, request.user)
             
             claim_service = ClaimService()
+            
+            claim_service.delete_claims_for_content('post', post.id)
+
+            combined_text = f"TITLE: {post.title}\n\nCONTENT:\n{post.content}"
+            claim_service.process_content_for_claims(
+                user_id=post.author.id,
+                content=combined_text,
+                source_type='post',
+                source_id=post.id
+            )
+            
             claims = claim_service.get_claims_for_content('post', post.id)
             
             response_data = PostSerializer(post).data
@@ -267,13 +285,18 @@ class PostDetailController(APIView):
             
             return Response(response_data, status=status.HTTP_200_OK)
         except Post.DoesNotExist:
-            raise NotFoundAPIException(detail="Post not found")
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
         except UnauthorizedPostAccessException:
-            raise PermissionDeniedAPIException(detail="Forbidden")
+            return Response({"error": "Forbidden - You cannot update this post"}, status=status.HTTP_403_FORBIDDEN)
         except NotFoundException as e:
-            raise NotFoundAPIException(detail=str(e))
+            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
         except PermissionDeniedException as e:
-            raise PermissionDeniedAPIException(detail=str(e))
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        except Exception:
+            return Response(
+                {"error": "An error occurred while updating the post"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 @swagger_auto_schema(
     method="get",
