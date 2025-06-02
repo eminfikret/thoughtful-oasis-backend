@@ -1,9 +1,10 @@
+from unittest.mock import MagicMock, patch
+
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
-from unittest.mock import patch, MagicMock
 
 from channels.models import Channel
 from comments.models import Comment

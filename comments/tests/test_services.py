@@ -1,7 +1,8 @@
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.exceptions import PermissionDenied
-from unittest.mock import patch
 
 from channels.models import Channel
 from comments.exceptions import CommentNotFound

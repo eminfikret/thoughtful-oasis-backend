@@ -41,7 +41,8 @@ class CommentModelTest(TestCase):
         self.assertEqual(comment.author, self.user)
         self.assertEqual(comment.content, 'Test comment')
         self.assertIsNone(comment.parent_comment)
-        self.assertEqual(comment.__str__(), f'Comment by {self.user.username} on Post {self.post.id}')
+        self.assertEqual(comment.__str__(), 
+                         f'Comment by {self.user.username} on Post {self.post.id}')
 
     def test_reply_creation(self):
         """Test creating a reply to a comment"""
