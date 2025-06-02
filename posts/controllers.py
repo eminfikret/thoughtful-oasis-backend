@@ -1,4 +1,3 @@
-from django.db import IntegrityError
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -9,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from channels.exceptions import ChannelNotFoundException
 from channels.services import ChannelService
 from claims.services import ClaimService
 from common.exceptions import NotFoundException, PermissionDeniedException
@@ -17,13 +17,12 @@ from common.responses import PaginatedResponse
 from posts.dtos import CreatePostDto, UpdatePostDto
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
 from posts.models import Post
+from posts.serializers import PostCreateSerializer as CreatePostSerializer
 from posts.serializers import (
-    PostCreateSerializer,
     PostSerializer,
     PostsQueryParamsSerializer,
     PostUpdateSerializer,
 )
-from posts.serializers import PostCreateSerializer as CreatePostSerializer
 from posts.services import PostService
 from posts.types import PostId
 
