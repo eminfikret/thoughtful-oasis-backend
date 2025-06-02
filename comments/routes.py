@@ -8,4 +8,6 @@ urlpatterns = [
     path('', comment_controllers.PostCommentsView.as_view(), name='post_comments'),
     path('<int:comment_id>/replies/', comment_controllers.CommentRepliesView.as_view(),
          name='comment_replies'),
+    path('<int:comment_id>/update/', comment_controllers.UpdateCommentView.as_view(), 
+         name='update_comment'),
 ]

@@ -12,8 +12,10 @@ from posts.models import Post
 
 from .exceptions import CommentNotFound
 from .models import Comment
-from .serializers import CreateCommentSerializer, PostCommentSerializer, ReplyCommentSerializer
+from .serializers import (CreateCommentSerializer, PostCommentSerializer,
+                          ReplyCommentSerializer, CommentUpdateSerializer)
 from .services import CommentService
+from rest_framework.exceptions import PermissionDenied
 
 
 class CreateCommentView(views.APIView):
@@ -231,3 +233,57 @@ class CommentRepliesView(views.APIView):
             response_data.append(reply_data)
             
         return Response(response_data, status=status.HTTP_200_OK)
+
+class UpdateCommentView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    @swagger_auto_schema(
+        operation_summary="Update a comment",
+        operation_description="Updates content of an existing comment. User can only update their own comments.",
+        tags=["Comments"],
+        request_body=CommentUpdateSerializer,
+        responses={
+            200: openapi.Response(
+                description="Comment updated successfully",
+                schema=PostCommentSerializer
+            ),
+            400: openapi.Response(description="Invalid input"),
+            401: openapi.Response(description="Unauthorized - Authentication required"),
+            403: openapi.Response(description="Forbidden - Not the comment author"),
+            404: openapi.Response(description="Comment not found"),
+        },
+    )
+    def put(self, request, comment_id):
+        serializer = CommentUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            comment = CommentService.update_comment(
+                comment_id=comment_id,
+                user=request.user,
+                content=serializer.validated_data['content']
+            )
+
+            claim_service = ClaimService()
+
+            claim_service.delete_claims_for_content('comment', comment_id)
+            
+            claim_service.process_content_for_claims(
+                user_id=comment.author.id,
+                content=comment.content,
+                source_type='comment',
+                source_id=comment.id
+            )
+        
+            claims = claim_service.get_claims_for_content('comment', comment.id)
+            
+            response_data = PostCommentSerializer(comment).data
+            response_data['claims'] = claims
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except CommentNotFound:
+            return Response({"error": "Comment not found"}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)

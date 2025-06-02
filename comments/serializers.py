@@ -67,3 +67,8 @@ class PostCommentSerializer(serializers.ModelSerializer):
         
     def get_parent_id(self, obj):
         return obj.parent_comment_id
+
+class CommentUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ['content']

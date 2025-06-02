@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import PermissionDenied
 
 from comments.exceptions import CommentNotFound
 from comments.models import Comment
@@ -36,3 +37,18 @@ class CommentService:
     @staticmethod
     def get_replies_for_comment(comment_id: int):
         return CommentRepository.get_replies_for_comment(comment_id)
+
+    @staticmethod
+    def update_comment(comment_id: int, user: User, content: str) -> Comment:
+        try:
+            comment = Comment.objects.get(pk=comment_id)
+
+            if comment.author != user:
+                raise PermissionDenied("You can only update your own comments")
+
+            comment.content = content
+            comment.save()
+
+            return comment
+        except Comment.DoesNotExist:
+            raise CommentNotFound()

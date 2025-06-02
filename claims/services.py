@@ -312,3 +312,26 @@ class ClaimService:
                 })
         
         return results
+    
+    def delete_claims_for_content(self, source_type: str, source_id: int) -> int:
+        """
+        Delete all claims for a specific post or comment
+        
+        Args:
+            source_type: Either 'post' or 'comment'
+            source_id: ID of the post or comment
+            
+        Returns:
+            Number of claims deleted
+        """
+        if source_type not in ['post', 'comment']:
+            raise ValueError(f"Invalid source_type: {source_type}. Must be 'post' or 'comment'")
+        
+        if source_type == 'post':
+            claims = Claim.objects.filter(post_id=source_id)
+        else:
+            claims = Claim.objects.filter(comment_id=source_id)
+        
+        count = claims.count()
+        claims.delete()
+        return count
