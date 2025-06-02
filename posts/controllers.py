@@ -9,12 +9,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from channels.services import ChannelService
 from claims.services import ClaimService
 from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
 from posts.dtos import CreatePostDto, UpdatePostDto
-from channels.services import ChannelService
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
 from posts.models import Post
 from posts.serializers import (
@@ -23,6 +23,7 @@ from posts.serializers import (
     PostsQueryParamsSerializer,
     PostUpdateSerializer,
 )
+from posts.serializers import PostCreateSerializer as CreatePostSerializer
 from posts.services import PostService
 from posts.types import PostId
 
@@ -92,7 +93,8 @@ class ChannelPostsController(APIView):
                 channel_posts = Post.objects.filter(channel=channel)
                 matching_posts = [
                     post for post in channel_posts 
-                    if search.lower() in post.title.lower() or search.lower() in post.content.lower()
+                    if (search.lower() in post.title.lower() or 
+                        search.lower() in post.content.lower())
                 ]
                 
                 if not matching_posts:
@@ -121,47 +123,47 @@ class ChannelPostsController(APIView):
         )
 
 
-    @swagger_auto_schema(
-        method="post",
-        operation_summary="Create a new post",
-        operation_description="Creates a post in the specified channel. Requires authentication.",
-        tags=["Posts"],
-        request_body=PostCreateSerializer,
-        responses={
-            201: openapi.Response(
-                description="Post created",
-                schema=openapi.Schema(type=openapi.TYPE_OBJECT,
-                                       properties={
-                                           "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                           "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                           "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                           "title": openapi.Schema(type=openapi.TYPE_STRING),
-                                           "content": openapi.Schema(type=openapi.TYPE_STRING),
-                                           "created_at": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                         format="date-time"),
-                                           "updated_at": openapi.Schema(type=openapi.TYPE_STRING, 
-                                                                        format="date-time"),
-                                       })
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Create a post",
+    operation_description="Create a new post in the specified channel.",
+    tags=["Posts"],
+    request_body=CreatePostSerializer,
+    responses={
+        201: PostSerializer,
+        400: "Bad request - Invalid data",
+        404: "Channel not found"
+    }
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_post(request):
+    serializer = CreatePostSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    
+    try:
+        post = PostService.create_post(
+            CreatePostDto(
+                channel_id=serializer.validated_data['channel_id'],
+                title=serializer.validated_data['title'],
+                content=serializer.validated_data['content']
             ),
-            400: openapi.Response(description="Invalid input or invalid channel ID"),
-            401: openapi.Response(description="Unauthorized"),
-            404: openapi.Response(description="Channel not found"),
-        }
-    )
-    @api_view(['POST'])
-    @permission_classes([IsAuthenticated])
-    def create_post(request):
-        serializer = PostCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        dto = CreatePostDto(**serializer.validated_data)
-        try:
-                post = PostService.create_post(dto, author=request.user)
-        except IntegrityError:
-            return Response({"error": "Invalid channel ID"}, 
-                            status=status.HTTP_400_BAD_REQUEST)
-        out = PostSerializer(post)
-        return Response(out.data, status=status.HTTP_201_CREATED)
+            author=request.user
+        )
+        
+        response_data = PostSerializer(post).data
+        
+        claim_service = ClaimService()
+        claims = claim_service.get_claims_for_content('post', post.id)
+        response_data['claims'] = claims
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+        
+    except ChannelNotFoundException:
+        return Response(
+            {"error": "Channel not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
 
 
     @swagger_auto_schema(
@@ -326,17 +328,10 @@ def list_posts(request):
         
         pagination = PaginationParams(limit=limit, offset=offset)
 
-        if search:
-            all_posts = Post.objects.all()
-            matching_posts = [
-                post for post in all_posts 
-                if search.lower() in post.title.lower() or search.lower() in post.content.lower()
-            ]
-            
-            if not matching_posts:
-                return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-
         posts = PostService.get_all_posts(pagination, search)
+        
+        if not posts:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if not posts:
             return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -348,6 +343,46 @@ def list_posts(request):
             count=count,
             request=request
         )
-    except Exception as e:
+    except Exception:
+        return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+@swagger_auto_schema(
+    method="get",
+    operation_summary="Get post details",
+    operation_description="Returns the details of a specific post by ID.",
+    tags=["Posts"],
+    responses={
+        200: openapi.Response(
+            description="Post details retrieved successfully",
+            schema=PostSerializer
+        ),
+        404: openapi.Response(
+            description="Post not found",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "error": openapi.Schema(type=openapi.TYPE_STRING, example="Not found.")
+                }
+            )
+        ),
+    }
+)
+@api_view(['GET'])
+def get_post_details(request, post_id): 
+    try:
+        post = PostService.get_post_by_id(PostId(post_id))
+        
+        if not post:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = PostSerializer(post)
+        response_data = serializer.data
+        
+        claim_service = ClaimService()
+        claims = claim_service.get_claims_for_content('post', post.id)
+        response_data['claims'] = claims
+        
+        return Response(response_data)
+    except Exception:
         return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 

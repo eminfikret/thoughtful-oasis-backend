@@ -26,7 +26,10 @@ class PostRepository:
         all_posts = list(Post.objects.all())
         logging.info(f"Total posts in database: {len(all_posts)}")
         for post in all_posts:
-            logging.info(f"Available post: {post.id} - Title: {post.title}, Content: {post.content}")
+            logging.info(
+                f"Available post: {post.id} - Title: {post.title}, "
+                f"Content: {post.content}"
+            )
 
         if search is not None:
             search = search.strip()
@@ -35,7 +38,9 @@ class PostRepository:
 
                 filtered_posts = []
                 for post in list(queryset):
-                    if (search.lower() in post.title.lower()) or (search.lower() in post.content.lower()):
+                    title_match = search.lower() in post.title.lower()
+                    content_match = search.lower() in post.content.lower()
+                    if title_match or content_match:
                         filtered_posts.append(post)
                         logging.info(f"Match found: {post.id} - {post.title}")
                     else:
