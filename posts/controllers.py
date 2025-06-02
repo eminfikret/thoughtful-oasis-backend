@@ -8,11 +8,8 @@ from rest_framework.exceptions import PermissionDenied as PermissionDeniedAPIExc
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-from posts.models import Post
-from channels.types import ChannelId
-from django.db import IntegrityError
+
+from claims.services import ClaimService
 from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
@@ -118,8 +115,10 @@ class ChannelPostsController(APIView):
                                            "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
                                            "title": openapi.Schema(type=openapi.TYPE_STRING),
                                            "content": openapi.Schema(type=openapi.TYPE_STRING),
-                                           "created_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
-                                           "updated_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+                                           "created_at": openapi.Schema(type=openapi.TYPE_STRING,
+                                                                         format="date-time"),
+                                           "updated_at": openapi.Schema(type=openapi.TYPE_STRING, 
+                                                                        format="date-time"),
                                        })
             ),
             400: openapi.Response(description="Invalid input or invalid channel ID"),
@@ -136,8 +135,9 @@ class ChannelPostsController(APIView):
         dto = CreatePostDto(**serializer.validated_data)
         try:
                 post = PostService.create_post(dto, author=request.user)
-        except IntegrityError as e:
-            return Response({"error": "Invalid channel ID"}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            return Response({"error": "Invalid channel ID"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
         out = PostSerializer(post)
         return Response(out.data, status=status.HTTP_201_CREATED)
 
@@ -148,15 +148,18 @@ class ChannelPostsController(APIView):
         operation_description="Fetches a post by its ID.",
         tags=["Posts"],
         responses={
-            200: openapi.Response(description="Post data", schema=openapi.Schema( type=openapi.TYPE_OBJECT,
-                                                                                  properties={
-                                                                                      "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                                                                      "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                                                                      "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                                                                      "title": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                                      "content": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                                      "created_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
-                                                                                      "updated_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+            200: openapi.Response(description="Post data", 
+                                  schema=openapi.Schema( type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "title": openapi.Schema(type=openapi.TYPE_STRING),
+                                        "content": openapi.Schema(type=openapi.TYPE_STRING),
+                                        "created_at": openapi.Schema(type=openapi.TYPE_STRING,
+                                                                      format="date-time"),
+                                        "updated_at": openapi.Schema(type=openapi.TYPE_STRING,
+                                                                      format="date-time"),
                                                                                   })),
             404: openapi.Response(description="Post not found"),
         }
@@ -165,6 +168,7 @@ class ChannelPostsController(APIView):
     def get_post(request, post_id: int):
         try:
             post = PostService.get_post_by_id(PostId(post_id))
+            return Response(PostSerializer(post).data)
         except PostNotFoundException:
             raise NotFoundAPIException(detail="Post not found")
 
@@ -216,15 +220,18 @@ class PostDetailController(APIView):
         tags=["Posts"],
         request_body=PostUpdateSerializer,
         responses={
-            200: openapi.Response(description="Updated post", schema=openapi.Schema( type=openapi.TYPE_OBJECT,
-                                                                                     properties={
-                                                                                         "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                                                                         "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                                                                         "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                                                                         "title": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                                         "content": openapi.Schema(type=openapi.TYPE_STRING),
-                                                                                         "created_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
-                                                                                         "updated_at": openapi.Schema(type=openapi.TYPE_STRING, format="date-time"),
+            200: openapi.Response(description="Updated post",
+                                schema=openapi.Schema( type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "title": openapi.Schema(type=openapi.TYPE_STRING),
+                                        "content": openapi.Schema(type=openapi.TYPE_STRING),
+                                        "created_at": openapi.Schema(type=openapi.TYPE_STRING, 
+                                                                     format="date-time"),
+                                         "updated_at": openapi.Schema(type=openapi.TYPE_STRING, 
+                                                                      format="date-time"),
                                                                                      })),
             400: openapi.Response(description="Invalid input"),
             401: openapi.Response(description="Unauthorized"),

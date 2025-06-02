@@ -2,9 +2,9 @@ from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, views
+from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from claims.services import ClaimService
@@ -138,7 +138,8 @@ class PostCommentsView(views.APIView):
     def get(self, request):
         post_id = request.query_params.get('post_id')
         if not post_id:
-            return Response({"error": "Missing post_id parameter"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Missing post_id parameter"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
         
         try:
             comments = CommentService.get_comments_for_post(post_id)
@@ -162,7 +163,8 @@ class PostCommentsView(views.APIView):
     operation_description="Returns all replies for a given comment by comment_id (passed in URL).",
     tags=["Comments"],
     responses={
-        200: openapi.Response(description="List of replies", schema=PostCommentSerializer(many=True)),
+        200: openapi.Response(description="List of replies",
+                              schema=PostCommentSerializer(many=True)),
         404: openapi.Response(description="Comment not found"),
     },
 )
