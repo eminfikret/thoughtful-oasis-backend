@@ -44,7 +44,6 @@ class CommentReplySerializer(serializers.ModelSerializer):
         return obj.parent_comment_id 
 
 class PostCommentSerializer(serializers.ModelSerializer):
-    replies = serializers.SerializerMethodField()
     votes = serializers.SerializerMethodField()
     author = serializers.SerializerMethodField()
     post_id = serializers.SerializerMethodField()
@@ -52,12 +51,8 @@ class PostCommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'replies', 'votes', 'parent_id']
+        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'votes', 'parent_id']
 
-    def get_replies(self, obj):
-        replies = obj.children.all()
-        return CommentReplySerializer(replies, many=True).data
-        
     def get_votes(self, obj):
         return VoteRepository.get_comment_votes(obj.id)
         
@@ -71,4 +66,4 @@ class PostCommentSerializer(serializers.ModelSerializer):
         return obj.post.id
         
     def get_parent_id(self, obj):
-        return obj.parent_comment_id 
+        return obj.parent_comment_id
