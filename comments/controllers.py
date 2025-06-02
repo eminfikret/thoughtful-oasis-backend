@@ -3,6 +3,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.decorators import api_view
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
 
@@ -15,9 +16,7 @@ from .serializers import CreateCommentSerializer, PostCommentSerializer, ReplyCo
 from .services import CommentService
 
 
-
 class CreateCommentView(views.APIView):
-
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     @swagger_auto_schema(
@@ -73,14 +72,14 @@ class CreateReplyView(views.APIView):
         tags=["Comments"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["post_id", "content"],
+            required=["parent_comment_id", "content"],
             properties={
-                "post_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="ID of the post"),
+                "parent_comment_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="ID of the parent comment"),
                 "content": openapi.Schema(type=openapi.TYPE_STRING, description="Content of the comment"),
             },
             example={
-                "post_id": 123,
-                "content": "This is an updated sample comment."
+                "parent_comment_id": 123,
+                "content": "This is a reply comment."
             }
         ),
         responses={
@@ -111,30 +110,6 @@ class CreateReplyView(views.APIView):
 
         return Response(response_data, status=status.HTTP_201_CREATED)
 
-# Function-based view with swagger decorator (from your version)
-@swagger_auto_schema(
-    method="get",
-    operation_summary="Get all comments for a post",
-    operation_description=
-    "Fetches all top-level comments for a post, using post_id in the request body.",
-    tags=["Comments"],
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        required=["post_id"],
-        properties={
-            "post_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="ID of the post"),
-        },
-    ),
-    responses={
-        200: openapi.Response(description="List of comments",
-                              schema=PostCommentSerializer(many=True)),
-        400: openapi.Response(description="Missing or invalid post_id"),
-        404: openapi.Response(description="Post not found"),
-    },
-)
-# Add your function implementation here if needed
-
-# Class-based view (from both versions)
 class PostCommentsView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Get all comments for a post",
@@ -156,7 +131,10 @@ class PostCommentsView(views.APIView):
         },
     )
     def get(self, request):
-        post_id = request.data.get('post_id')
+        post_id = request.query_params.get('post_id')
+        if not post_id:
+            return Response({"error": "Missing post_id parameter"}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
             comments = CommentService.get_comments_for_post(post_id)
         except Post.DoesNotExist:
@@ -173,19 +151,36 @@ class PostCommentsView(views.APIView):
             
         return Response(response_data, status=status.HTTP_200_OK)
 
-# Function-based view with swagger decorator (from your version)
 @swagger_auto_schema(
     method="get",
     operation_summary="Get replies to a comment",
     operation_description="Returns all replies for a given comment by comment_id (passed in URL).",
     tags=["Comments"],
     responses={
-        200: openapi.Response(description="List of replies"
-            , schema=PostCommentSerializer(many=True)),
+        200: openapi.Response(description="List of replies", schema=PostCommentSerializer(many=True)),
         404: openapi.Response(description="Comment not found"),
     },
 )
-# Add your function implementation here if needed
+@api_view(['GET'])
+def get_comment_replies(request, comment_id):
+    get_object_or_404(Comment, id=comment_id)
+
+    try:
+        replies = CommentService.get_replies_for_comment(comment_id)
+    except Comment.DoesNotExist:
+        raise CommentNotFound()
+
+    claim_service = ClaimService()
+    response_data = []
+    
+    for reply in replies:
+        reply_data = PostCommentSerializer(reply).data
+        claims = claim_service.get_claims_for_content('comment', reply.id)
+        reply_data['claims'] = claims
+        response_data.append(reply_data)
+        
+    return Response(response_data, status=status.HTTP_200_OK)
+
 
 class CommentRepliesView(views.APIView):
     @swagger_auto_schema(

@@ -6,6 +6,5 @@ urlpatterns = [
     path('claims/', include('claims.routes')),
     path('posts/', include('posts.routes')),
     path('comments/', include('comments.routes')),
-    path('claims/', include('claims.routes')),
     path('votes/', include('votes.routes')),
 ]
