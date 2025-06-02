@@ -199,18 +199,6 @@ def delete_post(request, post_id: int):
 
     return Response(status=status.HTTP_204_NO_CONTENT)
 
-
-@api_view(['GET'])
-def list_posts(request):
-    serializer = PostsQueryParamsSerializer(data=request.query_params)
-    serializer.is_valid(raise_exception=True)
-
-    posts = PostService.get_all_posts(serializer.validated_data)
-    serializer = PostSerializer(posts, many=True)
-
-    return Response(serializer.data)
-
-
 class PostDetailController(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -263,4 +251,54 @@ class PostDetailController(APIView):
             raise NotFoundAPIException(detail=str(e))
         except PermissionDeniedException as e:
             raise PermissionDeniedAPIException(detail=str(e))
+
+@swagger_auto_schema(
+    method="get",
+    operation_summary="List all posts",
+    operation_description="Returns a paginated list of all posts across all channels.",
+    tags=["Posts"],
+    manual_parameters=[
+        openapi.Parameter("limit", openapi.IN_QUERY, "Page size", 
+                          type=openapi.TYPE_INTEGER, default=10),
+        openapi.Parameter("offset", openapi.IN_QUERY, "Pagination offset", 
+                          type=openapi.TYPE_INTEGER, default=0),
+        openapi.Parameter("search", openapi.IN_QUERY, "Search term", type=openapi.TYPE_STRING),
+    ],
+    responses={
+        200: openapi.Response(
+            description="Paginated list of posts",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                    "results": openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(type=openapi.TYPE_OBJECT)
+                    )
+                }
+            )
+        ),
+    }
+)
+@api_view(['GET'])
+def list_posts(request):
+    """Get all posts with optional pagination and search"""
+    params = PostsQueryParamsSerializer(data=request.query_params)
+    params.is_valid(raise_exception=True)
+    data = params.validated_data
+
+    limit = data.get('limit') if data.get('limit') is not None else 10
+    offset = data.get('offset') if data.get('offset') is not None else 0
+    search = data.get('search')
+
+    pagination = PaginationParams(limit=limit, offset=offset)
+    
+    posts = PostService.get_all_posts(pagination)
+    count = PostService.get_posts_count(search)
+    
+    return PaginatedResponse(
+        results=PostSerializer(posts, many=True).data,
+        count=count,
+        request=request
+    )
 
