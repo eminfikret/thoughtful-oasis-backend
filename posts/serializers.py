@@ -7,18 +7,29 @@ from .models import Post
 
 
 class PostSerializer(serializers.ModelSerializer):
-    author_id = serializers.PrimaryKeyRelatedField(source='author', read_only=True)
-    channel_id = serializers.PrimaryKeyRelatedField(source='channel', read_only=True)
+    channel = serializers.SerializerMethodField()
+    author = serializers.SerializerMethodField()
     votes = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ['id', 'title', 'content', 'channel_id', 'author_id', 'created_at', 'updated_at',
-                   'votes']
-        read_only_fields = ['id', 'channel_id', 'author_id', 'created_at', 'updated_at', 'votes']
+        fields = ['id', 'title', 'content', 'channel', 'author', 'created_at', 'updated_at', 'votes']
+        read_only_fields = ['id', 'channel', 'author', 'created_at', 'updated_at', 'votes']
 
     def get_votes(self, obj):
         return VoteRepository.get_post_votes(obj.id)
+        
+    def get_channel(self, obj):
+        return {
+            'id': obj.channel.id,
+            'name': obj.channel.name
+        }
+        
+    def get_author(self, obj):
+        return {
+            'id': obj.author.id,
+            'name': obj.author.username
+        }
 
 
 class PostCreateSerializer(serializers.ModelSerializer):

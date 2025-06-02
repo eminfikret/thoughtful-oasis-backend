@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 
-from comments.exceptions import CommentNotFound, InvalidReplyDepth
+from comments.exceptions import CommentNotFound
 from comments.models import Comment
 from comments.repositories import CommentRepository
 from posts.models import Post
@@ -20,9 +20,6 @@ class CommentService:
             parent_comment = Comment.objects.get(pk=parent_comment_id)
         except Comment.DoesNotExist:
             raise CommentNotFound()
-
-        if parent_comment.parent_comment_id is not None:
-            raise InvalidReplyDepth()
 
         comment = Comment.objects.create(
             post=parent_comment.post,

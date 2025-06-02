@@ -18,13 +18,41 @@ class ReplyCommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ['id', 'author_id','parent_comment_id', 'content']
 
+class CommentReplySerializer(serializers.ModelSerializer):
+    votes = serializers.SerializerMethodField()
+    author = serializers.SerializerMethodField()
+    post_id = serializers.SerializerMethodField()
+    parent_id = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Comment
+        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'votes', 'parent_id']
+        
+    def get_votes(self, obj):
+        return VoteRepository.get_comment_votes(obj.id)
+        
+    def get_author(self, obj):
+        return {
+            'id': obj.author.id,
+            'name': obj.author.username
+        }
+        
+    def get_post_id(self, obj):
+        return obj.post.id
+
+    def get_parent_id(self, obj):
+        return obj.parent_comment_id 
+
 class PostCommentSerializer(serializers.ModelSerializer):
     replies = serializers.SerializerMethodField()
     votes = serializers.SerializerMethodField()
+    author = serializers.SerializerMethodField()
+    post_id = serializers.SerializerMethodField()
+    parent_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'author_id', 'created_at', 'replies', 'votes']
+        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'replies', 'votes', 'parent_id']
 
     def get_replies(self, obj):
         replies = obj.children.all()
@@ -32,14 +60,15 @@ class PostCommentSerializer(serializers.ModelSerializer):
         
     def get_votes(self, obj):
         return VoteRepository.get_comment_votes(obj.id)
-
-
-class CommentReplySerializer(serializers.ModelSerializer):
-    votes = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Comment
-        fields = ['id', 'content', 'author_id', 'created_at', 'votes']
         
-    def get_votes(self, obj):
-        return VoteRepository.get_comment_votes(obj.id)
+    def get_author(self, obj):
+        return {
+            'id': obj.author.id,
+            'name': obj.author.username
+        }
+        
+    def get_post_id(self, obj):
+        return obj.post.id
+        
+    def get_parent_id(self, obj):
+        return obj.parent_comment_id 
