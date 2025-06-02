@@ -1,12 +1,12 @@
-from rest_framework.test import APITestCase, APIClient
 from django.contrib.auth.models import User
 from django.urls import reverse
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from posts.models import Post  # assuming your app is called `posts`
-from comments.models import Comment  # assuming app is called `comments`
 from channels.models import Channel
+from comments.models import Comment  # assuming app is called `comments`
+from posts.models import Post  # assuming your app is called `posts`
 
 
 class CommentControllerTest(APITestCase):
@@ -69,9 +69,12 @@ class CommentControllerTest(APITestCase):
 
     def test_get_replies(self):
         self.authenticate(self.user)
-        parent = Comment.objects.create(post=self.post, author=self.user, content="Parent comment")
-        Comment.objects.create(post=self.post, author=self.user, content="Reply 1", parent_comment=parent)
-        Comment.objects.create(post=self.post, author=self.user, content="Reply 2", parent_comment=parent)
+        parent = Comment.objects.create(post=self.post, author=self.user,
+                                         content="Parent comment")
+        Comment.objects.create(post=self.post, author=self.user, content="Reply 1",
+                                parent_comment=parent)
+        Comment.objects.create(post=self.post, author=self.user, content="Reply 2",
+                                parent_comment=parent)
 
         url = reverse('comments-replies', kwargs={"comment_id": parent.id})
         response = self.client.get(url)

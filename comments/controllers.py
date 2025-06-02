@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, views
@@ -5,7 +6,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from django.shortcuts import get_object_or_404
 
 from claims.services import ClaimService
 from posts.models import Post
@@ -28,7 +28,8 @@ class CreateCommentView(views.APIView):
             required=["post_id", "content"],
             properties={
                 "post_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="ID of the post"),
-                "content": openapi.Schema(type=openapi.TYPE_STRING, description="Content of the comment"),
+                "content": openapi.Schema(type=openapi.TYPE_STRING, 
+                                          description="Content of the comment"),
             },
             example={
                 "post_id": 123,
@@ -74,8 +75,10 @@ class CreateReplyView(views.APIView):
             type=openapi.TYPE_OBJECT,
             required=["parent_comment_id", "content"],
             properties={
-                "parent_comment_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="ID of the parent comment"),
-                "content": openapi.Schema(type=openapi.TYPE_STRING, description="Content of the comment"),
+                "post_id": openapi.Schema(type=openapi.TYPE_INTEGER, 
+                                          description="ID of the post"),
+                "content": openapi.Schema(type=openapi.TYPE_STRING,
+                                           description="Content of the comment"),
             },
             example={
                 "parent_comment_id": 123,
@@ -113,7 +116,8 @@ class CreateReplyView(views.APIView):
 class PostCommentsView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Get all comments for a post",
-        operation_description="Fetches all top-level comments for a post, using post_id as a query parameter.",
+        operation_description="Fetches all top-level comments for a" \
+        " post, using post_id as a query parameter.",
         tags=["Comments"],
         manual_parameters=[
             openapi.Parameter(
@@ -125,7 +129,8 @@ class PostCommentsView(views.APIView):
             )
         ],
         responses={
-            200: openapi.Response(description="List of comments", schema=PostCommentSerializer(many=True)),
+            200: openapi.Response(description="List of comments",
+                                   schema=PostCommentSerializer(many=True)),
             400: openapi.Response(description="Missing or invalid post_id"),
             404: openapi.Response(description="Post not found"),
         },
@@ -185,7 +190,8 @@ def get_comment_replies(request, comment_id):
 class CommentRepliesView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Get replies to a comment",
-        operation_description="Returns all replies for a given comment by comment_id (passed in URL).",
+        operation_description="Returns all replies for a given" \
+        " comment by comment_id (passed in URL).",
         tags=["Comments"],
         manual_parameters=[
             openapi.Parameter(
