@@ -13,7 +13,8 @@ class PostSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ['id', 'title', 'content', 'channel', 'author', 'created_at', 'updated_at', 'votes']
+        fields = ['id', 'title', 'content', 'channel', 'author', 'created_at', 'updated_at',
+                   'votes']
         read_only_fields = ['id', 'channel', 'author', 'created_at', 'updated_at', 'votes']
 
     def get_votes(self, obj):
