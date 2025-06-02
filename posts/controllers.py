@@ -14,6 +14,7 @@ from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
 from posts.dtos import CreatePostDto, UpdatePostDto
+from channels.services import ChannelService
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
 from posts.models import Post
 from posts.serializers import (
@@ -69,6 +70,8 @@ class ChannelPostsController(APIView):
         }
     )
     def get(self, request, pk: int):
+        search = request.query_params.get('search')
+
         params = PostsQueryParamsSerializer(data=request.query_params)
         params.is_valid(raise_exception=True)
         data = params.validated_data
@@ -77,16 +80,35 @@ class ChannelPostsController(APIView):
         offset = data.get('offset') if data.get('offset') is not None else 0
 
         pagination = PaginationParams(limit=limit, offset=offset)
-        search = data.get('search')
 
         try:
+
+            if search:
+
+                channel = ChannelService.get_channel_by_id(pk)
+                if not channel:
+                    raise NotFoundException(f"Channel with ID {pk} not found")
+                    
+                channel_posts = Post.objects.filter(channel=channel)
+                matching_posts = [
+                    post for post in channel_posts 
+                    if search.lower() in post.title.lower() or search.lower() in post.content.lower()
+                ]
+                
+                if not matching_posts:
+                    return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+            
             posts = PostService.get_posts_by_channel(
                 channel_id=pk,
                 requester=request.user,
                 pagination=pagination,
                 search=search
             )
-            count = PostService.get_posts_count_by_channel( channel_id=pk,search=search)
+            
+            if not posts:
+                return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+                
+            count = PostService.get_posts_count_by_channel(channel_id=pk, search=search)
         except NotFoundException as e:
             raise NotFoundAPIException(detail=str(e))
         except PermissionDeniedException as e:
@@ -278,27 +300,54 @@ class PostDetailController(APIView):
                 }
             )
         ),
+        404: openapi.Response(
+            description="No posts found",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "error": openapi.Schema(type=openapi.TYPE_STRING, example="Not found.")
+                }
+            )
+        ),
     }
 )
 @api_view(['GET'])
 def list_posts(request):
     """Get all posts with optional pagination and search"""
-    params = PostsQueryParamsSerializer(data=request.query_params)
-    params.is_valid(raise_exception=True)
-    data = params.validated_data
+    try:
+        search = request.query_params.get('search')
 
-    limit = data.get('limit') if data.get('limit') is not None else 10
-    offset = data.get('offset') if data.get('offset') is not None else 0
-    search = data.get('search')
+        params = PostsQueryParamsSerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        data = params.validated_data
 
-    pagination = PaginationParams(limit=limit, offset=offset)
-    
-    posts = PostService.get_all_posts(pagination)
-    count = PostService.get_posts_count(search)
-    
-    return PaginatedResponse(
-        results=PostSerializer(posts, many=True).data,
-        count=count,
-        request=request
-    )
+        limit = data.get('limit') if data.get('limit') is not None else 10
+        offset = data.get('offset') if data.get('offset') is not None else 0
+        
+        pagination = PaginationParams(limit=limit, offset=offset)
+
+        if search:
+            all_posts = Post.objects.all()
+            matching_posts = [
+                post for post in all_posts 
+                if search.lower() in post.title.lower() or search.lower() in post.content.lower()
+            ]
+            
+            if not matching_posts:
+                return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        posts = PostService.get_all_posts(pagination, search)
+
+        if not posts:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        count = PostService.get_posts_count(search)
+        
+        return PaginatedResponse(
+            results=PostSerializer(posts, many=True).data,
+            count=count,
+            request=request
+        )
+    except Exception as e:
+        return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 

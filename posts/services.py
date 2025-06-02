@@ -17,8 +17,8 @@ from posts.types import PostId
 
 class PostService:
     @staticmethod
-    def get_all_posts(params: PaginationParams) -> List[Post]:
-        return PostRepository.get_all_posts(params)
+    def get_all_posts(pagination: PaginationParams, search: Optional[str] = None) -> List[Post]:
+        return PostRepository.get_all_posts(search=search, pagination=pagination)
 
     @staticmethod
     def get_posts_by_channel(
@@ -31,7 +31,7 @@ class PostService:
         Returns posts for a given channel with optional pagination.
         Raises:
             ChannelNotFoundException: if no channel exists with the given ID.
-            PermissionDenied: if requester isn't allowed (optional).
+            PermissionDenied: if requester isn't allowed
         """
         pagination = pagination or PaginationParams()
 
@@ -39,8 +39,7 @@ class PostService:
         if not channel:
             raise ChannelNotFoundException()
 
-
-        return PostRepository.get_all_posts(channel=channel, pagination=pagination)
+        return PostRepository.get_all_posts(channel=channel, pagination=pagination, search=search)
 
     @staticmethod
     def get_posts_count_by_channel(

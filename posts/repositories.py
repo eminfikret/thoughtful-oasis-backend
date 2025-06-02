@@ -14,23 +14,54 @@ class PostRepository:
             pagination: Optional[PaginationParams] = None,
             channel: Optional[Channel] = None,
     ) -> List[Post]:
+        import logging
+        logging.info(f"get_all_posts called with search='{search}'")
+        
         pagination = pagination or PaginationParams()
-
         queryset = Post.objects.select_related('channel', 'author').all()
 
         if channel:
             queryset = queryset.filter(channel=channel)
 
-        if search:
-            queryset = queryset.filter(title__icontains=search)
+        all_posts = list(Post.objects.all())
+        logging.info(f"Total posts in database: {len(all_posts)}")
+        for post in all_posts:
+            logging.info(f"Available post: {post.id} - Title: {post.title}, Content: {post.content}")
+
+        if search is not None:
+            search = search.strip()
+            if search:  
+                logging.info(f"Filtering posts for search term: '{search}'")
+
+                filtered_posts = []
+                for post in list(queryset):
+                    if (search.lower() in post.title.lower()) or (search.lower() in post.content.lower()):
+                        filtered_posts.append(post)
+                        logging.info(f"Match found: {post.id} - {post.title}")
+                    else:
+                        logging.info(f"No match: {post.id} - {post.title}")
+                
+                logging.info(f"Found {len(filtered_posts)} posts matching '{search}'")
+
+                result = filtered_posts[pagination.offset:pagination.offset + pagination.limit]
+                return result
 
         return list(queryset[pagination.offset:pagination.offset + pagination.limit])
+
     @staticmethod
-    def get_posts_count() -> int:
+    def get_posts_count(search: Optional[str] = None) -> int:
         """
         Returns total count of Post records.
+        Optional filtering by search term.
         """
-        return Post.objects.count()
+        queryset = Post.objects.all()
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(content__icontains=search)
+            )
+
+        return queryset.count()
 
     @staticmethod
     def get_post_by_id(post_id: PostId) -> Optional[Post]:
@@ -79,7 +110,7 @@ class PostRepository:
         """
         post.save(update_fields=[
             field for field in ['title', 'content', 'updated_at']
-            if field in post.get_dirty_fields()  # or simply save all
+            if field in post.get_dirty_fields()
         ])
         return post
 

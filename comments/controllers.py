@@ -10,7 +10,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from claims.services import ClaimService
 from posts.models import Post
 
-from .exceptions import CommentNotFound, PostNotFound
+from .exceptions import CommentNotFound
 from .models import Comment
 from .serializers import CreateCommentSerializer, PostCommentSerializer, ReplyCommentSerializer
 from .services import CommentService
@@ -140,22 +140,23 @@ class PostCommentsView(views.APIView):
         if not post_id:
             return Response({"error": "Missing post_id parameter"}, 
                             status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            comments = CommentService.get_comments_for_post(post_id)
-        except Post.DoesNotExist:
-            raise PostNotFound()
 
-        claim_service = ClaimService()
-        response_data = []
-        
-        for comment in comments:
-            comment_data = PostCommentSerializer(comment).data
-            claims = claim_service.get_claims_for_content('comment', comment.id)
-            comment_data['claims'] = claims
-            response_data.append(comment_data)
+        try:
+            get_object_or_404(Post, id=post_id) 
+            comments = CommentService.get_comments_for_post(post_id)
             
-        return Response(response_data, status=status.HTTP_200_OK)
+            claim_service = ClaimService()
+            response_data = []
+            
+            for comment in comments:
+                comment_data = PostCommentSerializer(comment).data
+                claims = claim_service.get_claims_for_content('comment', comment.id)
+                comment_data['claims'] = claims
+                response_data.append(comment_data)
+                
+            return Response(response_data, status=status.HTTP_200_OK)
+        except Post.DoesNotExist:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
 @swagger_auto_schema(
     method="get",
