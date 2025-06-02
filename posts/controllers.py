@@ -287,7 +287,8 @@ class PostDetailController(APIView):
         except Post.DoesNotExist:
             return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
         except UnauthorizedPostAccessException:
-            return Response({"error": "Forbidden - You cannot update this post"}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Forbidden - You cannot update this post"},
+                             status=status.HTTP_403_FORBIDDEN)
         except NotFoundException as e:
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
         except PermissionDeniedException as e:

@@ -3,6 +3,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, views
 from rest_framework.decorators import api_view
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -12,10 +13,13 @@ from posts.models import Post
 
 from .exceptions import CommentNotFound
 from .models import Comment
-from .serializers import (CreateCommentSerializer, PostCommentSerializer,
-                          ReplyCommentSerializer, CommentUpdateSerializer)
+from .serializers import (
+    CommentUpdateSerializer,
+    CreateCommentSerializer,
+    PostCommentSerializer,
+    ReplyCommentSerializer,
+)
 from .services import CommentService
-from rest_framework.exceptions import PermissionDenied
 
 
 class CreateCommentView(views.APIView):
@@ -240,7 +244,8 @@ class UpdateCommentView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Update a comment",
-        operation_description="Updates content of an existing comment. User can only update their own comments.",
+        operation_description="Updates content of an existing comment. " \
+        "User can only update their own comments.",
         tags=["Comments"],
         request_body=CommentUpdateSerializer,
         responses={
