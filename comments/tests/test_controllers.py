@@ -8,18 +8,19 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from channels.models import Channel
 from comments.models import Comment
-from common.test_utils import disable_fact_checking_signals
+from common.test_utils import MockLLMTestMixin, disable_fact_checking_signals
 from posts.models import Post
 
 
-class CommentControllerTest(APITestCase):
+class CommentControllerTest(MockLLMTestMixin, APITestCase):
     def setUp(self):
+        super().setUp() 
+        
         self.client = APIClient()
- 
+        
         self.user = User.objects.create_user(username='testuser', password='testpass')
         self.another_user = User.objects.create_user(username='anotheruser', password='anotherpass')
         
-  
         self.channel = Channel.objects.create(
             name='Test Channel',
             description='Test Desc',
@@ -39,23 +40,20 @@ class CommentControllerTest(APITestCase):
         token = str(RefreshToken.for_user(user).access_token)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
 
-    @patch('claims.utils.extract_claims_from_text')
-    def test_create_comment_success(self, mock_extract_claims):
+    def test_create_comment_success(self):
         """Test creating a comment successfully"""
-
-        mock_extract_claims.return_value = ["Test claim"]
-        
-        self.authenticate(self.user)
-        url = reverse('create_comment')
-        data = {
-            "post_id": self.post.id,
-            "content": "This is a test comment"
-        }
-        response = self.client.post(url, data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Comment.objects.count(), 1)
-        self.assertEqual(Comment.objects.first().content, "This is a test comment")
+        with disable_fact_checking_signals():
+            self.authenticate(self.user)
+            url = reverse('create_comment')
+            data = {
+                "post_id": self.post.id,
+                "content": "This is a test comment"
+            }
+            response = self.client.post(url, data, format='json')
+            
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(Comment.objects.count(), 1)
+            self.assertEqual(Comment.objects.first().content, "This is a test comment")
         
     def test_create_comment_requires_auth(self):
         """Test creating a comment requires authentication"""
@@ -82,35 +80,31 @@ class CommentControllerTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(Comment.objects.count(), 0)
         
-    @patch('claims.utils.extract_claims_from_text')
-    def test_reply_to_comment(self, mock_extract_claims):
+    def test_reply_to_comment(self):
         """Test replying to a comment"""
-
-        mock_extract_claims.return_value = ["Reply claim"]
-        
         self.authenticate(self.user)
-        
+
         with disable_fact_checking_signals():
             parent = Comment.objects.create(
                 post=self.post,
                 author=self.user,
                 content="Parent comment"
             )
-        
-        url = reverse('create_reply')
-        data = {
-            "parent_comment_id": parent.id,
-            "content": "This is a reply"
-        }
-        response = self.client.post(url, data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Comment.objects.count(), 2)
-        
-        reply = Comment.objects.exclude(id=parent.id).first()
-        self.assertEqual(reply.content, "This is a reply")
-        self.assertEqual(reply.parent_comment_id, parent.id)
-        
+            
+            url = reverse('create_reply')
+            data = {
+                "parent_comment_id": parent.id,
+                "content": "This is a reply"
+            }
+            response = self.client.post(url, data, format='json')
+            
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(Comment.objects.count(), 2)
+            
+            reply = Comment.objects.exclude(id=parent.id).first()
+            self.assertEqual(reply.content, "This is a reply")
+            self.assertEqual(reply.parent_comment_id, parent.id)
+    
     def test_reply_to_nonexistent_comment(self):
         """Test replying to a non-existent comment"""
         self.authenticate(self.user)
@@ -240,11 +234,8 @@ class CommentControllerTest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         
-    @patch('claims.utils.extract_claims_from_text')
-    def test_update_comment(self, mock_extract_claims):
+    def test_update_comment(self):
         """Test updating a comment"""
-        mock_extract_claims.return_value = ["Updated claim"]
-        
         self.authenticate(self.user)
         
         with disable_fact_checking_signals():
@@ -253,16 +244,16 @@ class CommentControllerTest(APITestCase):
                 author=self.user,
                 content="Original content"
             )
-        
-        url = reverse('update_comment', kwargs={'comment_id': comment.id})
-        data = {
-            "content": "Updated content"
-        }
-        response = self.client.put(url, data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        comment.refresh_from_db()
-        self.assertEqual(comment.content, "Updated content")
+            
+            url = reverse('update_comment', kwargs={'comment_id': comment.id})
+            data = {
+                "content": "Updated content"
+            }
+            response = self.client.put(url, data, format='json')
+            
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            comment.refresh_from_db()
+            self.assertEqual(comment.content, "Updated content")
         
     def test_update_comment_requires_auth(self):
         """Test updating a comment requires authentication"""

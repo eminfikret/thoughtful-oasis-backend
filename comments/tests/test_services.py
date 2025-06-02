@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.exceptions import PermissionDenied
@@ -8,12 +6,14 @@ from channels.models import Channel
 from comments.exceptions import CommentNotFound
 from comments.models import Comment
 from comments.services import CommentService
-from common.test_utils import disable_fact_checking_signals
+from common.test_utils import MockLLMTestMixin, disable_fact_checking_signals
 from posts.models import Post
 
 
-class CommentServiceTest(TestCase):
+class CommentServiceTest(MockLLMTestMixin, TestCase):
     def setUp(self):
+        super().setUp()
+        
         self.user = User.objects.create_user(
             username='testuser',
             password='testpassword'
@@ -37,26 +37,21 @@ class CommentServiceTest(TestCase):
                 channel=self.channel
             )
 
-    @patch('claims.utils.extract_claims_from_text')
-    def test_create_comment(self, mock_extract_claims):
+    def test_create_comment(self):
         """Test creating a comment via service"""
-        mock_extract_claims.return_value = ["This is a test claim"]
-        
-        comment = CommentService.create_comment(
-            post_id=self.post.id,
-            author=self.user,
-            content='Test comment'
-        )
+        with disable_fact_checking_signals():
+            comment = CommentService.create_comment(
+                post_id=self.post.id,
+                author=self.user,
+                content='Test comment'
+            )
         
         self.assertEqual(Comment.objects.count(), 1)
         self.assertEqual(comment.content, 'Test comment')
         self.assertIsNone(comment.parent_comment)
         
-    @patch('claims.utils.extract_claims_from_text')
-    def test_create_reply(self, mock_extract_claims):
+    def test_create_reply(self):
         """Test creating a reply via service"""
-        mock_extract_claims.return_value = ["This is a reply claim"]
-        
         with disable_fact_checking_signals():
             parent_comment = Comment.objects.create(
                 post=self.post,
@@ -64,11 +59,11 @@ class CommentServiceTest(TestCase):
                 content='Parent comment'
             )
         
-        reply = CommentService.create_reply(
-            parent_comment_id=parent_comment.id,
-            author=self.user,
-            content='Reply comment'
-        )
+            reply = CommentService.create_reply(
+                parent_comment_id=parent_comment.id,
+                author=self.user,
+                content='Reply comment'
+            )
         
         self.assertEqual(Comment.objects.count(), 2)
         self.assertEqual(reply.content, 'Reply comment')
