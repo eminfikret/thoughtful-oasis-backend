@@ -14,39 +14,21 @@ class PostRepository:
             pagination: Optional[PaginationParams] = None,
             channel: Optional[Channel] = None,
     ) -> List[Post]:
-        import logging
-        logging.info(f"get_all_posts called with search='{search}'")
-        
         pagination = pagination or PaginationParams()
         queryset = Post.objects.select_related('channel', 'author').all()
 
         if channel:
             queryset = queryset.filter(channel=channel)
 
-        all_posts = list(Post.objects.all())
-        logging.info(f"Total posts in database: {len(all_posts)}")
-        for post in all_posts:
-            logging.info(
-                f"Available post: {post.id} - Title: {post.title}, "
-                f"Content: {post.content}"
-            )
-
         if search is not None:
             search = search.strip()
-            if search:  
-                logging.info(f"Filtering posts for search term: '{search}'")
-
+            if search:
                 filtered_posts = []
                 for post in list(queryset):
                     title_match = search.lower() in post.title.lower()
                     content_match = search.lower() in post.content.lower()
                     if title_match or content_match:
                         filtered_posts.append(post)
-                        logging.info(f"Match found: {post.id} - {post.title}")
-                    else:
-                        logging.info(f"No match: {post.id} - {post.title}")
-                
-                logging.info(f"Found {len(filtered_posts)} posts matching '{search}'")
 
                 result = filtered_posts[pagination.offset:pagination.offset + pagination.limit]
                 return result
@@ -109,19 +91,31 @@ class PostRepository:
         )
 
     @staticmethod
-    def update_post(post: Post) -> Post:
+    def update_post(post_id: int, title: str = None, content: str = None) -> Post:
         """
-        Persists changes to an existing Post instance.
+        Updates a post with the given ID.
         """
-        post.save(update_fields=[
-            field for field in ['title', 'content', 'updated_at']
-            if field in post.get_dirty_fields()
-        ])
+        if isinstance(post_id, Post):
+            post = post_id
+        else:
+            post = Post.objects.get(id=post_id)
+    
+        if title is not None:
+            post.title = title
+        if content is not None:
+            post.content = content
+        
+        post.save()
         return post
-
+    
     @staticmethod
-    def delete_post(post: Post) -> None:
+    def delete_post(post_id: int) -> None:
         """
-        Deletes the given Post instance.
+        Deletes a post with the given ID.
         """
+        if isinstance(post_id, Post):
+            post = post_id 
+        else:
+            post = Post.objects.get(id=post_id)
+    
         post.delete()

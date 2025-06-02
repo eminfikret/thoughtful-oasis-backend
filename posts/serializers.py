@@ -21,16 +21,26 @@ class PostSerializer(serializers.ModelSerializer):
         return VoteRepository.get_post_votes(obj.id)
         
     def get_channel(self, obj):
-        return {
-            'id': obj.channel.id,
-            'name': obj.channel.name
-        }
+        try:
+            if hasattr(obj, 'channel') and obj.channel:
+                return {
+                    'id': obj.channel.id,
+                    'name': obj.channel.name
+                }
+            return None
+        except Exception:
+            return None
         
     def get_author(self, obj):
-        return {
-            'id': obj.author.id,
-            'name': obj.author.username
-        }
+        try:
+            if hasattr(obj, 'author') and obj.author:
+                return {
+                    'id': obj.author.id,
+                    'name': obj.author.username
+                }
+            return None
+        except Exception:
+            return None
 
 
 class PostCreateSerializer(serializers.ModelSerializer):

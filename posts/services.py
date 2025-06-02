@@ -71,6 +71,10 @@ class PostService:
         """
         Creates a new post in the given channel by the given author.
         """
+        channel = ChannelService.get_channel_by_id(dto.channel_id)
+        if not channel:
+            raise ChannelNotFoundException(f"Channel with ID {dto.channel_id} not found")
+            
         return PostRepository.create_post(
             title=dto.title,
             content=dto.content,
@@ -85,8 +89,6 @@ class PostService:
             PostNotFoundException: if no post exists with the given ID.
             UnauthorizedPostAccessException: if the user is not the post's author nor staff.
         """
-        has_changes = False
-
         post = PostService.get_post_by_id(post_id)
 
         if not (post.author == user or user.is_staff):
@@ -97,10 +99,8 @@ class PostService:
         if dto.content is not None:
             post.content = dto.content
 
-
-        if has_changes:
-            return PostRepository.update_post(post)
-
+        post.save()
+        
         return post
 
     @staticmethod
@@ -115,4 +115,4 @@ class PostService:
         if not (post.author == user or user.is_staff):
             raise UnauthorizedPostAccessException(post_id)
 
-        PostRepository.delete_post(post)
+        PostRepository.delete_post(post.id)
