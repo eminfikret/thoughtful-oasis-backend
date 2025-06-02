@@ -21,6 +21,9 @@ class PostRepository:
         if channel:
             queryset = queryset.filter(channel=channel)
 
+        if search:
+            queryset = queryset.filter(title__icontains=search)
+
         return list(queryset[pagination.offset:pagination.offset + pagination.limit])
     @staticmethod
     def get_posts_count() -> int:
@@ -50,7 +53,6 @@ class PostRepository:
             queryset = queryset.filter(
                 Q(title__icontains=search) | Q(content__icontains=search)
             )
-
         return queryset.count()
 
     @staticmethod
