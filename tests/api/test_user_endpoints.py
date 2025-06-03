@@ -1,9 +1,7 @@
 import os
 import uuid
+
 import requests
-import pytest
-import json
-from time import sleep
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
 
@@ -103,7 +101,9 @@ def test_register_missing_fields():
     del user_data["username"]
     
     response = requests.post(f"{API_URL}/users/register/", json=user_data)
-    assert response.status_code == 400, f"Should reject missing username, got {response.status_code}" 
+    assert response.status_code == 400, (
+        f"Should reject missing username, got {response.status_code}"
+    )
 
     user_data = generate_unique_user()
     del user_data["email"]
@@ -115,7 +115,9 @@ def test_register_missing_fields():
     del user_data["password"]
     
     response = requests.post(f"{API_URL}/users/register/", json=user_data)
-    assert response.status_code == 400, f"Should reject missing password, got {response.status_code}" 
+    assert response.status_code == 400, (
+        f"Should reject missing password, got {response.status_code}"
+    )
 
 def test_register_weak_password():
     """Test registration with weak password"""
@@ -186,7 +188,8 @@ def test_login_case_insensitive_username():
     if response.status_code == 200:
         data = response.json()
         assert "token" in data, "Response should contain a token"
-        assert data["user"]["username"].lower() == user_data["username"].lower(), "Username should match (case-insensitive)"
+        assert data["user"]["username"].lower() == user_data["username"].lower(), "Username"
+        " should match (case-insensitive)"
     else:
         print("Note: Server appears to use case-sensitive usernames")
 
@@ -228,7 +231,8 @@ def test_token_refresh_missing_token():
 def test_token_expired():
     """Test using an expired token"""
     headers = {
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1MTYyMzkwMjIsInVzZXJfaWQiOjF9.invalid_signature"
+        "Authorization": "Bearer "
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1MTYyMzkwMjIsInVzZXJfaWQiOjF9.invalid_signature"
     }
     
     response = requests.get(f"{API_URL}/users/", headers=headers)
@@ -253,14 +257,16 @@ def test_get_users_authenticated():
     assert response.status_code == 200, "Should return user list for authenticated users"
     data = response.json()
     assert isinstance(data, list), "Response should be a list of users"
-    assert any(user["username"] == user_data["username"] for user in data), "Created user should be in the list"
+    assert any(user["username"] == user_data["username"] for user in data), "Created"
+    " user should be in the list"
 
 def test_get_users_unauthenticated():
     """Test getting user list while unauthenticated"""
     response = requests.get(f"{API_URL}/users/")
     
     if response.status_code == 401:
-        assert "authentication" in response.text.lower(), "Should mention authentication requirements"
+        assert "authentication" in response.text.lower(), "Should mention"
+        " authentication requirements"
     else:
         assert response.status_code == 200, "Public user list should be accessible"
         assert isinstance(response.json(), list), "Response should be a list of users"
@@ -396,11 +402,11 @@ def test_get_other_user_subscriptions():
     
     assert token1 is not None, "Failed to get first auth token"
     
-    login1_response = requests.post(f"{API_URL}/users/login/", json={
+    requests.post(f"{API_URL}/users/login/", json={
         "username": user1_data["username"],
         "password": user1_data["password"]
     })
-    user1_id = login1_response.json()["user"]["id"]
+
     
     login2_response = requests.post(f"{API_URL}/users/login/", json={
         "username": user2_data["username"],
@@ -454,11 +460,10 @@ def test_delete_other_user_account():
     assert token1 is not None, "Failed to get first auth token"
     assert token2 is not None, "Failed to get second auth token"
     
-    login1_response = requests.post(f"{API_URL}/users/login/", json={
+    requests.post(f"{API_URL}/users/login/", json={
         "username": user1_data["username"],
         "password": user1_data["password"]
     })
-    user1_id = login1_response.json()["user"]["id"]
     
     login2_response = requests.post(f"{API_URL}/users/login/", json={
         "username": user2_data["username"],
