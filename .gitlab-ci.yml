@@ -2,6 +2,7 @@ stages:
   - lint
   - test
   - build
+  - api-tests
   - deploy
 
 variables:
@@ -62,6 +63,15 @@ build:
   script:
     - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA -f docker/Dockerfile .
     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+
+api-tests:
+  stage: test
+  image: python:3.11
+  script:
+    - pip install -r requirements.txt pytest pytest-django pytest-env requests
+    - python manage.py migrate
+    - python manage.py loaddata tests/fixtures/initial_data.json
+    - pytest tests/api/
   only:
     - main
 
