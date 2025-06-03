@@ -2,7 +2,7 @@ stages:
   - lint
   - test
   - build
-  - api-tests
+  - local-api-tests
   - deploy
 
 variables:
@@ -64,16 +64,46 @@ build:
     - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA -f docker/Dockerfile .
     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
 
-api-tests:
+local-api-tests:
   stage: test
   image: python:3.11
-  script:
-    - pip install -r requirements.txt pytest pytest-django pytest-env requests
+  services:
+    - postgres:15
+  variables:
+    POSTGRES_DB: test_db
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: 5432
+    DJANGO_SETTINGS_MODULE: core.settings
+    BACKEND_API_URL: "http://localhost:8000/api/v1"
+  before_script:
+    - pip install -r requirements.txt
+    - pip install pytest requests
     - python manage.py migrate
-    - python manage.py loaddata tests/fixtures/initial_data.json
+    - python manage.py runserver 0.0.0.0:8000 &
+    - SERVER_PID=$!
+    - |
+      echo "Waiting for API to be ready..."
+      timeout=30
+      counter=0
+      while [ $counter -lt $timeout ]; do
+        if curl -s http://localhost:8000/api/v1/ > /dev/null 2>&1 || curl -s http://localhost:8000/swagger/ > /dev/null 2>&1; then
+          echo "API is ready!"
+          break
+        fi
+        echo "API not ready yet, waiting... ($counter/$timeout)"
+        sleep 1
+        counter=$((counter+1))
+      done
+      if [ $counter -eq $timeout ]; then
+        echo "API failed to start within timeout period"
+        exit 1
+      fi
+  script:
     - pytest tests/api/
-  only:
-    - main
+  after_script:
+    - if [ -n "$SERVER_PID" ]; then kill $SERVER_PID || true; fi
 
 deploy:
   stage: deploy

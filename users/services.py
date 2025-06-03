@@ -35,15 +35,19 @@ class UserService:
         return self.user_repository.get_user_by_id(user_id)
 
     def register_user(self, user_data):
-        password = user_data.pop('password')
-        user = self.user_repository.create_user({
-            'username': user_data['username'],
-            'email': user_data['email'],
-            'password': password,
-            'first_name': user_data.get('first_name', ''),
-            'last_name': user_data.get('last_name', '')
-        })
-        return user
+        try:
+            password = user_data.pop('password')
+            user = self.user_repository.create_user({
+                'username': user_data['username'],
+                'email': user_data['email'], 
+                'password': password,
+                'first_name': user_data.get('first_name', ''),
+                'last_name': user_data.get('last_name', '')
+            })
+            return user
+        except KeyError as e:
+        
+            raise ValueError(f"Missing required field: {str(e)}")
     
     def login_user(self, username, password):
         user = self.user_repository.authenticate_user(username, password)
@@ -78,7 +82,7 @@ class UserService:
 
             return {
                 'access_token': new_access_token,
-                'refresh_token': str(refresh_token),  # return same refresh if you don’t rotate
+                'refresh_token': str(refresh_token), 
             }
         except TokenError as e:
             print("[ERROR] Invalid refresh token:", str(e))
