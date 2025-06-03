@@ -1,5 +1,6 @@
 import os
 import uuid
+
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
@@ -72,7 +73,8 @@ def test_create_channel_success():
     
     response = requests.post(f"{API_URL}/channels/", json=channel_data, headers=headers)
     
-    assert response.status_code == 201, f"Channel creation failed with status {response.status_code}"
+    assert response.status_code == 201, (
+        f"Channel creation failed with status {response.status_code}")
     data = response.json()
     assert data["name"] == channel_data["name"], "Channel name should match"
     assert data["description"] == channel_data["description"], "Channel description should match"
@@ -102,7 +104,8 @@ def test_create_channel_duplicate_name():
     response = requests.post(f"{API_URL}/channels/", json=channel_data, headers=headers)
     
     assert response.status_code == 409, "Should reject duplicate channel name"
-    assert "name" in response.text.lower() or "already exists" in response.text.lower(), "Error should mention name conflict"
+    assert ("name" in response.text.lower() or 
+            "already exists" in response.text.lower()), "Error should mention name conflict"
 
 def test_create_channel_missing_fields():
     """Test channel creation with missing required fields"""
@@ -139,7 +142,9 @@ def test_list_channels_authenticated():
     assert "results" in data, "Response should include results key"
     assert "count" in data, "Response should include count key"
     assert isinstance(data["results"], list), "Results should be a list"
-    assert any(ch["name"] == channel["name"] for ch in data["results"]), "Created channel should be in the list"
+    assert any(
+        ch["name"] == channel["name"] for ch in data["results"]
+    ), "Created channel should be in the list"
 
 def test_list_channels_unauthenticated():
     """Test listing channels without authentication"""
@@ -167,7 +172,9 @@ def test_list_channels_with_search():
     assert response.status_code == 200, "Search should work"
     data = response.json()
     assert len(data["results"]) >= 1, "Search should find at least the created channel"
-    assert any(unique_keyword in ch["name"] for ch in data["results"]), "Created channel should be in search results"
+    assert any(
+        unique_keyword in ch["name"] for ch in data["results"]
+    ), "Created channel should be in search results"
 
 # -------------------------
 # Channel detail tests
@@ -233,7 +240,12 @@ def test_update_channel_success():
     }
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.patch(f"{API_URL}/channels/{channel['id']}/", json=update_data, headers=headers)
+    response = requests.patch(
+        f"{API_URL}/channels/{channel['id']}/", 
+        json=update_data, 
+        headers=headers,
+        timeout=10
+    )
     
     assert response.status_code == 200, "Should update channel successfully"
     data = response.json()
@@ -254,7 +266,12 @@ def test_update_channel_partial():
     }
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.patch(f"{API_URL}/channels/{channel['id']}/", json=update_data, headers=headers)
+    response = requests.patch(
+        f"{API_URL}/channels/{channel['id']}/", 
+        json=update_data, 
+        headers=headers,
+        timeout=10
+    )
     
     assert response.status_code == 200, "Should update channel successfully"
     data = response.json()
@@ -275,7 +292,12 @@ def test_update_channel_duplicate_name():
     }
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.patch(f"{API_URL}/channels/{channel2['id']}/", json=update_data, headers=headers)
+    response = requests.patch(
+        f"{API_URL}/channels/{channel2['id']}/", 
+        json=update_data, 
+        headers=headers,
+        timeout=10
+    )
     
     assert response.status_code == 409, "Should reject duplicate channel name"
 
@@ -295,7 +317,12 @@ def test_update_channel_nonexistent():
     }
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.patch(f"{API_URL}/channels/{nonexistent_id}/", json=update_data, headers=headers)
+    response = requests.patch(
+        f"{API_URL}/channels/{nonexistent_id}/", 
+        json=update_data, 
+        headers=headers,
+        timeout=10
+    )
     
     assert response.status_code == 404, "Should return not found for non-existent channel"
 
@@ -316,7 +343,12 @@ def test_update_channel_unauthorized():
     }
     
     headers = {"Authorization": f"Bearer {token2}"}
-    response = requests.patch(f"{API_URL}/channels/{channel['id']}/", json=update_data, headers=headers)
+    response = requests.patch(
+        f"{API_URL}/channels/{channel['id']}/", 
+        json=update_data, 
+        headers=headers,
+        timeout=10
+    )
     
     assert response.status_code == 403, "Should reject update from unauthorized user"
 
@@ -436,7 +468,11 @@ def test_list_channel_posts_empty():
     assert channel is not None, "Failed to create test channel"
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{API_URL}/channels/{channel['id']}/posts/", headers=headers)
+    response = requests.get(
+        f"{API_URL}/channels/{channel['id']}/posts/", 
+        headers=headers, 
+        timeout=10
+    )
     
     if response.status_code == 200:
         data = response.json()
@@ -469,6 +505,9 @@ def test_create_and_list_channel_post():
         data = response.json()
         assert "results" in data, "Response should include results key"
         assert len(data["results"]) >= 1, "Should contain at least one post"
-        assert any(post["title"] == post_data["title"] for post in data["results"]), "Created post should be in the list"
+        assert any(
+            post["title"] == post_data["title"] for post in data["results"]
+        ), "Created post should be in the list"
     else:
-        print(f"Note: Post creation returned status {post_response.status_code}, skipping post listing test")
+        print(f"Note: Post creation returned status {post_response.status_code}, "
+              f"skipping post listing test")
