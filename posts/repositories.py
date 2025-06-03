@@ -1,0 +1,121 @@
+from typing import List, Optional
+
+from django.db.models import Q
+
+from common.params import PaginationParams
+from posts.models import Channel, Post
+from posts.types import PostId
+
+
+class PostRepository:
+    @staticmethod
+    def get_all_posts(
+            search: Optional[str] = None,
+            pagination: Optional[PaginationParams] = None,
+            channel: Optional[Channel] = None,
+    ) -> List[Post]:
+        pagination = pagination or PaginationParams()
+        queryset = Post.objects.select_related('channel', 'author').all()
+
+        if channel:
+            queryset = queryset.filter(channel=channel)
+
+        if search is not None:
+            search = search.strip()
+            if search:
+                filtered_posts = []
+                for post in list(queryset):
+                    title_match = search.lower() in post.title.lower()
+                    content_match = search.lower() in post.content.lower()
+                    if title_match or content_match:
+                        filtered_posts.append(post)
+
+                result = filtered_posts[pagination.offset:pagination.offset + pagination.limit]
+                return result
+
+        return list(queryset[pagination.offset:pagination.offset + pagination.limit])
+
+    @staticmethod
+    def get_posts_count(search: Optional[str] = None) -> int:
+        """
+        Returns total count of Post records.
+        Optional filtering by search term.
+        """
+        queryset = Post.objects.all()
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(content__icontains=search)
+            )
+
+        return queryset.count()
+
+    @staticmethod
+    def get_post_by_id(post_id: PostId) -> Optional[Post]:
+        """
+        Returns the Post with the given ID, or None if not found.
+        """
+        try:
+            return Post.objects.select_related('author', 'channel').get(pk=post_id)
+        except Post.DoesNotExist:
+            return None
+
+    @staticmethod
+    def get_posts_count_by_channel(
+            channel: Channel,
+            search: Optional[str] = None
+    ) -> int:
+        queryset = Post.objects.filter(channel=channel)
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(content__icontains=search)
+            )
+        return queryset.count()
+
+    @staticmethod
+    def create_post(
+            title: str,
+            content: str,
+            channel_id: int,
+            author,
+    ) -> Post:
+        """
+        Creates and returns a new Post.
+        """
+        return Post.objects.create(
+            title=title,
+            content=content,
+            channel_id=channel_id,
+            author=author
+        )
+
+    @staticmethod
+    def update_post(post_id: int, title: str = None, content: str = None) -> Post:
+        """
+        Updates a post with the given ID.
+        """
+        if isinstance(post_id, Post):
+            post = post_id
+        else:
+            post = Post.objects.get(id=post_id)
+    
+        if title is not None:
+            post.title = title
+        if content is not None:
+            post.content = content
+        
+        post.save()
+        return post
+    
+    @staticmethod
+    def delete_post(post_id: int) -> None:
+        """
+        Deletes a post with the given ID.
+        """
+        if isinstance(post_id, Post):
+            post = post_id 
+        else:
+            post = Post.objects.get(id=post_id)
+    
+        post.delete()
