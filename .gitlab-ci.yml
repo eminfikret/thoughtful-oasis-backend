@@ -65,7 +65,7 @@ build:
     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
 
 local-api-tests:
-  stage: test
+  stage: local-api-tests
   image: python:3.11
   services:
     - postgres:15
