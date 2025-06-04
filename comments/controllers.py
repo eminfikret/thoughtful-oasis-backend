@@ -81,8 +81,8 @@ class CreateReplyView(views.APIView):
             type=openapi.TYPE_OBJECT,
             required=["parent_comment_id", "content"],
             properties={
-                "post_id": openapi.Schema(type=openapi.TYPE_INTEGER, 
-                                          description="ID of the post"),
+                "parent_comment_id": openapi.Schema(type=openapi.TYPE_INTEGER, 
+                                          description="ID of the parent comment"),
                 "content": openapi.Schema(type=openapi.TYPE_STRING,
                                            description="Content of the comment"),
             },
