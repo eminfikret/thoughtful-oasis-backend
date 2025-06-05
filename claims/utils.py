@@ -153,7 +153,6 @@ Summary: <short explanation>
     try:
         result = call_llm(prompt)
         if result == "FALLBACK_RESPONSE":
-            logger.warning("Using fallback for verdict generation due to LLM service unavailability")
             return {
                 "verdict": "not_found",
                 "summary": "This is an automatic fallback response due to service unavailability."
