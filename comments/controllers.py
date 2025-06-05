@@ -264,23 +264,18 @@ class UpdateCommentView(views.APIView):
         serializer.is_valid(raise_exception=True)
         
         try:
+            use_mock_llm = request.data.get('use_mock_llm', False)
+            
             comment = CommentService.update_comment(
                 comment_id=comment_id,
                 user=request.user,
                 content=serializer.validated_data['content']
             )
-
-            claim_service = ClaimService()
-
-            claim_service.delete_claims_for_content('comment', comment_id)
             
-            claim_service.process_content_for_claims(
-                user_id=comment.author.id,
-                content=comment.content,
-                source_type='comment',
-                source_id=comment.id
-            )
-        
+            comment.use_mock_llm = use_mock_llm
+            comment.save()
+            
+            claim_service = ClaimService()
             claims = claim_service.get_claims_for_content('comment', comment.id)
             
             response_data = PostCommentSerializer(comment).data

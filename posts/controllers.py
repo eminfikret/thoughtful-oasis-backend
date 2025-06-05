@@ -221,29 +221,21 @@ class PostDetailController(APIView):
         serializer.is_valid(raise_exception=True)
         
         dto = UpdatePostDto(**serializer.validated_data)
+        use_mock_llm = request.data.get('use_mock_llm', False)
 
         try:
-
             try:
                 post = PostService.get_post_by_id(PostId(post_id))
             except PostNotFoundException:
                 return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
-            
-
+        
             post = PostService.update_post(PostId(post_id), dto, request.user)
+        
+            post.use_mock_llm = use_mock_llm
+            
+            post.save()
             
             claim_service = ClaimService()
-            
-            claim_service.delete_claims_for_content('post', post.id)
-
-            combined_text = f"TITLE: {post.title}\n\nCONTENT:\n{post.content}"
-            claim_service.process_content_for_claims(
-                user_id=post.author.id,
-                content=combined_text,
-                source_type='post',
-                source_id=post.id
-            )
-            
             claims = claim_service.get_claims_for_content('post', post.id)
             
             response_data = PostSerializer(post).data
