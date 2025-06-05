@@ -116,7 +116,7 @@ class ChannelPostsController(APIView):
             raise PermissionDeniedAPIException(detail=str(e))
 
         return PaginatedResponse(
-            results=PostSerializer(posts, many=True).data,
+            results=PostSerializer(posts, many=True, context={'request': request}).data,
             count=count,
             request=request
         )
@@ -150,14 +150,13 @@ def create_post(request):
             author=request.user
         )
         
-        response_data = PostSerializer(post).data
+        response_data = PostSerializer(post, context={'request': request}).data
         
         claim_service = ClaimService()
         claims = claim_service.get_claims_for_content('post', post.id)
         response_data['claims'] = claims
         
         return Response(response_data, status=status.HTTP_201_CREATED)
-        
     except ChannelNotFoundException:
         return Response(
             {"error": "Channel not found"},
@@ -324,7 +323,7 @@ def list_posts(request):
         count = PostService.get_posts_count(search)
         
         return PaginatedResponse(
-            results=PostSerializer(posts, many=True).data,
+            results=PostSerializer(posts, many=True, context={'request': request}).data,
             count=count,
             request=request
         )
@@ -360,7 +359,7 @@ def get_post_details(request, post_id):
         if not post:
             return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
             
-        serializer = PostSerializer(post)
+        serializer = PostSerializer(post, context={'request': request})
         response_data = serializer.data
         
         claim_service = ClaimService()
