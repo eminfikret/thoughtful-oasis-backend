@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from django.db import transaction
 
-from .models import Claim, FactCheck
+from .models import Claim
 from .repositories import ClaimRepository, FactCheckRepository
 from .utils import check_claim_with_wikipedia, extract_claims_from_text, get_verdict_and_summary
 
@@ -349,7 +349,8 @@ class ClaimService:
             claim_kwargs = {
                 'user_id': user_id,
                 'source_type': source_type,
-                'extracted_claim': f"Mock claim #{i+1} for testing purposes from: {content[:30]}...",
+                'extracted_claim': (f"Mock claim #{i+1} for testing purposes from: "
+                                   f"{content[:30]}..."),
                 'claim_index': i+1  
             }
             
