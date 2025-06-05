@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from django.db import transaction
 
-from .models import Claim
+from .models import Claim, FactCheck
 from .repositories import ClaimRepository, FactCheckRepository
 from .utils import check_claim_with_wikipedia, extract_claims_from_text, get_verdict_and_summary
 
@@ -78,11 +78,15 @@ class ClaimService:
                 
         return results
     
-    def process_content_for_claims(self, user_id: int, content: str, source_type: str, 
-                                   source_id: int) -> List[Dict[str, Any]]:
+    def process_content_for_claims(self, content, source_type, source_id, user_id=None,
+                                   use_mock_llm=False):
         if source_type not in ['post', 'comment']:
             raise ValueError(f"Invalid source_type: {source_type}. Must be 'post' or 'comment'")
         
+
+        if use_mock_llm:
+            return self.create_mock_claims(content, source_type, source_id, user_id)
+
         extracted_claims = extract_claims_from_text(content)
         
         if not extracted_claims:
@@ -335,3 +339,42 @@ class ClaimService:
         count = claims.count()
         claims.delete()
         return count
+    
+    def create_mock_claims(self, content, source_type, source_id, user_id=None):
+        """Create mock claims and fact checks for testing purposes"""
+        num_claims = min(2, max(1, len(content) // 100))
+        created_claims = []
+        
+        for i in range(num_claims):
+            claim_kwargs = {
+                'user_id': user_id,
+                'source_type': source_type,
+                'extracted_claim': f"Mock claim #{i+1} for testing purposes from: {content[:30]}...",
+                'claim_index': i+1  
+            }
+            
+            if source_type == 'post':
+                claim_kwargs['post_id'] = source_id
+            else: 
+                claim_kwargs['comment_id'] = source_id
+            
+            claim = self.claim_repository.create_claim(**claim_kwargs)
+            
+            verdict = "supported" if i % 2 == 0 else "contradicted"
+            fact_check = self.fact_check_repository.create_fact_check(
+                claim_id=claim.id,
+                verdict=verdict,
+                summary=f"This is a mock {verdict} summary for testing purposes."
+            )
+            
+            self.fact_check_repository.create_fact_check_source(
+                fact_check_id=fact_check.id,
+                url="https://en.wikipedia.org/wiki/Mock",
+                title="Mock - Wikipedia",
+                description="This is a mock Wikipedia result for testing",
+                relevance_score=0.95
+            )
+            
+            created_claims.append(claim)
+        
+        return created_claims
