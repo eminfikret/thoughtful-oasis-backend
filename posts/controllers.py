@@ -241,7 +241,7 @@ class PostDetailController(APIView):
             claim_service = ClaimService()
             claims = claim_service.get_claims_for_content('post', post.id)
             
-            response_data = PostSerializer(updated_post).data
+            response_data = PostSerializer(updated_post, context={'request': request}).data
             response_data['claims'] = claims
             
             return Response(response_data, status=status.HTTP_200_OK)

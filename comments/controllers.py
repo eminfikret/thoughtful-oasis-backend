@@ -64,7 +64,7 @@ class CreateCommentView(views.APIView):
         claim_service = ClaimService()
         claims = claim_service.get_claims_for_content('comment', comment.id)
 
-        response_data = PostCommentSerializer(comment).data
+        response_data = PostCommentSerializer(comment, context={'request': request}).data
         response_data['claims'] = claims
 
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -114,7 +114,7 @@ class CreateReplyView(views.APIView):
         claim_service = ClaimService()
         claims = claim_service.get_claims_for_content('comment', comment.id)
         
-        response_data = PostCommentSerializer(comment).data
+        response_data = PostCommentSerializer(comment, context={'request': request}).data
         response_data['claims'] = claims
 
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -188,7 +188,7 @@ def get_comment_replies(request, comment_id):
     response_data = []
     
     for reply in replies:
-        reply_data = PostCommentSerializer(reply).data
+        reply_data = PostCommentSerializer(reply, context={'request': request}).data
         claims = claim_service.get_claims_for_content('comment', reply.id)
         reply_data['claims'] = claims
         response_data.append(reply_data)
@@ -278,7 +278,7 @@ class UpdateCommentView(views.APIView):
             claim_service = ClaimService()
             claims = claim_service.get_claims_for_content('comment', comment.id)
             
-            response_data = PostCommentSerializer(comment).data
+            response_data = PostCommentSerializer(comment, context={'request': request}).data
             response_data['claims'] = claims
             
             return Response(response_data, status=status.HTTP_200_OK)
