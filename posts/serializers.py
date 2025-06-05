@@ -45,7 +45,7 @@ class PostSerializer(serializers.ModelSerializer):
             if hasattr(obj, 'author') and obj.author:
                 return {
                     'id': obj.author.id,
-                    'name': obj.author.username
+                    'username': obj.author.username
                 }
             return None
         except Exception:

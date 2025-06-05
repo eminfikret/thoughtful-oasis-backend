@@ -43,7 +43,7 @@ class CommentReplySerializer(serializers.ModelSerializer):
     def get_author(self, obj):
         return {
             'id': obj.author.id,
-            'name': obj.author.username
+            'username': obj.author.username
         }
         
     def get_post_id(self, obj):
@@ -80,7 +80,7 @@ class PostCommentSerializer(serializers.ModelSerializer):
     def get_author(self, obj):
         return {
             'id': obj.author.id,
-            'name': obj.author.username
+            'username': obj.author.username
         }
         
     def get_post_id(self, obj):
