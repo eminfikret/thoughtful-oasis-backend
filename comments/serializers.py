@@ -64,7 +64,8 @@ class PostCommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'votes', 'parent_id', 'reply_count']
+        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'votes', 'parent_id', 
+                  'reply_count']
 
     def get_votes(self, obj):
         request = self.context.get('request')

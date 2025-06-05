@@ -130,7 +130,8 @@ class ClaimServiceTest(TestCase):
         )
 
         self.assertEqual(len(results), 1)
-        mock_extract_claims.assert_called_once_with("The Earth is round. This is a scientific fact.")
+        mock_extract_claims.assert_called_once_with("The Earth is round. " \
+        "This is a scientific fact.")
     
     @patch('claims.services.extract_claims_from_text')
     @patch('claims.services.check_claim_with_wikipedia')
