@@ -116,7 +116,7 @@ class ChannelPostsController(APIView):
             raise PermissionDeniedAPIException(detail=str(e))
 
         return PaginatedResponse(
-            results=PostSerializer(posts, many=True).data,
+            results=PostSerializer(posts, many=True, context={'request': request}).data,
             count=count,
             request=request
         )
@@ -150,53 +150,18 @@ def create_post(request):
             author=request.user
         )
         
-        response_data = PostSerializer(post).data
+        response_data = PostSerializer(post, context={'request': request}).data
         
         claim_service = ClaimService()
         claims = claim_service.get_claims_for_content('post', post.id)
         response_data['claims'] = claims
         
         return Response(response_data, status=status.HTTP_201_CREATED)
-        
     except ChannelNotFoundException:
         return Response(
             {"error": "Channel not found"},
             status=status.HTTP_404_NOT_FOUND
         )
-
-
-    @swagger_auto_schema(
-        method="get",
-        operation_summary="Retrieve a post",
-        operation_description="Fetches a post by its ID.",
-        tags=["Posts"],
-        responses={
-            200: openapi.Response(description="Post data", 
-                                  schema=openapi.Schema( type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "title": openapi.Schema(type=openapi.TYPE_STRING),
-                                        "content": openapi.Schema(type=openapi.TYPE_STRING),
-                                        "created_at": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                      format="date-time"),
-                                        "updated_at": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                      format="date-time"),
-                                                                                  })),
-            404: openapi.Response(description="Post not found"),
-        }
-    )
-    @api_view(['GET'])
-    def get_post(request, post_id: int):
-        try:
-            post = PostService.get_post_by_id(PostId(post_id))
-            return Response(PostSerializer(post).data)
-        except PostNotFoundException:
-            raise NotFoundAPIException(detail="Post not found")
-
-
-# ─── Delete Post ─────────────────────────────────────────────────────────────────
 
 @swagger_auto_schema(
     method="delete",
@@ -255,32 +220,28 @@ class PostDetailController(APIView):
         serializer.is_valid(raise_exception=True)
         
         dto = UpdatePostDto(**serializer.validated_data)
+        use_mock_llm = request.data.get('use_mock_llm', False)
 
         try:
-
             try:
                 post = PostService.get_post_by_id(PostId(post_id))
             except PostNotFoundException:
                 return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+            if not (post.author == request.user):
+                return Response(
+                    {"error": "Forbidden - You can only update your own posts"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             
-
-            post = PostService.update_post(PostId(post_id), dto, request.user)
+            post.use_mock_llm = use_mock_llm
             
+            updated_post = PostService.update_post(PostId(post_id), dto, request.user)
+        
             claim_service = ClaimService()
-            
-            claim_service.delete_claims_for_content('post', post.id)
-
-            combined_text = f"TITLE: {post.title}\n\nCONTENT:\n{post.content}"
-            claim_service.process_content_for_claims(
-                user_id=post.author.id,
-                content=combined_text,
-                source_type='post',
-                source_id=post.id
-            )
-            
             claims = claim_service.get_claims_for_content('post', post.id)
             
-            response_data = PostSerializer(post).data
+            response_data = PostSerializer(updated_post, context={'request': request}).data
             response_data['claims'] = claims
             
             return Response(response_data, status=status.HTTP_200_OK)
@@ -362,7 +323,7 @@ def list_posts(request):
         count = PostService.get_posts_count(search)
         
         return PaginatedResponse(
-            results=PostSerializer(posts, many=True).data,
+            results=PostSerializer(posts, many=True, context={'request': request}).data,
             count=count,
             request=request
         )
@@ -398,7 +359,7 @@ def get_post_details(request, post_id):
         if not post:
             return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
             
-        serializer = PostSerializer(post)
+        serializer = PostSerializer(post, context={'request': request})
         response_data = serializer.data
         
         claim_service = ClaimService()

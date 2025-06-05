@@ -169,9 +169,9 @@ class TextAnalysisController(APIView):
                 'results': results
             }, status=status.HTTP_201_CREATED)
             
-        except Exception as e:
+        except Exception:
             return Response(
-                {'error': f"Error processing text: {str(e)}"},
+                {'error': "Error processing text"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

@@ -115,42 +115,39 @@ class ClaimServiceTest(TestCase):
     @patch('claims.services.extract_claims_from_text')
     @patch('claims.services.check_claim_with_wikipedia')
     @patch('claims.services.get_verdict_and_summary')
-    def test_process_content_for_claims_post(self, mock_get_verdict, mock_check_claim,
-                                              mock_extract_claims):
+    def test_process_content_for_claims_post(
+            self, mock_get_verdict, mock_check_claim, mock_extract_claims):
         """Test extracting claims from post content"""
-
         mock_extract_claims.return_value = self.mock_extracted_claims
         mock_check_claim.return_value = self.mock_wiki_result
         mock_get_verdict.return_value = self.mock_verdict_result
 
         results = self.service.process_content_for_claims(
-            self.user.id, 
-            "The Earth is round. This is a scientific fact.",
-            "post",
-            123
+            content="The Earth is round. This is a scientific fact.",
+            source_type="post",
+            source_id=123,
+            user_id=self.user.id
         )
 
         self.assertEqual(len(results), 1)
-
         mock_extract_claims.assert_called_once_with("The Earth is round. " \
         "This is a scientific fact.")
     
     @patch('claims.services.extract_claims_from_text')
     @patch('claims.services.check_claim_with_wikipedia')
     @patch('claims.services.get_verdict_and_summary')
-    def test_process_content_for_claims_comment(self, mock_get_verdict, mock_check_claim,
-                                                 mock_extract_claims):
+    def test_process_content_for_claims_comment(
+            self, mock_get_verdict, mock_check_claim, mock_extract_claims):
         """Test extracting claims from comment content"""
-
         mock_extract_claims.return_value = self.mock_extracted_claims
         mock_check_claim.return_value = self.mock_wiki_result
         mock_get_verdict.return_value = self.mock_verdict_result
         
         results = self.service.process_content_for_claims(
-            self.user.id, 
-            "The Earth is round. This is a scientific fact.",
-            "comment",
-            456
+            content="The Earth is round. This is a scientific fact.",
+            source_type="comment",
+            source_id=456,
+            user_id=self.user.id
         )
         
         self.assertEqual(len(results), 1)

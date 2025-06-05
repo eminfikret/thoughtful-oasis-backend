@@ -23,13 +23,22 @@ class CommentReplySerializer(serializers.ModelSerializer):
     author = serializers.SerializerMethodField()
     post_id = serializers.SerializerMethodField()
     parent_id = serializers.SerializerMethodField()
+    reply_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'votes', 'parent_id']
+        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'votes', 'parent_id',
+                   'reply_count']
         
     def get_votes(self, obj):
-        return VoteRepository.get_comment_votes(obj.id)
+        request = self.context.get('request')
+        votes_data = VoteRepository.get_comment_votes(obj.id)
+        
+        if request and request.user.is_authenticated:
+            user_vote = VoteRepository.get_user_comment_vote(obj.id, request.user.id)
+            votes_data.update(user_vote)
+        
+        return votes_data
         
     def get_author(self, obj):
         return {
@@ -41,20 +50,32 @@ class CommentReplySerializer(serializers.ModelSerializer):
         return obj.post.id
 
     def get_parent_id(self, obj):
-        return obj.parent_comment_id 
+        return obj.parent_comment_id
+        
+    def get_reply_count(self, obj):
+        return Comment.objects.filter(parent_comment_id=obj.id).count()
 
 class PostCommentSerializer(serializers.ModelSerializer):
     votes = serializers.SerializerMethodField()
     author = serializers.SerializerMethodField()
     post_id = serializers.SerializerMethodField()
     parent_id = serializers.SerializerMethodField()
+    reply_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'votes', 'parent_id']
+        fields = ['id', 'content', 'post_id', 'author', 'created_at', 'votes', 'parent_id', 
+                  'reply_count']
 
     def get_votes(self, obj):
-        return VoteRepository.get_comment_votes(obj.id)
+        request = self.context.get('request')
+        votes_data = VoteRepository.get_comment_votes(obj.id)
+        
+        if request and request.user.is_authenticated:
+            user_vote = VoteRepository.get_user_comment_vote(obj.id, request.user.id)
+            votes_data.update(user_vote)
+        
+        return votes_data
         
     def get_author(self, obj):
         return {
@@ -67,6 +88,9 @@ class PostCommentSerializer(serializers.ModelSerializer):
         
     def get_parent_id(self, obj):
         return obj.parent_comment_id
+        
+    def get_reply_count(self, obj):
+        return Comment.objects.filter(parent_comment_id=obj.id).count()
 
 class CommentUpdateSerializer(serializers.ModelSerializer):
     class Meta:

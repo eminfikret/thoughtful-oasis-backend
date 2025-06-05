@@ -64,7 +64,7 @@ class CreateCommentView(views.APIView):
         claim_service = ClaimService()
         claims = claim_service.get_claims_for_content('comment', comment.id)
 
-        response_data = PostCommentSerializer(comment).data
+        response_data = PostCommentSerializer(comment, context={'request': request}).data
         response_data['claims'] = claims
 
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -81,8 +81,8 @@ class CreateReplyView(views.APIView):
             type=openapi.TYPE_OBJECT,
             required=["parent_comment_id", "content"],
             properties={
-                "post_id": openapi.Schema(type=openapi.TYPE_INTEGER, 
-                                          description="ID of the post"),
+                "parent_comment_id": openapi.Schema(type=openapi.TYPE_INTEGER, 
+                                          description="ID of the parent comment"),
                 "content": openapi.Schema(type=openapi.TYPE_STRING,
                                            description="Content of the comment"),
             },
@@ -114,7 +114,7 @@ class CreateReplyView(views.APIView):
         claim_service = ClaimService()
         claims = claim_service.get_claims_for_content('comment', comment.id)
         
-        response_data = PostCommentSerializer(comment).data
+        response_data = PostCommentSerializer(comment, context={'request': request}).data
         response_data['claims'] = claims
 
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -155,7 +155,7 @@ class PostCommentsView(views.APIView):
             response_data = []
             
             for comment in comments:
-                comment_data = PostCommentSerializer(comment).data
+                comment_data = PostCommentSerializer(comment, context={'request': request}).data
                 claims = claim_service.get_claims_for_content('comment', comment.id)
                 comment_data['claims'] = claims
                 response_data.append(comment_data)
@@ -188,7 +188,7 @@ def get_comment_replies(request, comment_id):
     response_data = []
     
     for reply in replies:
-        reply_data = PostCommentSerializer(reply).data
+        reply_data = PostCommentSerializer(reply, context={'request': request}).data
         claims = claim_service.get_claims_for_content('comment', reply.id)
         reply_data['claims'] = claims
         response_data.append(reply_data)
@@ -231,7 +231,7 @@ class CommentRepliesView(views.APIView):
         response_data = []
         
         for reply in replies:
-            reply_data = PostCommentSerializer(reply).data
+            reply_data = PostCommentSerializer(reply, context={'request': request}).data
             claims = claim_service.get_claims_for_content('comment', reply.id)
             reply_data['claims'] = claims
             response_data.append(reply_data)
@@ -264,26 +264,21 @@ class UpdateCommentView(views.APIView):
         serializer.is_valid(raise_exception=True)
         
         try:
+            use_mock_llm = request.data.get('use_mock_llm', False)
+            
             comment = CommentService.update_comment(
                 comment_id=comment_id,
                 user=request.user,
                 content=serializer.validated_data['content']
             )
-
-            claim_service = ClaimService()
-
-            claim_service.delete_claims_for_content('comment', comment_id)
             
-            claim_service.process_content_for_claims(
-                user_id=comment.author.id,
-                content=comment.content,
-                source_type='comment',
-                source_id=comment.id
-            )
-        
+            comment.use_mock_llm = use_mock_llm
+            comment.save()
+            
+            claim_service = ClaimService()
             claims = claim_service.get_claims_for_content('comment', comment.id)
             
-            response_data = PostCommentSerializer(comment).data
+            response_data = PostCommentSerializer(comment, context={'request': request}).data
             response_data['claims'] = claims
             
             return Response(response_data, status=status.HTTP_200_OK)
