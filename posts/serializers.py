@@ -10,15 +10,24 @@ class PostSerializer(serializers.ModelSerializer):
     channel = serializers.SerializerMethodField()
     author = serializers.SerializerMethodField()
     votes = serializers.SerializerMethodField()
+    comment_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = ['id', 'title', 'content', 'channel', 'author', 'created_at', 'updated_at',
-                   'votes']
-        read_only_fields = ['id', 'channel', 'author', 'created_at', 'updated_at', 'votes']
+                   'votes', 'comment_count']
+        read_only_fields = ['id', 'channel', 'author', 'created_at', 'updated_at', 'votes',
+                             'comment_count']
 
     def get_votes(self, obj):
-        return VoteRepository.get_post_votes(obj.id)
+        request = self.context.get('request')
+        votes_data = VoteRepository.get_post_votes(obj.id)
+        
+        if request and request.user.is_authenticated:
+            user_vote = VoteRepository.get_user_post_vote(obj.id, request.user.id)
+            votes_data.update(user_vote)
+        
+        return votes_data
         
     def get_channel(self, obj):
         try:
@@ -41,6 +50,9 @@ class PostSerializer(serializers.ModelSerializer):
             return None
         except Exception:
             return None
+
+    def get_comment_count(self, obj):
+        return obj.comments.filter(parent_comment__isnull=True).count()
 
 
 class PostCreateSerializer(serializers.ModelSerializer):

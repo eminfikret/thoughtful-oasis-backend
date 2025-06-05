@@ -155,7 +155,7 @@ class PostCommentsView(views.APIView):
             response_data = []
             
             for comment in comments:
-                comment_data = PostCommentSerializer(comment).data
+                comment_data = PostCommentSerializer(comment, context={'request': request}).data
                 claims = claim_service.get_claims_for_content('comment', comment.id)
                 comment_data['claims'] = claims
                 response_data.append(comment_data)
@@ -231,7 +231,7 @@ class CommentRepliesView(views.APIView):
         response_data = []
         
         for reply in replies:
-            reply_data = PostCommentSerializer(reply).data
+            reply_data = PostCommentSerializer(reply, context={'request': request}).data
             claims = claim_service.get_claims_for_content('comment', reply.id)
             reply_data['claims'] = claims
             response_data.append(reply_data)
