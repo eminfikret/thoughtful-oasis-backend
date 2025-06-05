@@ -229,16 +229,20 @@ class PostDetailController(APIView):
             except PostNotFoundException:
                 return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
         
-            post = PostService.update_post(PostId(post_id), dto, request.user)
-        
+            if not (post.author == request.user):
+                return Response(
+                    {"error": "Forbidden - You can only update your own posts"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
             post.use_mock_llm = use_mock_llm
             
-            post.save()
-            
+            updated_post = PostService.update_post(PostId(post_id), dto, request.user)
+        
             claim_service = ClaimService()
             claims = claim_service.get_claims_for_content('post', post.id)
             
-            response_data = PostSerializer(post).data
+            response_data = PostSerializer(updated_post).data
             response_data['claims'] = claims
             
             return Response(response_data, status=status.HTTP_200_OK)
