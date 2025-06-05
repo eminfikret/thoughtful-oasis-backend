@@ -164,40 +164,6 @@ def create_post(request):
             status=status.HTTP_404_NOT_FOUND
         )
 
-
-    @swagger_auto_schema(
-        method="get",
-        operation_summary="Retrieve a post",
-        operation_description="Fetches a post by its ID.",
-        tags=["Posts"],
-        responses={
-            200: openapi.Response(description="Post data", 
-                                  schema=openapi.Schema( type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "title": openapi.Schema(type=openapi.TYPE_STRING),
-                                        "content": openapi.Schema(type=openapi.TYPE_STRING),
-                                        "created_at": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                      format="date-time"),
-                                        "updated_at": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                      format="date-time"),
-                                                                                  })),
-            404: openapi.Response(description="Post not found"),
-        }
-    )
-    @api_view(['GET'])
-    def get_post(request, post_id: int):
-        try:
-            post = PostService.get_post_by_id(PostId(post_id))
-            return Response(PostSerializer(post).data)
-        except PostNotFoundException:
-            raise NotFoundAPIException(detail="Post not found")
-
-
-# ─── Delete Post ─────────────────────────────────────────────────────────────────
-
 @swagger_auto_schema(
     method="delete",
     operation_summary="Delete a post",
