@@ -87,9 +87,11 @@ def extract_claims_from_text(text: str) -> List[str]:
 def check_claim_with_wikipedia(claim: str) -> Dict[str, Any]:
     """Check a claim against Wikipedia and return evidence and source data"""
     try:
+ 
         response = requests.post(
             WIKIPEDIA_API_URL, 
-            json={"query": claim, "limit": 3}
+            json={"query": claim, "limit": 3},
+            timeout=60
         )
         response.raise_for_status()
         data = response.json().get("results", [])
@@ -119,11 +121,28 @@ def check_claim_with_wikipedia(claim: str) -> Dict[str, Any]:
             "sources": sources
         }
         
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Wikipedia API request failed: {e}")
+        return {
+            "evidence": "Wikipedia service is temporarily unavailable.",
+            "sources": [{
+                "url": "",
+                "title": "Service Unavailable",
+                "description": "The Wikipedia evidence service is temporarily unavailable.",
+                "relevance_score": None
+            }]
+        }
     except Exception as e:
+        
         logger.error(f"Error fetching Wikipedia data: {e}")
         return {
-            "evidence": f"Error fetching Wikipedia data: {str(e)}",
-            "sources": []
+            "evidence": "Unable to retrieve evidence from Wikipedia.",
+            "sources": [{
+                "url": "",
+                "title": "Error",
+                "description": "An error occurred while retrieving evidence.",
+                "relevance_score": None
+            }]
         }
 
 def get_verdict_and_summary(claim: str, evidence: str) -> Dict[str, str]:
