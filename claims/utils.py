@@ -17,13 +17,17 @@ def call_llm(prompt: str) -> str:
     body = {"contents": [{"parts": [{"text": prompt}]}]}
     
     try:
-        response = requests.post(LLM_URL, headers=headers, json=body)
+     
+        response = requests.post(LLM_URL, headers=headers, json=body, timeout=10)
         response.raise_for_status()
         data = response.json()
         return data["candidates"][0]["content"]["parts"][0]["text"]
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error from LLM API: {e}")
+        return "FALLBACK_RESPONSE"
     except Exception as e:
         logger.error(f"Error calling LLM API: {e}")
-        raise RuntimeError(f"Failed to process with LLM: {str(e)}")
+        return "FALLBACK_RESPONSE"
 
 def extract_claims_from_text(text: str) -> List[str]:
     """Extract factual claims from text using LLM"""
@@ -62,14 +66,23 @@ def extract_claims_from_text(text: str) -> List[str]:
     List each **clearly asserted** claim on a new line starting with "CLAIM:".
     If there are **no clear factual claims**, write: (No factual claims found.)
     """ # noqa: E501
-    result = call_llm(prompt)
-    claims = []
-    for line in result.split("\n"):
-        if line.strip().lower().startswith("claim:"):
-            claim = line.split(":", 1)[1].strip()
-            if len(claim) > 2: 
-                claims.append(claim)
-    return claims
+    
+    try:
+        result = call_llm(prompt)
+        if result == "FALLBACK_RESPONSE":
+            logger.warning("Using fallback for claim extraction due to LLM service unavailability")
+            return ["Service temporarily unavailable."]
+            
+        claims = []
+        for line in result.split("\n"):
+            if line.strip().lower().startswith("claim:"):
+                claim = line.split(":", 1)[1].strip()
+                if len(claim) > 2: 
+                    claims.append(claim)
+        return claims
+    except Exception as e:
+        logger.error(f"Failed to extract claims: {e}")
+        return ["Service temporarily unavailable."]
 
 def check_claim_with_wikipedia(claim: str) -> Dict[str, Any]:
     """Check a claim against Wikipedia and return evidence and source data"""
@@ -94,7 +107,6 @@ def check_claim_with_wikipedia(claim: str) -> Dict[str, Any]:
                 
                 evidence += f"{idx}. {title}: {snippet}\n\n"
                 
-                # Store source information
                 sources.append({
                     "url": url,
                     "title": title,
@@ -137,33 +149,46 @@ Respond in this format:
 Verdict: <one of supported, contradicted, not_found>
 Summary: <short explanation>
 """  # noqa: E501
-    result = call_llm(prompt)
-
-    lines = result.strip().split('\n')
-    verdict = ""
-    summary = ""
     
-    for line in lines:
-        if line.lower().startswith("verdict:"):
-            verdict = line.split(":", 1)[1].strip().lower()
-        elif line.lower().startswith("summary:"):
-            summary = line.split(":", 1)[1].strip()
-            summary_index = lines.index(line)
-            if summary_index < len(lines) - 1:
-                summary += "\n" + "\n".join(lines[summary_index + 1:])
+    try:
+        result = call_llm(prompt)
+        if result == "FALLBACK_RESPONSE":
+            return {
+                "verdict": "not_found",
+                "summary": "This is an automatic fallback response due to service unavailability."
+            }
+            
+        lines = result.strip().split('\n')
+        verdict = ""
+        summary = ""
+        
+        for line in lines:
+            if line.lower().startswith("verdict:"):
+                verdict = line.split(":", 1)[1].strip().lower()
+            elif line.lower().startswith("summary:"):
+                summary = line.split(":", 1)[1].strip()
+                summary_index = lines.index(line)
+                if summary_index < len(lines) - 1:
+                    summary += "\n" + "\n".join(lines[summary_index + 1:])
 
-    if verdict not in ["supported", "contradicted", "not_found"]:
-        if "support" in verdict:
-            verdict = "supported"
-        elif "contradict" in verdict:
-            verdict = "contradicted"
-        else:
-            verdict = "not_found"
-    
-    return {
-        "verdict": verdict,
-        "summary": summary
-    }
+        if verdict not in ["supported", "contradicted", "not_found"]:
+            if "support" in verdict:
+                verdict = "supported"
+            elif "contradict" in verdict:
+                verdict = "contradicted"
+            else:
+                verdict = "not_found"
+        
+        return {
+            "verdict": verdict,
+            "summary": summary
+        }
+    except Exception as e:
+        logger.error(f"Failed to get verdict: {e}")
+        return {
+            "verdict": "not_found",
+            "summary": "This is an automatic fallback response due to service unavailability."
+        }
 
 _executor = ThreadPoolExecutor(max_workers=3)
 
