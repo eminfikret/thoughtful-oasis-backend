@@ -78,14 +78,9 @@ class ClaimService:
                 
         return results
     
-    def process_content_for_claims(self, content, source_type, source_id, user_id=None,
-                                   use_mock_llm=False):
+    def process_content_for_claims(self, content, source_type, source_id, user_id=None):
         if source_type not in ['post', 'comment']:
             raise ValueError(f"Invalid source_type: {source_type}. Must be 'post' or 'comment'")
-        
-
-        if use_mock_llm:
-            return self.create_mock_claims(content, source_type, source_id, user_id)
 
         extracted_claims = extract_claims_from_text(content)
         
@@ -105,54 +100,35 @@ class ClaimService:
                 
                 if source_type == 'post':
                     claim_kwargs['post_id'] = source_id
-                else:  
+                else:
                     claim_kwargs['comment_id'] = source_id
                 
                 claim = self.claim_repository.create_claim(**claim_kwargs)
-
-                wiki_result = check_claim_with_wikipedia(extracted_claim)
-                evidence = wiki_result["evidence"]
-                sources = wiki_result["sources"]
-
-                verdict_result = get_verdict_and_summary(extracted_claim, evidence)
-                verdict = verdict_result["verdict"]
-                summary = verdict_result["summary"]
-
+                
+                wiki_data = check_claim_with_wikipedia(extracted_claim)
+                
+                verdict_data = get_verdict_and_summary(extracted_claim, wiki_data["evidence"])
+                
                 fact_check = self.fact_check_repository.create_fact_check(
                     claim_id=claim.id,
-                    verdict=verdict,
-                    summary=summary
+                    verdict=verdict_data["verdict"],
+                    summary=verdict_data["summary"]
                 )
-
-                fact_check_sources = []
-                for source in sources:
-                    fact_check_source = self.fact_check_repository.create_fact_check_source(
+                
+                for source in wiki_data["sources"]:
+                    self.fact_check_repository.create_fact_check_source(
                         fact_check_id=fact_check.id,
                         url=source["url"],
                         title=source["title"],
                         description=source["description"],
-                        relevance_score=source["relevance_score"]
+                        relevance_score=source.get("relevance_score")
                     )
-                    fact_check_sources.append({
-                        "id": fact_check_source.id,
-                        "url": fact_check_source.url,
-                        "title": fact_check_source.title
-                    })
-
-                results.append({
-                    "claim": {
-                        "id": claim.id,
-                        "extracted_claim": claim.extracted_claim,
-                        "claim_index": claim.claim_index
-                    },
-                    "fact_check": {
-                        "id": fact_check.id,
-                        "verdict": fact_check.verdict,
-                        "summary": fact_check.summary,
-                        "sources": fact_check_sources
-                    }
-                })
                 
+                results.append({
+                    "claim": claim,
+                    "fact_check": fact_check
+                })
+    
         return results
 
     def get_claim_with_fact_check(self, claim_id: int) -> Optional[Dict[str, Any]]:
