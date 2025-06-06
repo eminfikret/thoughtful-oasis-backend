@@ -15,7 +15,7 @@ class PostRepository:
             channel: Optional[Channel] = None,
     ) -> List[Post]:
         pagination = pagination or PaginationParams()
-        queryset = Post.objects.select_related('channel', 'author').all().order_by('id')
+        queryset = Post.objects.select_related('channel', 'author').all().order_by('-id')
 
         if channel is not None:
             queryset = queryset.filter(channel=channel)
