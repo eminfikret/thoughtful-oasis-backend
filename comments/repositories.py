@@ -36,3 +36,19 @@ class CommentRepository:
         return Comment.objects.filter(
             parent_comment_id=comment_id
         ).select_related('author')
+        
+    @staticmethod
+    def get_comments_by_user(user_id, offset=0, limit=10):
+        """Get all comments made by a specific user with pagination"""
+        return Comment.objects.filter(
+            author_id=user_id
+        ).select_related(
+            'author', 'post'
+        ).order_by(
+            '-created_at'
+        )[offset:offset+limit]
+    
+    @staticmethod
+    def count_user_comments(user_id):
+        """Count total comments made by a specific user"""
+        return Comment.objects.filter(author_id=user_id).count()

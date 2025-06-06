@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from comments.models import Comment
+from common.serializers import PaginationQueryParams
 from votes.repositories import VoteRepository
 
 
@@ -96,3 +97,6 @@ class CommentUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = ['content']
+
+class UserCommentsQueryParamsSerializer(PaginationQueryParams):
+    user_id = serializers.IntegerField(required=True)

@@ -112,6 +112,7 @@ class PostControllerTest(MockLLMTestMixin, APITestCase):
     @patch('claims.services.ClaimService')
     def test_get_post_details(self, mock_claim_service_class):
         """Test getting post details"""
+        self.authenticate(self.user)
 
         mock_service_instance = MagicMock()
         mock_claim_service_class.return_value = mock_service_instance
@@ -127,6 +128,8 @@ class PostControllerTest(MockLLMTestMixin, APITestCase):
         
     def test_get_post_details_not_found(self):
         """Test getting details for non-existent post"""
+        self.authenticate(self.user)
+        
         url = reverse('get_post', kwargs={'post_id': 999})
         response = self.client.get(url)
         
@@ -272,6 +275,7 @@ class ListPostsControllerTest(MockLLMTestMixin, APITestCase):
     @patch('claims.services.ClaimService')
     def test_list_all_posts(self, mock_claim_service_class):
         """Test listing all posts"""
+        self.client.force_authenticate(user=self.user)
 
         mock_service_instance = MagicMock()
         mock_claim_service_class.return_value = mock_service_instance
@@ -283,10 +287,11 @@ class ListPostsControllerTest(MockLLMTestMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], 3)
         self.assertEqual(len(response.data['results']), 3)
-        
+
     @patch('claims.services.ClaimService')
     def test_list_posts_with_pagination(self, mock_claim_service_class):
         """Test pagination when listing posts"""
+        self.client.force_authenticate(user=self.user)
 
         mock_service_instance = MagicMock()
         mock_claim_service_class.return_value = mock_service_instance
@@ -298,10 +303,11 @@ class ListPostsControllerTest(MockLLMTestMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], 3)
         self.assertEqual(len(response.data['results']), 2)
-        
+
     @patch('claims.services.ClaimService')
     def test_list_posts_with_search(self, mock_claim_service_class):
         """Test searching posts"""
+        self.client.force_authenticate(user=self.user)
 
         mock_service_instance = MagicMock()
         mock_claim_service_class.return_value = mock_service_instance
@@ -358,6 +364,7 @@ class ChannelPostsControllerTest(MockLLMTestMixin, APITestCase):
     @patch('claims.services.ClaimService')
     def test_get_channel_posts(self, mock_claim_service_class):
         """Test getting posts for a specific channel"""
+        self.client.force_authenticate(user=self.user)
         mock_service_instance = MagicMock()
         mock_claim_service_class.return_value = mock_service_instance
         mock_service_instance.get_claims_for_content.return_value = []
@@ -381,6 +388,7 @@ class ChannelPostsControllerTest(MockLLMTestMixin, APITestCase):
     @patch('claims.services.ClaimService')
     def test_get_channel_posts_with_search(self, mock_claim_service_class):
         """Test searching posts within a channel"""
+        self.client.force_authenticate(user=self.user)
         mock_service_instance = MagicMock()
         mock_claim_service_class.return_value = mock_service_instance
         mock_service_instance.get_claims_for_content.return_value = []
@@ -394,6 +402,7 @@ class ChannelPostsControllerTest(MockLLMTestMixin, APITestCase):
         
     def test_get_channel_posts_channel_not_found(self):
         """Test getting posts for a non-existent channel"""
+        self.client.force_authenticate(user=self.user)
         url = reverse('get_posts_by_channel', kwargs={'pk': 999})
         response = self.client.get(url)
         

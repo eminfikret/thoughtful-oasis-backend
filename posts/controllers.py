@@ -1,12 +1,14 @@
+from django.contrib.auth.models import User
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
+from rest_framework import status, views
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import NotFound as NotFoundAPIException
 from rest_framework.exceptions import PermissionDenied as PermissionDeniedAPIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from channels.exceptions import ChannelNotFoundException
 from channels.services import ChannelService
@@ -22,12 +24,15 @@ from posts.serializers import (
     PostSerializer,
     PostsQueryParamsSerializer,
     PostUpdateSerializer,
+    UserPostsQueryParamsSerializer,
 )
 from posts.services import PostService
 from posts.types import PostId
 
 
 class ChannelPostsController(APIView):
+    permission_classes = [IsAuthenticated]
+    
     @swagger_auto_schema(
         operation_summary="List posts in a channel",
         operation_description="Returns posts in the specified channel.",
@@ -105,21 +110,21 @@ class ChannelPostsController(APIView):
                 pagination=pagination,
                 search=search
             )
-            
-            if not posts:
-                return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
                 
             count = PostService.get_posts_count_by_channel(channel_id=pk, search=search)
+        
+            return PaginatedResponse(
+                results=PostSerializer(posts, many=True, context={'request': request}).data,
+                count=count,
+                request=request
+            )
+            
         except NotFoundException as e:
             raise NotFoundAPIException(detail=str(e))
         except PermissionDeniedException as e:
             raise PermissionDeniedAPIException(detail=str(e))
-
-        return PaginatedResponse(
-            results=PostSerializer(posts, many=True, context={'request': request}).data,
-            count=count,
-            request=request
-        )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @swagger_auto_schema(
@@ -298,6 +303,7 @@ class PostDetailController(APIView):
     }
 )
 @api_view(['GET'])
+@permission_classes([IsAuthenticated]) 
 def list_posts(request):
     """Get all posts with optional pagination and search"""
     try:
@@ -313,13 +319,6 @@ def list_posts(request):
         pagination = PaginationParams(limit=limit, offset=offset)
 
         posts = PostService.get_all_posts(pagination, search)
-        
-        if not posts:
-            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not posts:
-            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-
         count = PostService.get_posts_count(search)
         
         return PaginatedResponse(
@@ -327,8 +326,8 @@ def list_posts(request):
             count=count,
             request=request
         )
-    except Exception:
-        return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @swagger_auto_schema(
     method="get",
@@ -352,6 +351,7 @@ def list_posts(request):
     }
 )
 @api_view(['GET'])
+@permission_classes([IsAuthenticated]) 
 def get_post_details(request, post_id): 
     try:
         post = PostService.get_post_by_id(PostId(post_id))
@@ -369,4 +369,104 @@ def get_post_details(request, post_id):
         return Response(response_data)
     except Exception:
         return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+class UserPostsView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    @swagger_auto_schema(
+        operation_summary="Get all posts by a user",
+        operation_description="Retrieves all posts created by" \
+        " a specific user. Supports pagination.",
+        tags=["Posts"],
+        manual_parameters=[
+            openapi.Parameter(
+                name="user_id",
+                in_=openapi.IN_QUERY,
+                description="ID of the user",
+                required=True,
+                type=openapi.TYPE_INTEGER
+            ),
+            openapi.Parameter(
+                name="limit",
+                in_=openapi.IN_QUERY,
+                description="Number of posts to return",
+                required=False,
+                type=openapi.TYPE_INTEGER
+            ),
+            openapi.Parameter(
+                name="offset",
+                in_=openapi.IN_QUERY,
+                description="Number of posts to skip",
+                required=False,
+                type=openapi.TYPE_INTEGER
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="User posts retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'next': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'previous': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'results': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                ref="#/components/schemas/Post"
+                            )
+                        )
+                    }
+                )
+            ),
+            400: openapi.Response(description="Missing or invalid parameters"),
+            401: openapi.Response(description="Unauthorized - Authentication required"),
+            404: openapi.Response(description="User not found")
+        }
+    )
+    def get(self, request):
+        serializer = UserPostsQueryParamsSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        
+        user_id = serializer.validated_data['user_id']
+        offset = serializer.validated_data.get('offset', 0)
+        limit = serializer.validated_data.get('limit', 10)
+        
+        try:
+            posts, total = PostService.get_user_posts(user_id, offset, limit)
+            
+            next_url = None
+            previous_url = None
+            
+            if offset + limit < total:
+                next_url = request.build_absolute_uri(
+                    f'?user_id={user_id}&offset={offset+limit}&limit={limit}'
+                )
+                
+            if offset > 0:
+                prev_offset = max(0, offset - limit)
+                previous_url = request.build_absolute_uri(
+                    f'?user_id={user_id}&offset={prev_offset}&limit={limit}'
+                )
+                
+            claim_service = ClaimService()
+            results = []
+            
+            for post in posts:
+                post_data = PostSerializer(post, context={'request': request}).data
+                claims = claim_service.get_claims_for_content('post', post.id)
+                post_data['claims'] = claims
+                results.append(post_data)
+                
+            return Response({
+                'count': total,
+                'next': next_url,
+                'previous': previous_url,
+                'results': results
+            }, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 

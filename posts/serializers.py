@@ -74,3 +74,7 @@ class PostUpdateSerializer(serializers.ModelSerializer):
 
 class PostsQueryParamsSerializer(PaginationQueryParams):
     pass
+
+
+class UserPostsQueryParamsSerializer(PaginationQueryParams):
+    user_id = serializers.IntegerField(required=True)

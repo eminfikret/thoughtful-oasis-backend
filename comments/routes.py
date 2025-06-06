@@ -10,4 +10,5 @@ urlpatterns = [
          name='comment_replies'),
     path('<int:comment_id>/update/', comment_controllers.UpdateCommentView.as_view(), 
          name='update_comment'),
+    path('user/', comment_controllers.UserCommentsView.as_view(), name='user_comments'),
 ]

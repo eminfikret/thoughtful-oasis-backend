@@ -15,23 +15,16 @@ class PostRepository:
             channel: Optional[Channel] = None,
     ) -> List[Post]:
         pagination = pagination or PaginationParams()
-        queryset = Post.objects.select_related('channel', 'author').all()
+        queryset = Post.objects.select_related('channel', 'author').all().order_by('-id')
 
-        if channel:
+        if channel is not None:
             queryset = queryset.filter(channel=channel)
 
         if search is not None:
-            search = search.strip()
-            if search:
-                filtered_posts = []
-                for post in list(queryset):
-                    title_match = search.lower() in post.title.lower()
-                    content_match = search.lower() in post.content.lower()
-                    if title_match or content_match:
-                        filtered_posts.append(post)
-
-                result = filtered_posts[pagination.offset:pagination.offset + pagination.limit]
-                return result
+            queryset = queryset.filter(
+                Q(title__icontains=search) | 
+                Q(content__icontains=search)
+            )
 
         return list(queryset[pagination.offset:pagination.offset + pagination.limit])
 
@@ -119,3 +112,19 @@ class PostRepository:
             post = Post.objects.get(id=post_id)
     
         post.delete()
+
+    @staticmethod
+    def get_posts_by_user(user_id, offset=0, limit=10):
+        """Get all posts created by a specific user with pagination"""
+        return Post.objects.filter(
+            author_id=user_id
+        ).select_related(
+            'author', 'channel'
+        ).order_by(
+            '-created_at'
+        )[offset:offset+limit]
+
+    @staticmethod
+    def count_user_posts(user_id):
+        """Count total posts made by a specific user"""
+        return Post.objects.filter(author_id=user_id).count()

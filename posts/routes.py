@@ -8,4 +8,5 @@ urlpatterns = [
     path('<int:post_id>/', controllers.get_post_details, name='get_post'),  
     path('<int:post_id>/update/', controllers.PostDetailController.as_view(), name='update_post'),
     path('<int:post_id>/delete/', controllers.delete_post, name='delete_post'),
+    path('user/', controllers.UserPostsView.as_view(), name='user_posts'),
 ]
