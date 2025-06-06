@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -18,6 +19,7 @@ from .serializers import (
     CreateCommentSerializer,
     PostCommentSerializer,
     ReplyCommentSerializer,
+    UserCommentsQueryParamsSerializer,
 )
 from .services import CommentService
 
@@ -287,3 +289,104 @@ class UpdateCommentView(views.APIView):
             return Response({"error": "Comment not found"}, status=status.HTTP_404_NOT_FOUND)
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+
+class UserCommentsView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    @swagger_auto_schema(
+        operation_summary="Get all comments by a user",
+        operation_description="Retrieves all comments made by a" \
+        " specific user. Supports pagination.",
+        tags=["Comments"],
+        manual_parameters=[
+            openapi.Parameter(
+                name="user_id",
+                in_=openapi.IN_QUERY,
+                description="ID of the user",
+                required=True,
+                type=openapi.TYPE_INTEGER
+            ),
+            openapi.Parameter(
+                name="limit",
+                in_=openapi.IN_QUERY,
+                description="Number of comments to return",
+                required=False,
+                type=openapi.TYPE_INTEGER
+            ),
+            openapi.Parameter(
+                name="offset",
+                in_=openapi.IN_QUERY,
+                description="Number of comments to skip",
+                required=False,
+                type=openapi.TYPE_INTEGER
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="User comments retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'next': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'previous': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'results': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                ref="#/components/schemas/Comment"
+                            )
+                        )
+                    }
+                )
+            ),
+            400: openapi.Response(description="Missing or invalid parameters"),
+            401: openapi.Response(description="Unauthorized - Authentication required"),
+            404: openapi.Response(description="User not found")
+        }
+    )
+    def get(self, request):
+        serializer = UserCommentsQueryParamsSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        
+        user_id = serializer.validated_data['user_id']
+        offset = serializer.validated_data.get('offset', 0)
+        limit = serializer.validated_data.get('limit', 10)
+        
+        try:
+            comments, total = CommentService.get_user_comments(user_id, offset, limit)
+            
+            # Create a paginated response
+            next_url = None
+            previous_url = None
+            
+            if offset + limit < total:
+                next_url = request.build_absolute_uri(
+                    f'?user_id={user_id}&offset={offset+limit}&limit={limit}'
+                )
+                
+            if offset > 0:
+                prev_offset = max(0, offset - limit)
+                previous_url = request.build_absolute_uri(
+                    f'?user_id={user_id}&offset={prev_offset}&limit={limit}'
+                )
+                
+            claim_service = ClaimService()
+            results = []
+            
+            for comment in comments:
+                comment_data = PostCommentSerializer(comment, context={'request': request}).data
+                claims = claim_service.get_claims_for_content('comment', comment.id)
+                comment_data['claims'] = claims
+                results.append(comment_data)
+                
+            return Response({
+                'count': total,
+                'next': next_url,
+                'previous': previous_url,
+                'results': results
+            }, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)

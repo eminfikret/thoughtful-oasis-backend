@@ -119,3 +119,19 @@ class PostRepository:
             post = Post.objects.get(id=post_id)
     
         post.delete()
+
+    @staticmethod
+    def get_posts_by_user(user_id, offset=0, limit=10):
+        """Get all posts created by a specific user with pagination"""
+        return Post.objects.filter(
+            author_id=user_id
+        ).select_related(
+            'author', 'channel'
+        ).order_by(
+            '-created_at'
+        )[offset:offset+limit]
+
+    @staticmethod
+    def count_user_posts(user_id):
+        """Count total posts made by a specific user"""
+        return Post.objects.filter(author_id=user_id).count()

@@ -52,3 +52,11 @@ class CommentService:
             return comment
         except Comment.DoesNotExist:
             raise CommentNotFound()
+            
+    @staticmethod
+    def get_user_comments(user_id: int, offset: int = 0, limit: int = 10):
+        """Get comments made by a specific user with pagination"""
+        get_object_or_404(User, id=user_id)
+        comments = CommentRepository.get_comments_by_user(user_id, offset, limit)
+        total = CommentRepository.count_user_comments(user_id)
+        return comments, total

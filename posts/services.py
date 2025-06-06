@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 
 from channels.exceptions import (
     ChannelNotFoundException,
@@ -116,3 +117,11 @@ class PostService:
             raise UnauthorizedPostAccessException(post_id)
 
         PostRepository.delete_post(post.id)
+
+    @staticmethod
+    def get_user_posts(user_id: int, offset: int = 0, limit: int = 10):
+        """Get posts created by a specific user with pagination"""
+        get_object_or_404(User, id=user_id)
+        posts = PostRepository.get_posts_by_user(user_id, offset, limit)
+        total = PostRepository.count_user_posts(user_id)
+        return posts, total

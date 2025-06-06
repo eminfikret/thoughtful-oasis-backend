@@ -1,12 +1,14 @@
+from django.contrib.auth.models import User
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
+from rest_framework import status, views
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import NotFound as NotFoundAPIException
 from rest_framework.exceptions import PermissionDenied as PermissionDeniedAPIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from channels.exceptions import ChannelNotFoundException
 from channels.services import ChannelService
@@ -22,6 +24,7 @@ from posts.serializers import (
     PostSerializer,
     PostsQueryParamsSerializer,
     PostUpdateSerializer,
+    UserPostsQueryParamsSerializer,
 )
 from posts.services import PostService
 from posts.types import PostId
@@ -369,4 +372,104 @@ def get_post_details(request, post_id):
         return Response(response_data)
     except Exception:
         return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+class UserPostsView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    @swagger_auto_schema(
+        operation_summary="Get all posts by a user",
+        operation_description="Retrieves all posts created by" \
+        " a specific user. Supports pagination.",
+        tags=["Posts"],
+        manual_parameters=[
+            openapi.Parameter(
+                name="user_id",
+                in_=openapi.IN_QUERY,
+                description="ID of the user",
+                required=True,
+                type=openapi.TYPE_INTEGER
+            ),
+            openapi.Parameter(
+                name="limit",
+                in_=openapi.IN_QUERY,
+                description="Number of posts to return",
+                required=False,
+                type=openapi.TYPE_INTEGER
+            ),
+            openapi.Parameter(
+                name="offset",
+                in_=openapi.IN_QUERY,
+                description="Number of posts to skip",
+                required=False,
+                type=openapi.TYPE_INTEGER
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="User posts retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'next': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'previous': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'results': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                ref="#/components/schemas/Post"
+                            )
+                        )
+                    }
+                )
+            ),
+            400: openapi.Response(description="Missing or invalid parameters"),
+            401: openapi.Response(description="Unauthorized - Authentication required"),
+            404: openapi.Response(description="User not found")
+        }
+    )
+    def get(self, request):
+        serializer = UserPostsQueryParamsSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        
+        user_id = serializer.validated_data['user_id']
+        offset = serializer.validated_data.get('offset', 0)
+        limit = serializer.validated_data.get('limit', 10)
+        
+        try:
+            posts, total = PostService.get_user_posts(user_id, offset, limit)
+            
+            next_url = None
+            previous_url = None
+            
+            if offset + limit < total:
+                next_url = request.build_absolute_uri(
+                    f'?user_id={user_id}&offset={offset+limit}&limit={limit}'
+                )
+                
+            if offset > 0:
+                prev_offset = max(0, offset - limit)
+                previous_url = request.build_absolute_uri(
+                    f'?user_id={user_id}&offset={prev_offset}&limit={limit}'
+                )
+                
+            claim_service = ClaimService()
+            results = []
+            
+            for post in posts:
+                post_data = PostSerializer(post, context={'request': request}).data
+                claims = claim_service.get_claims_for_content('post', post.id)
+                post_data['claims'] = claims
+                results.append(post_data)
+                
+            return Response({
+                'count': total,
+                'next': next_url,
+                'previous': previous_url,
+                'results': results
+            }, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
