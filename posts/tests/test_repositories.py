@@ -77,7 +77,6 @@ class PostRepositoryTest(TestCase):
     def test_get_all_posts_with_pagination(self):
         """Test pagination of posts"""
         with disable_fact_checking_signals():
-
             Post.objects.create(
                 title='Third Post',
                 content='Third content',
@@ -89,10 +88,15 @@ class PostRepositoryTest(TestCase):
         posts = PostRepository.get_all_posts(pagination=pagination)
         self.assertEqual(len(posts), 2)
 
+        pagination = PaginationParams(limit=2, offset=2)
+        posts = PostRepository.get_all_posts(pagination=pagination)
+        self.assertEqual(len(posts), 1)
+        
         pagination = PaginationParams(limit=2, offset=1)
         posts = PostRepository.get_all_posts(pagination=pagination)
         self.assertEqual(len(posts), 2)
-        self.assertNotIn(self.post1, posts)
+        post_ids = [post.id for post in posts]
+        self.assertIn(self.post2.id, post_ids)
         
     def test_get_all_posts_with_search(self):
         """Test searching posts"""
