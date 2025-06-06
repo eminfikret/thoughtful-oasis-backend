@@ -15,23 +15,16 @@ class PostRepository:
             channel: Optional[Channel] = None,
     ) -> List[Post]:
         pagination = pagination or PaginationParams()
-        queryset = Post.objects.select_related('channel', 'author').all()
+        queryset = Post.objects.select_related('channel', 'author').all().order_by('id')
 
-        if channel:
+        if channel is not None:
             queryset = queryset.filter(channel=channel)
 
         if search is not None:
-            search = search.strip()
-            if search:
-                filtered_posts = []
-                for post in list(queryset):
-                    title_match = search.lower() in post.title.lower()
-                    content_match = search.lower() in post.content.lower()
-                    if title_match or content_match:
-                        filtered_posts.append(post)
-
-                result = filtered_posts[pagination.offset:pagination.offset + pagination.limit]
-                return result
+            queryset = queryset.filter(
+                Q(title__icontains=search) | 
+                Q(content__icontains=search)
+            )
 
         return list(queryset[pagination.offset:pagination.offset + pagination.limit])
 

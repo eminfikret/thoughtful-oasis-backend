@@ -31,6 +31,8 @@ from posts.types import PostId
 
 
 class ChannelPostsController(APIView):
+    permission_classes = [IsAuthenticated]
+    
     @swagger_auto_schema(
         operation_summary="List posts in a channel",
         operation_description="Returns posts in the specified channel.",
@@ -108,21 +110,21 @@ class ChannelPostsController(APIView):
                 pagination=pagination,
                 search=search
             )
-            
-            if not posts:
-                return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
                 
             count = PostService.get_posts_count_by_channel(channel_id=pk, search=search)
+        
+            return PaginatedResponse(
+                results=PostSerializer(posts, many=True, context={'request': request}).data,
+                count=count,
+                request=request
+            )
+            
         except NotFoundException as e:
             raise NotFoundAPIException(detail=str(e))
         except PermissionDeniedException as e:
             raise PermissionDeniedAPIException(detail=str(e))
-
-        return PaginatedResponse(
-            results=PostSerializer(posts, many=True, context={'request': request}).data,
-            count=count,
-            request=request
-        )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @swagger_auto_schema(
@@ -301,6 +303,7 @@ class PostDetailController(APIView):
     }
 )
 @api_view(['GET'])
+@permission_classes([IsAuthenticated]) 
 def list_posts(request):
     """Get all posts with optional pagination and search"""
     try:
@@ -316,13 +319,6 @@ def list_posts(request):
         pagination = PaginationParams(limit=limit, offset=offset)
 
         posts = PostService.get_all_posts(pagination, search)
-        
-        if not posts:
-            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not posts:
-            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-
         count = PostService.get_posts_count(search)
         
         return PaginatedResponse(
@@ -330,8 +326,8 @@ def list_posts(request):
             count=count,
             request=request
         )
-    except Exception:
-        return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @swagger_auto_schema(
     method="get",
@@ -355,6 +351,7 @@ def list_posts(request):
     }
 )
 @api_view(['GET'])
+@permission_classes([IsAuthenticated]) 
 def get_post_details(request, post_id): 
     try:
         post = PostService.get_post_by_id(PostId(post_id))
