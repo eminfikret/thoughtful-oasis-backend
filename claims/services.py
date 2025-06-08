@@ -413,7 +413,8 @@ class ClaimService:
             content,
             "",
             "Extract all factual claims that can be fact-checked from the text above.",
-            "These should be statements asserting facts that can be verified, not opinions or questions.",
+            "These should be statements asserting facts "
+            "that can be verified, not opinions or questions.",
             "Return the extracted claims as a JSON list of strings.",
             "If there are no factual claims to extract, return an empty JSON list: []"
         ]
