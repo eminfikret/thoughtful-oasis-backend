@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
+from django.db.models import Count, Q
 
 from channels.exceptions import (
     ChannelNotFoundException,
@@ -124,4 +125,28 @@ class PostService:
         get_object_or_404(User, id=user_id)
         posts = PostRepository.get_posts_by_user(user_id, offset, limit)
         total = PostRepository.count_user_posts(user_id)
+        return posts, total
+
+    @staticmethod
+    def get_top_posts(offset=0, limit=10, days=5):
+        """
+        Get posts sorted by vote score (highest first) within a specified time window
+        (default 5 days).
+        
+        Args:
+            offset: Pagination offset
+            limit: Number of posts to return
+            days: Number of days to look back
+        """
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        posts = Post.objects.filter(created_at__gte=cutoff_date).annotate(
+            score=Count('votes', filter=Q(votes__is_upvote=True)) - 
+                  Count('votes', filter=Q(votes__is_upvote=False))
+        ).order_by('-score')
+        
+        total = posts.count()
+        posts = posts[offset:offset+limit]
+        
         return posts, total
