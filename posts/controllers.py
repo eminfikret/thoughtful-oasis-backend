@@ -477,7 +477,8 @@ class HomePagePostsView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Get top posts for homepage",
-        operation_description="Returns highest-scoring posts across all channels for the homepage." \
+        operation_description="Returns highest-scoring posts across all " \
+        "channels for the homepage." \
         " Default time window is 5 days.",
         tags=["Posts"],
         manual_parameters=[
