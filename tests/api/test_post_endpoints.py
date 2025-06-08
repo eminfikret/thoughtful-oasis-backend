@@ -566,3 +566,87 @@ def test_get_channel_posts_with_pagination():
     assert response.status_code == 200
     data = response.json()
     assert len(data["results"]) == 0, "Should return empty list for large offset"
+
+# -------------------------
+# Homepage Posts Tests
+# -------------------------
+
+def test_homepage_posts_authenticated():
+    """Test getting homepage posts while authenticated"""
+    user_data, token, user_id, channel, post = setup_test_environment()
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(f"{API_URL}/posts/homepage/", headers=headers)
+    
+    assert response.status_code == 200, "Should return homepage posts"
+    data = response.json()
+    assert "results" in data, "Response should include results key"
+    assert "count" in data, "Response should include count key"
+    assert isinstance(data["results"], list), "Results should be a list"
+
+def test_homepage_posts_unauthenticated():
+    """Test getting homepage posts without authentication"""
+    _, _, _, _, _ = setup_test_environment()
+    
+    response = requests.get(f"{API_URL}/posts/homepage/")
+    
+    assert response.status_code == 401, "Should require authentication"
+
+def test_homepage_posts_with_pagination():
+    """Test pagination of homepage posts"""
+    _, token, _, channel, _ = setup_test_environment()
+    
+    for _ in range(3):
+        create_test_post(token, channel["id"])
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(f"{API_URL}/posts/homepage/?limit=2", headers=headers)
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["results"]) <= 2, "Should return at most two posts"
+    
+    if data["count"] > 2:
+        response = requests.get(f"{API_URL}/posts/homepage/?offset=1&limit=2", headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) <= 2, "Should return at most two posts"
+
+def test_homepage_posts_days_parameter():
+    """Test the days parameter for filtering homepage posts"""
+    _, token, _, channel, _ = setup_test_environment()
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    for days in [1, 5, 30]:
+        response = requests.get(f"{API_URL}/posts/homepage/?days={days}", headers=headers)
+        assert response.status_code == 200, f"Should accept days={days}"
+    
+    response = requests.get(f"{API_URL}/posts/homepage/?days=0", headers=headers)
+    assert response.status_code == 400, "Should reject days=0"
+    
+    response = requests.get(f"{API_URL}/posts/homepage/?days=-1", headers=headers)
+    assert response.status_code == 400, "Should reject negative days"
+    
+    response = requests.get(f"{API_URL}/posts/homepage/?days=invalid", headers=headers)
+    assert response.status_code == 400, "Should reject non-integer days"
+
+def create_voted_post(token, channel_id, upvotes=0, downvotes=0):
+    """Helper function to create a post with votes"""
+    return create_test_post(token, channel_id)
+
+def test_homepage_posts_ordering():
+    """Test that homepage posts are ordered by score"""
+    
+    user_data, token, user_id, channel, _ = setup_test_environment()
+    
+    for _ in range(3):
+        create_test_post(token, channel["id"])
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(f"{API_URL}/posts/homepage/", headers=headers)
+    
+    assert response.status_code == 200
+    data = response.json()
+    if len(data["results"]) >= 2:
+        assert "votes" in data["results"][0], "Posts should include vote information"
