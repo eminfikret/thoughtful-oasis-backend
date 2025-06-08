@@ -32,16 +32,56 @@ def process_post_fact_checking(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Comment)
 def process_comment_fact_checking(sender, instance, created, **kwargs):
+    """Process fact checking for a comment"""
     if not instance.content:
         return
+        
     if not created:
         with transaction.atomic():
             claims = Claim.objects.filter(comment_id=instance.id)
             claims.delete()
 
+    context = build_comment_context(instance)
+    
     claim_service.process_content_for_claims(
         user_id=instance.author_id,
         content=instance.content,
         source_type='comment',
-        source_id=instance.id
+        source_id=instance.id,
+        context=context 
     )
+
+def build_comment_context(comment):
+    """
+    Build context information for a comment to help with fact-checking.
+    Includes the original post and any parent comments in the conversation thread.
+    
+    Args:
+        comment: The Comment instance to build context for
+        
+    Returns:
+        Dict containing context information
+    """
+    post = comment.post
+    context = {
+        "post": {
+            "title": post.title,
+            "content": post.content,
+        },
+        "conversation_thread": []
+    }
+    
+    if comment.parent_comment:
+        thread = []
+        current = comment.parent_comment
+        
+        while current:
+            thread.append({
+                "author": current.author.username,
+                "content": current.content,
+            })
+            current = current.parent_comment
+        
+        context["conversation_thread"] = list(reversed(thread))
+    
+    return context

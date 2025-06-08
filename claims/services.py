@@ -78,58 +78,150 @@ class ClaimService:
                 
         return results
     
-    def process_content_for_claims(self, content, source_type, source_id, user_id=None):
-        if source_type not in ['post', 'comment']:
-            raise ValueError(f"Invalid source_type: {source_type}. Must be 'post' or 'comment'")
-
-        extracted_claims = extract_claims_from_text(content)
+    def process_content_for_claims(self, user_id: int, content: str, source_type: str, 
+                                  source_id: int, context: dict = None):
+        """
+        Process text content to extract claims and create Claim objects with fact checks
         
-        if not extracted_claims:
-            return []
+        Args:
+            user_id: User ID of the author
+            content: Text content to process
+            source_type: Type of content source ('post' or 'comment')
+            source_id: ID of the post or comment
+            context: Optional additional context (for comment threads)
+        """
+        if source_type not in ['post', 'comment', 'raw']:
+            raise ValueError(f"Invalid source_type: {source_type}")
+        
+        if context and source_type == 'comment':
+            prompt = self._create_claim_extraction_prompt_with_context(content, context)
+        else:
+            prompt = self._create_claim_extraction_prompt(content)
+        
+        claims = self._extract_claims_with_llm(prompt)
+        
+        for i, claim_text in enumerate(claims):
+            claim_kwargs = {
+                'user_id': user_id,
+                'extracted_claim': claim_text,
+                'source_type': source_type,
+                'claim_index': i+1
+            }
             
-        results = []
+            if source_type == 'post':
+                claim_kwargs['post_id'] = source_id
+            elif source_type == 'comment':
+                claim_kwargs['comment_id'] = source_id
+            elif source_type == 'raw':
+                claim_kwargs['source_text'] = content
+                
+            claim = self.claim_repository.create_claim(**claim_kwargs)
+            
+            wiki_result = check_claim_with_wikipedia(claim_text)
+            evidence = wiki_result["evidence"]
+            sources = wiki_result["sources"]
 
-        with transaction.atomic():
-            for idx, extracted_claim in enumerate(extracted_claims, 1):
-                claim_kwargs = {
-                    'user_id': user_id,
-                    'source_type': source_type,
-                    'extracted_claim': extracted_claim,
-                    'claim_index': idx
-                }
-                
-                if source_type == 'post':
-                    claim_kwargs['post_id'] = source_id
-                else:
-                    claim_kwargs['comment_id'] = source_id
-                
-                claim = self.claim_repository.create_claim(**claim_kwargs)
-                
-                wiki_data = check_claim_with_wikipedia(extracted_claim)
-                
-                verdict_data = get_verdict_and_summary(extracted_claim, wiki_data["evidence"])
-                
-                fact_check = self.fact_check_repository.create_fact_check(
-                    claim_id=claim.id,
-                    verdict=verdict_data["verdict"],
-                    summary=verdict_data["summary"]
+            verdict_result = get_verdict_and_summary(claim_text, evidence)
+            verdict = verdict_result["verdict"]
+            summary = verdict_result["summary"]
+
+            fact_check = self.fact_check_repository.create_fact_check(
+                claim_id=claim.id,
+                verdict=verdict,
+                summary=summary
+            )
+
+            for source in sources:
+                self.fact_check_repository.create_fact_check_source(
+                    fact_check_id=fact_check.id,
+                    url=source["url"],
+                    title=source["title"],
+                    description=source["description"],
+                    relevance_score=source["relevance_score"]
                 )
-                
-                for source in wiki_data["sources"]:
-                    self.fact_check_repository.create_fact_check_source(
-                        fact_check_id=fact_check.id,
-                        url=source["url"],
-                        title=source["title"],
-                        description=source["description"],
-                        relevance_score=source.get("relevance_score")
-                    )
-                
-                results.append({
-                    "claim": claim,
-                    "fact_check": fact_check
-                })
     
-        return results
+    def _create_claim_extraction_prompt_with_context(self, content: str, context: dict) -> str:
+        """
+        Create a prompt for claim extraction with additional context from post and parent comments.
+        
+        Args:
+            content: The comment content to extract claims from
+            context: Dictionary containing post and thread context
+            
+        Returns:
+            Formatted prompt string
+        """
+        prompt = [
+            "You are a fact-checking assistant. Extract ONLY factual claims from the"
+            " TARGET COMMENT below.",
+            "DO NOT extract claims from the post or other comments in the conversation thread.",
+            "The post and conversation thread are provided ONLY for context to help you"
+            " understand the discussion.",
+            "",
+            f"POST TITLE: {context['post']['title']}",
+            f"POST CONTENT: {context['post']['content']}",
+        ]
+        
+        if context['conversation_thread']:
+            prompt.append("")
+            prompt.append("CONVERSATION THREAD (for context only):")
+            for i, comment in enumerate(context['conversation_thread']):
+                prompt.append(f"[Comment {i+1} by {comment['author']}]: {comment['content']}")
+        
+        prompt.extend([
+            "",
+            "TARGET COMMENT: " + content,
+            "",
+            "Extract all factual claims that can be fact-checked from the TARGET COMMENT ONLY.",
+            "These should be statements asserting facts that can be verified,"
+            " not opinions or questions.",
+            "Return the extracted claims as a JSON list of strings.",
+            "If there are no factual claims to extract, return an empty JSON list: []"
+        ])
+        
+        return "\n".join(prompt)
+    
+    def _create_claim_extraction_prompt(self, content: str) -> str:
+        """
+        Create a prompt for claim extraction without additional context.
+        
+        Args:
+            content: The content to extract claims from
+            
+        Returns:
+            Formatted prompt string
+        """
+        prompt = [
+            "You are a fact-checking assistant. Extract factual claims from the following text:",
+            "",
+            content,
+            "",
+            "Extract all factual claims that can be fact-checked from the text above.",
+            "These should be statements asserting facts that can be verified, not opinions or questions.",
+            "Return the extracted claims as a JSON list of strings.",
+            "If there are no factual claims to extract, return an empty JSON list: []"
+        ]
+        
+        return "\n".join(prompt)
+    
+    def _extract_claims_with_llm(self, prompt: str) -> List[str]:
+        """
+        Extract claims from text using an LLM.
+        
+        Args:
+            prompt: The formatted prompt to send to the LLM
+            
+        Returns:
+            List of extracted claims as strings
+        """
+        from .utils import extract_claims_from_text
+        
+        try:
+            claims = extract_claims_from_text(prompt)
+            return claims
+        except Exception as e:
+            print(f"Error extracting claims: {e}")
+            return []
 
     def get_claim_with_fact_check(self, claim_id: int) -> Optional[Dict[str, Any]]:
 
