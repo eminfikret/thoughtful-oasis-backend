@@ -222,13 +222,15 @@ def test_create_post_unauthenticated():
 
 def test_create_post_nonexistent_channel():
     """Test creating a post in a non-existent channel"""
-    _, token, _, _, _ = setup_test_environment()
+    _, token, _, channel, _ = setup_test_environment()
+    
+    nonexistent_channel_id = channel["id"] + 10000
     
     headers = {"Authorization": f"Bearer {token}"}
     post_data = {
         "title": f"Invalid Channel Post {uuid.uuid4().hex[:8]}",
         "content": "This post should fail due to invalid channel",
-        "channel_id": 999999  
+        "channel_id": nonexistent_channel_id
     }
     
     response = requests.post(f"{API_URL}/posts/create/", json=post_data, headers=headers)
@@ -259,7 +261,6 @@ def test_create_post_missing_fields():
     response = requests.post(f"{API_URL}/posts/create/", json=post_data, headers=headers)
     assert response.status_code == 400, "Should reject missing content"
     
-    # Test missing channel_id
     post_data = {
         "title": "Title without channel",
         "content": "Content without channel"
@@ -274,7 +275,6 @@ def test_create_post_invalid_data():
     
     headers = {"Authorization": f"Bearer {token}"}
     
-    # Test with non-integer channel_id
     post_data = {
         "title": "Post with invalid channel",
         "content": "Some content",
@@ -284,7 +284,6 @@ def test_create_post_invalid_data():
     response = requests.post(f"{API_URL}/posts/create/", json=post_data, headers=headers)
     assert response.status_code == 400, "Should reject non-integer channel_id"
     
-    # Test with empty title
     post_data = {
         "title": "",
         "content": "Content with empty title",
@@ -324,10 +323,12 @@ def test_get_post_details_unauthenticated():
 
 def test_get_nonexistent_post():
     """Test getting details of a non-existent post"""
-    _, token, _, _, _ = setup_test_environment()
+    _, token, _, _, post = setup_test_environment()
+    
+    nonexistent_post_id = post["id"] + 10000
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{API_URL}/posts/999999/", headers=headers)
+    response = requests.get(f"{API_URL}/posts/{nonexistent_post_id}/", headers=headers)
     
     assert response.status_code == 404, "Should return 404 for non-existent post"
     assert "not found" in response.text.lower(), "Error should mention 'not found'"
@@ -419,7 +420,9 @@ def test_update_other_user_post():
 
 def test_update_nonexistent_post():
     """Test updating a non-existent post"""
-    _, token, _, _, _ = setup_test_environment()
+    _, token, _, _, post = setup_test_environment()
+    
+    nonexistent_post_id = post["id"] + 10000
     
     headers = {"Authorization": f"Bearer {token}"}
     update_data = {
@@ -427,7 +430,7 @@ def test_update_nonexistent_post():
         "content": "This update should fail"
     }
     
-    response = requests.put(f"{API_URL}/posts/999999/update/", json=update_data, headers=headers)
+    response = requests.put(f"{API_URL}/posts/{nonexistent_post_id}/update/", json=update_data, headers=headers)
     
     assert response.status_code == 404, "Should return 404 for non-existent post"
 
@@ -470,10 +473,12 @@ def test_delete_other_user_post():
 
 def test_delete_nonexistent_post():
     """Test deleting a non-existent post"""
-    _, token, _, _, _ = setup_test_environment()
+    _, token, _, _, post = setup_test_environment()
+    
+    nonexistent_post_id = post["id"] + 10000
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.delete(f"{API_URL}/posts/999999/delete/", headers=headers)
+    response = requests.delete(f"{API_URL}/posts/{nonexistent_post_id}/delete/", headers=headers)
     
     assert response.status_code == 404, "Should return 404 for non-existent post"
 
@@ -512,10 +517,12 @@ def test_get_channel_posts_unauthenticated():
 
 def test_get_nonexistent_channel_posts():
     """Test getting posts for a non-existent channel"""
-    _, token, _, _, _ = setup_test_environment()
+    _, token, _, channel, _ = setup_test_environment()
+    
+    nonexistent_channel_id = channel["id"] + 10000
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{API_URL}/channels/999999/posts/", headers=headers)
+    response = requests.get(f"{API_URL}/channels/{nonexistent_channel_id}/posts/", headers=headers)
     
     assert response.status_code == 404, "Should return 404 for non-existent channel"
 
@@ -630,10 +637,6 @@ def test_homepage_posts_days_parameter():
     
     response = requests.get(f"{API_URL}/posts/homepage/?days=invalid", headers=headers)
     assert response.status_code == 400, "Should reject non-integer days"
-
-def create_voted_post(token, channel_id, upvotes=0, downvotes=0):
-    """Helper function to create a post with votes"""
-    return create_test_post(token, channel_id)
 
 def test_homepage_posts_ordering():
     """Test that homepage posts are ordered by score"""
