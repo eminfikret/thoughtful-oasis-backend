@@ -44,8 +44,18 @@ def extract_claims_from_text(text: str) -> List[str]:
     - Do NOT include statements that start with or imply "I", "my", "we", "us", or any form of personal reference.
     - Do NOT include opinions, subjective descriptions, or unverifiable experiences.
     - Do NOT infer multiple claims from one sentence unless **each is clearly presented as a distinct assertion**.
+    - **EACH CLAIM MUST BE COMPLETELY SELF-CONTAINED** with all necessary context included.
+    - **RESOLVE ALL PRONOUNS AND REFERENCES** to ensure claims stand alone without additional context.
 
-    ### EXAMPLES:
+    ### EXAMPLES OF SELF-CONTAINED CLAIMS:
+
+    Input: "It crashed last year and caused billions in damage."
+    BAD CLAIM: It crashed last year. (unclear what "it" refers to)
+    GOOD CLAIM: The stock market crashed in 2025 and caused billions in damage.
+
+    Input: "These animals can survive there for months without food."
+    BAD CLAIM: These animals can survive for months without food. (unclear which animals)
+    GOOD CLAIM: Polar bears can survive in Arctic conditions for months without food.
 
     Input: "I'm a nurse in Chicago. I see a lot of flu cases every winter."
     Output:
@@ -64,8 +74,12 @@ def extract_claims_from_text(text: str) -> List[str]:
 
     Text: {text}
 
-    List each **clearly asserted** claim on a new line starting with "CLAIM:".
+    List each **clearly asserted, self-contained claim** on a new line starting with "CLAIM:".
+    Every claim must be fully understandable on its own without requiring additional context.
     If there are **no clear factual claims**, write: (No factual claims found.)
+
+    If it is unclear what the speaker is referring to (even with all the context provided),
+    do NOT extract a claim.
     """ # noqa: E501
     
     try:
