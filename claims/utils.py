@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List
 
@@ -157,9 +158,16 @@ Use "not_found" when there is insufficient evidence from Wikipedia to assess whe
 
 Also provide a short explanation in the summary. Your summary must be in the tone of addressing the original claim made. 
 When referring to the wikipedia evidence, refer to it as "available evidence". So for example you can say "the available evidence suggests".
-Use Direct Quotes from the evidence too.
 
-IMPORTANT:
+IMPORTANT FOR QUOTATIONS:
+- Use ONLY EXACT, VERBATIM quotes from the evidence.
+- Place all direct quotes in double quotation marks.
+- DO NOT paraphrase, modify, or adjust ANY quotation in ANY way.
+- ONLY quote text that appears EXACTLY as written in the evidence.
+- If you cannot find an exact quote that supports your point, do not use quotation marks.
+- Every single character within quotation marks must match the evidence precisely.
+
+IMPORTANT FOR RELEVANCE:
 1. Only refer to evidence that is DIRECTLY RELEVANT to the claim.
 2. DO NOT mention unrelated information from the evidence in your summary.
 3. If parts of the evidence are irrelevant to the claim, ignore those parts completely.
@@ -173,48 +181,93 @@ EVIDENCE:
 
 Respond in this format:
 Verdict: <one of supported, contradicted, not_found>
-Summary: <short explanation focusing ONLY on relevant evidence>
+Summary: <short explanation focusing ONLY on relevant evidence and using ONLY EXACT quotes>
 """  # noqa: E501
     
-    try:
-        result = call_llm(prompt)
-        if result == "FALLBACK_RESPONSE":
+    max_retries = 4
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            result = call_llm(prompt)
+            if result == "FALLBACK_RESPONSE":
+                return {
+                    "verdict": "not_found",
+                    "summary": "This is an automatic fallback response due to service unavailability."
+                }
+                
+            lines = result.strip().split('\n')
+            verdict = ""
+            summary = ""
+            
+            for line in lines:
+                if line.lower().startswith("verdict:"):
+                    verdict = line.split(":", 1)[1].strip().lower()
+                elif line.lower().startswith("summary:"):
+                    summary = line.split(":", 1)[1].strip()
+                    summary_index = lines.index(line)
+                    if summary_index < len(lines) - 1:
+                        summary += "\n" + "\n".join(lines[summary_index + 1:])
+
+            if verdict not in ["supported", "contradicted", "not_found"]:
+                if "support" in verdict:
+                    verdict = "supported"
+                elif "contradict" in verdict:
+                    verdict = "contradicted"
+                else:
+                    verdict = "not_found"
+            
+            if _verify_quotes_in_evidence(summary, evidence):
+                return {
+                    "verdict": verdict,
+                    "summary": summary
+                }
+            
+            logger.warning(f"Quote verification failed on attempt {retry_count + 1}. Retrying...")
+            retry_count += 1
+            
+            prompt += f"\n\nWARNING: Your previous response contained quotes that DO NOT EXACTLY match the evidence. Review the evidence again carefully and ONLY use EXACT quotes that appear verbatim in the evidence. This is attempt {retry_count + 1} of {max_retries}."
+            
+        except Exception as e:
+            logger.error(f"Failed to get verdict: {e}")
             return {
                 "verdict": "not_found",
                 "summary": "This is an automatic fallback response due to service unavailability."
             }
-            
-        lines = result.strip().split('\n')
-        verdict = ""
-        summary = ""
-        
-        for line in lines:
-            if line.lower().startswith("verdict:"):
-                verdict = line.split(":", 1)[1].strip().lower()
-            elif line.lower().startswith("summary:"):
-                summary = line.split(":", 1)[1].strip()
-                summary_index = lines.index(line)
-                if summary_index < len(lines) - 1:
-                    summary += "\n" + "\n".join(lines[summary_index + 1:])
+    
+    logger.error(f"Failed to generate summary with valid quotes after {max_retries} attempts")
+    return {
+        "verdict": "not_found",
+        "summary": "Unable to generate a summary with accurate quotations. Please try again later."
+    }
 
-        if verdict not in ["supported", "contradicted", "not_found"]:
-            if "support" in verdict:
-                verdict = "supported"
-            elif "contradict" in verdict:
-                verdict = "contradicted"
-            else:
-                verdict = "not_found"
+def _verify_quotes_in_evidence(summary: str, evidence: str) -> bool:
+    """
+    Verify that all quoted text in summary appears exactly in the evidence.
+    
+    Args:
+        summary: The summary text containing quotes
+        evidence: The evidence text to check against
         
-        return {
-            "verdict": verdict,
-            "summary": summary
-        }
-    except Exception as e:
-        logger.error(f"Failed to get verdict: {e}")
-        return {
-            "verdict": "not_found",
-            "summary": "This is an automatic fallback response due to service unavailability."
-        }
+    Returns:
+        True if all quotes match exactly, False otherwise
+    """
+    quoted_texts = re.findall(r'"([^"]*)"', summary)
+    
+    if not quoted_texts:
+        return True
+    
+    evidence_lower = evidence.lower()
+    
+    for quote in quoted_texts:
+        if not quote.strip(): 
+            continue
+            
+        if quote.lower() not in evidence_lower:
+            logger.warning(f"Quote verification failed: '{quote}' not found in evidence")
+            return False
+    
+    return True
 
 _executor = ThreadPoolExecutor(max_workers=3)
 
