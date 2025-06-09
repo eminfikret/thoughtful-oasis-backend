@@ -4,7 +4,12 @@ from django.db import transaction
 
 from .models import Claim
 from .repositories import ClaimRepository, FactCheckRepository
-from .utils import check_claim_with_wikipedia, extract_claims_from_text, extract_claims_with_context, get_verdict_and_summary
+from .utils import (
+    check_claim_with_wikipedia,
+    extract_claims_from_text,
+    extract_claims_with_context,
+    get_verdict_and_summary,
+)
 
 
 class ClaimService:
