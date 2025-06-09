@@ -422,7 +422,7 @@ class UserPostsView(views.APIView):
                 )
             ),
             400: openapi.Response(description="Missing or invalid parameters"),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
+            401: openapi.Response(description="Unauthorized"),
             404: openapi.Response(description="User not found")
         }
     )
@@ -470,3 +470,100 @@ class UserPostsView(views.APIView):
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
+class HomePagePostsView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    @swagger_auto_schema(
+        operation_summary="Get top posts for homepage",
+        operation_description="Returns highest-scoring posts across all " \
+        "channels for the homepage." \
+        " Default time window is 5 days.",
+        tags=["Posts"],
+        manual_parameters=[
+            openapi.Parameter("limit", openapi.IN_QUERY, "Page size", 
+                            type=openapi.TYPE_INTEGER, default=10),
+            openapi.Parameter("offset", openapi.IN_QUERY, "Pagination offset", 
+                            type=openapi.TYPE_INTEGER, default=0),
+            openapi.Parameter("days", openapi.IN_QUERY, "Number of days to look back", 
+                            type=openapi.TYPE_INTEGER, default=5),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Top-voted posts",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'next': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'previous': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'results': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                ref="#/components/schemas/Post"
+                            )
+                        )
+                    }
+                )
+            ),
+            400: openapi.Response(description="Invalid parameters"),
+            401: openapi.Response(description="Unauthorized")
+        }
+    )
+    def get(self, request):
+        offset = int(request.query_params.get('offset', 0))
+        limit = int(request.query_params.get('limit', 10))
+        
+        try:
+            days = int(request.query_params.get('days', 5))
+            if days <= 0:
+                return Response(
+                    {"error": "Days parameter must be positive"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except ValueError:
+            return Response(
+                {"error": "Days parameter must be an integer"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            posts, total = PostService.get_top_posts(offset, limit, days)
+            
+            next_url = None
+            previous_url = None
+            
+            if offset + limit < total:
+                next_url = request.build_absolute_uri(
+                    f'?offset={offset+limit}&limit={limit}&days={days}'
+                )
+                
+            if offset > 0:
+                prev_offset = max(0, offset - limit)
+                previous_url = request.build_absolute_uri(
+                    f'?offset={prev_offset}&limit={limit}&days={days}'
+                )
+            
+            claim_service = ClaimService()
+            results = []
+            
+            for post in posts:
+                post_data = PostSerializer(post, context={'request': request}).data
+                claims = claim_service.get_claims_for_content('post', post.id)
+                post_data['claims'] = claims
+                results.append(post_data)
+            
+            return Response({
+                'count': total,
+                'next': next_url,
+                'previous': previous_url,
+                'results': results
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -19,6 +19,11 @@ class ClaimServiceTest(TestCase):
             email='test@example.com',
             password='password123'
         )
+
+        self.post = MagicMock()
+        self.post.id = 123
+        self.post.title = "Test Post"
+        self.post.content = "Test Content"
 
         self.claim = Claim.objects.create(
             user=self.user,
@@ -112,26 +117,35 @@ class ClaimServiceTest(TestCase):
         
         mock_extract_claims.assert_called_once_with("This text has no checkable claims.")
     
-    @patch('claims.services.extract_claims_from_text')
+    @patch('claims.services.extract_claims_with_context')  
     @patch('claims.services.check_claim_with_wikipedia')
     @patch('claims.services.get_verdict_and_summary')
     def test_process_content_for_claims_post(
-            self, mock_get_verdict, mock_check_claim, mock_extract_claims):
+            self, mock_get_verdict, mock_check_claim, mock_extract_claims_with_context):
         """Test extracting claims from post content"""
-        mock_extract_claims.return_value = self.mock_extracted_claims
+        content = "The Earth is round. This is a scientific fact."
+
+        mock_extract_claims_with_context.return_value = self.mock_extracted_claims
         mock_check_claim.return_value = self.mock_wiki_result
         mock_get_verdict.return_value = self.mock_verdict_result
 
         results = self.service.process_content_for_claims(
-            content="The Earth is round. This is a scientific fact.",
-            source_type="post",
-            source_id=123,
-            user_id=self.user.id
+            user_id=self.user.id,
+            content=content,
+            source_type='post',
+            source_id=123 
+        )
+
+        mock_extract_claims_with_context.assert_called_once_with(content, None)
+        mock_check_claim.assert_called_once_with("The Earth is round")
+        mock_get_verdict.assert_called_once_with(
+            "The Earth is round", 
+            self.mock_wiki_result["evidence"]
         )
 
         self.assertEqual(len(results), 1)
-        mock_extract_claims.assert_called_once_with("The Earth is round. " \
-        "This is a scientific fact.")
+        self.assertEqual(results[0]["claim"]["extracted_claim"], "The Earth is round")
+        self.assertEqual(results[0]["fact_check"]["verdict"], "supported")
     
     @patch('claims.services.extract_claims_from_text')
     @patch('claims.services.check_claim_with_wikipedia')

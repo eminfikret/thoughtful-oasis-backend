@@ -243,3 +243,87 @@ async def extract_claims_async(content, source_type, source_id):
         _executor,
         lambda: extract_claims_sync(content, source_type, source_id)
     )
+
+def extract_claims_with_context(content: str, context: dict = None) -> List[str]:
+    """
+    Extract factual claims from content with optional context
+    
+    Args:
+        content: Text content to extract claims from
+        context: Optional context for comments (post and conversation thread)
+        
+    Returns:
+        List of extracted factual claims
+    """
+    prompt = _create_content_prompt(content, context)
+    
+    try:
+        return extract_claims_from_text(prompt)
+    except Exception as e:
+        logger.error(f"Error extracting claims with context: {e}")
+        return ["Service temporarily unavailable."]
+
+def _create_content_prompt(content: str, context: dict = None) -> str:
+    """
+    Create appropriate prompt for claim extraction based on content type
+    
+    Args:
+        content: Text content to analyze
+        context: Optional context for comments
+        
+    Returns:
+        Formatted prompt string
+    """
+    if not context:
+        return "\n".join([
+            "You are a fact-checking assistant. Extract factual claims from the following text:",
+            "",
+            content,
+            "",
+            "Extract all factual claims that can be fact-checked from the text above.",
+            "These should be statements asserting facts that can be verified, not opinions or"
+            " questions.",
+            "Return the extracted claims as a JSON list of strings.",
+            "If there are no factual claims to extract, return an empty JSON list: []"
+        ])
+    else:
+        prompt_parts = [
+            "You are a fact-checking assistant analyzing a conversation thread.",
+            "",
+            f"POST TITLE: {context['post']['title']}",
+            f"POST CONTENT: {context['post']['content']}",
+            "",
+            "CONVERSATION THREAD:"
+        ]
+        
+        if context.get('conversation_thread'):
+            for i, comment in enumerate(context['conversation_thread']):
+                prefix = "  " * comment.get('depth', 0) 
+                prompt_parts.append(
+                    f"{prefix}[Comment {i+1} by {comment['author']}]: {comment['content']}"
+                )
+        
+        prompt_parts.extend([
+            "",
+            "TARGET COMMENT (the one to analyze):",
+            f"{content}",
+            "",
+            "INSTRUCTIONS:",
+            "1. Extract ONLY factual claims made in the TARGET COMMENT above.",
+            "2. Consider the FULL CONTEXT of the conversation when determining what claims"
+            " are being made.",
+            "3. Include implicit claims where the target comment agrees with or refers to facts "
+            "stated elsewhere.",
+            "4. If the target comment says 'That's right' or similar in response to a factual"
+            " claim, extract the claim being agreed with.",
+            "5. Do NOT extract claims from other comments unless explicitly endorsed in the "
+            "target comment.",
+            "6. For each extracted claim, make sure it is a complete statement that can be"
+            " fact-checked.",
+            "",
+            "List each claim on a new line starting with 'CLAIM:'.",
+            "If there are no factual claims (explicit or implicit) in the TARGET COMMENT, respond"
+            " with: (No factual claims found.)"
+        ])
+        
+        return "\n".join(prompt_parts)
