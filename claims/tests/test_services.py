@@ -117,15 +117,15 @@ class ClaimServiceTest(TestCase):
         
         mock_extract_claims.assert_called_once_with("This text has no checkable claims.")
     
-    @patch('claims.services.extract_claims_from_text')
+    @patch('claims.services.extract_claims_with_context')  
     @patch('claims.services.check_claim_with_wikipedia')
     @patch('claims.services.get_verdict_and_summary')
     def test_process_content_for_claims_post(
-            self, mock_get_verdict, mock_check_claim, mock_extract_claims):
+            self, mock_get_verdict, mock_check_claim, mock_extract_claims_with_context):
         """Test extracting claims from post content"""
         content = "The Earth is round. This is a scientific fact."
 
-        mock_extract_claims.return_value = self.mock_extracted_claims
+        mock_extract_claims_with_context.return_value = self.mock_extracted_claims
         mock_check_claim.return_value = self.mock_wiki_result
         mock_get_verdict.return_value = self.mock_verdict_result
 
@@ -136,9 +136,7 @@ class ClaimServiceTest(TestCase):
             source_id=123 
         )
 
-        expected_prompt = self.service._create_claim_extraction_prompt(content)
-
-        mock_extract_claims.assert_called_once_with(expected_prompt)
+        mock_extract_claims_with_context.assert_called_once_with(content, None)
         mock_check_claim.assert_called_once_with("The Earth is round")
         mock_get_verdict.assert_called_once_with(
             "The Earth is round", 
