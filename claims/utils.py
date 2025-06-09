@@ -193,7 +193,8 @@ Summary: <short explanation focusing ONLY on relevant evidence and using ONLY EX
             if result == "FALLBACK_RESPONSE":
                 return {
                     "verdict": "not_found",
-                    "summary": "This is an automatic fallback response due to service unavailability."
+                    "summary": "This is an automatic fallback response due to service "
+                    "unavailability."
                 }
                 
             lines = result.strip().split('\n')
@@ -226,7 +227,12 @@ Summary: <short explanation focusing ONLY on relevant evidence and using ONLY EX
             logger.warning(f"Quote verification failed on attempt {retry_count + 1}. Retrying...")
             retry_count += 1
             
-            prompt += f"\n\nWARNING: Your previous response contained quotes that DO NOT EXACTLY match the evidence. Review the evidence again carefully and ONLY use EXACT quotes that appear verbatim in the evidence. This is attempt {retry_count + 1} of {max_retries}."
+            prompt += (
+                f"\n\nWARNING: Your previous response contained quotes that DO NOT EXACTLY match "
+                f"the evidence. Review the evidence again carefully and ONLY use EXACT quotes "
+                f"that appear verbatim in the evidence. This is attempt "
+                f"{retry_count + 1} of {max_retries}."
+            )
             
         except Exception as e:
             logger.error(f"Failed to get verdict: {e}")
