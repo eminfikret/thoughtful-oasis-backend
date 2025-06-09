@@ -4,7 +4,7 @@ from django.db import transaction
 
 from .models import Claim
 from .repositories import ClaimRepository, FactCheckRepository
-from .utils import check_claim_with_wikipedia, extract_claims_from_text, get_verdict_and_summary
+from .utils import check_claim_with_wikipedia, extract_claims_from_text, extract_claims_with_context, get_verdict_and_summary
 
 
 class ClaimService:
@@ -72,16 +72,13 @@ class ClaimService:
         if source_type not in ['post', 'comment', 'raw']:
             raise ValueError(f"Invalid source_type: {source_type}")
         
-        prompt = (self._create_claim_extraction_prompt_with_context(content, context) 
-                 if context and source_type == 'comment' 
-                 else self._create_claim_extraction_prompt(content))
-        
-        extracted_claims = self._extract_claims_with_llm(prompt)
+        # Use the new utility function that handles context when provided
+        context_to_use = context if context and source_type == 'comment' else None
+        extracted_claims = extract_claims_with_context(content, context_to_use)
         results = []
         
         with transaction.atomic():
             for i, claim_text in enumerate(extracted_claims, 1):
-  
                 claim = self._create_claim(
                     user_id=user_id,
                     claim_text=claim_text,
@@ -370,62 +367,3 @@ class ClaimService:
         """Validate that source type is either 'post' or 'comment'."""
         if source_type not in ['post', 'comment']:
             raise ValueError(f"Invalid source_type: {source_type}. Must be 'post' or 'comment'")
-
-    def _create_claim_extraction_prompt_with_context(self, content: str, context: dict) -> str:
-        """
-        Create a prompt for claim extraction with additional context from post and parent comments.
-        """
-        prompt = [
-            "You are a fact-checking assistant. Extract ONLY factual claims from the"
-            " TARGET COMMENT below.",
-            "DO NOT extract claims from the post or other comments in the conversation thread.",
-            "The post and conversation thread are provided ONLY for context to help you"
-            " understand the discussion.",
-            "",
-            f"POST TITLE: {context['post']['title']}",
-            f"POST CONTENT: {context['post']['content']}",
-        ]
-        
-        if context['conversation_thread']:
-            prompt.append("")
-            prompt.append("CONVERSATION THREAD (for context only):")
-            for i, comment in enumerate(context['conversation_thread']):
-                prompt.append(f"[Comment {i+1} by {comment['author']}]: {comment['content']}")
-        
-        prompt.extend([
-            "",
-            "TARGET COMMENT: " + content,
-            "",
-            "Extract all factual claims that can be fact-checked from the TARGET COMMENT ONLY.",
-            "These should be statements asserting facts that can be verified,"
-            " not opinions or questions.",
-            "Return the extracted claims as a JSON list of strings.",
-            "If there are no factual claims to extract, return an empty JSON list: []"
-        ])
-        
-        return "\n".join(prompt)
-    
-    def _create_claim_extraction_prompt(self, content: str) -> str:
-        """Create a prompt for claim extraction without additional context."""
-        prompt = [
-            "You are a fact-checking assistant. Extract factual claims from the following text:",
-            "",
-            content,
-            "",
-            "Extract all factual claims that can be fact-checked from the text above.",
-            "These should be statements asserting facts "
-            "that can be verified, not opinions or questions.",
-            "Return the extracted claims as a JSON list of strings.",
-            "If there are no factual claims to extract, return an empty JSON list: []"
-        ]
-        
-        return "\n".join(prompt)
-    
-    def _extract_claims_with_llm(self, prompt: str) -> List[str]:
-        """Extract claims from text using an LLM."""
-        try:
-            claims = extract_claims_from_text(prompt)
-            return claims
-        except Exception as e:
-            print(f"Error extracting claims: {e}")
-            return []
