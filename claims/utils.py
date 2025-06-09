@@ -159,6 +159,13 @@ Also provide a short explanation in the summary. Your summary must be in the ton
 When referring to the wikipedia evidence, refer to it as "available evidence". So for example you can say "the available evidence suggests".
 Use Direct Quotes from the evidence too.
 
+IMPORTANT:
+1. Only refer to evidence that is DIRECTLY RELEVANT to the claim.
+2. DO NOT mention unrelated information from the evidence in your summary.
+3. If parts of the evidence are irrelevant to the claim, ignore those parts completely.
+4. If none of the evidence is relevant to the specific claim, use "not_found" verdict and explain that the evidence doesn't address the claim.
+5. Focus only on verifying the exact claim provided, not tangential aspects.
+
 CLAIM: {claim}
 
 EVIDENCE:
@@ -166,7 +173,7 @@ EVIDENCE:
 
 Respond in this format:
 Verdict: <one of supported, contradicted, not_found>
-Summary: <short explanation>
+Summary: <short explanation focusing ONLY on relevant evidence>
 """  # noqa: E501
     
     try:
