@@ -1,11 +1,14 @@
-# ruff: noqa
-
+import atexit
 import os
 import uuid
 
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
+
+created_users = []
+created_channels = []
+created_posts = []
 
 # -------------------------
 # Utility Functions
@@ -25,7 +28,8 @@ def register_test_user():
     """Register a test user and return user data, token, and user_id"""
     user_data = generate_unique_user()
     register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
-    assert register_response.status_code == 201, f"User registration failed: {register_response.text}"
+    assert register_response.status_code == 201, (
+        f"User registration failed: {register_response.text}")
     
     login_data = {
         "username": user_data["username"],
@@ -37,6 +41,8 @@ def register_test_user():
     login_data = login_response.json()
     token = login_data["token"] 
     user_id = register_response.json()["id"]
+    
+    created_users.append({"id": user_id, "token": token})
     
     return user_data, token, user_id
 
@@ -51,6 +57,9 @@ def create_test_channel(token):
     
     channel_response = requests.post(f"{API_URL}/channels/", json=channel_data, headers=headers)
     assert channel_response.status_code == 201, f"Channel creation failed: {channel_response.text}"
+    
+    created_channels.append({"id": channel_response.json()["id"], "token": token})
+    
     return channel_response.json()
 
 def create_test_post(token, channel_id, title=None, content=None):
@@ -69,6 +78,9 @@ def create_test_post(token, channel_id, title=None, content=None):
     
     post_response = requests.post(f"{API_URL}/posts/create/", json=post_data, headers=headers)
     assert post_response.status_code == 201, f"Post creation failed: {post_response.text}"
+    
+    created_posts.append({"id": post_response.json()["id"], "token": token})
+    
     return post_response.json()
 
 def setup_test_environment():
@@ -142,9 +154,9 @@ def test_list_posts_with_search():
     user_data, token, user_id, channel, _ = setup_test_environment()
     
     unique_keyword = f"uniquesearchterm{uuid.uuid4().hex[:8]}"
-    search_post = create_test_post(token, channel["id"], 
-                                   f"Searchable Post with {unique_keyword}", 
-                                   "Search test content")
+    create_test_post(token, channel["id"], 
+                    f"Searchable Post with {unique_keyword}", 
+                    "Search test content")
     
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{API_URL}/posts/?search={unique_keyword}", headers=headers)
@@ -171,7 +183,8 @@ def test_list_posts_empty_search():
     user_data, token, user_id, channel, post = setup_test_environment()
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{API_URL}/posts/?search=ThisSearchShouldNeverMatch12345", headers=headers)
+    response = requests.get(f"{API_URL}/posts/?search=ThisSearchShouldNeverMatch12345",
+                             headers=headers)
     
     if response.status_code == 200:
         data = response.json()
@@ -200,7 +213,8 @@ def test_create_post_success():
     data = response.json()
     assert data["title"] == post_data["title"], "Returned title should match input"
     assert data["content"] == post_data["content"], "Returned content should match input"
-    assert data["author"]["username"] == user_data["username"], "Post author should be the creating user"
+    assert data["author"]["username"] == user_data["username"], "Post author"
+    " should be the creating user"
     assert "id" in data, "Response should include post ID"
     
     assert "username" in data["author"], "Author should have username field"
@@ -347,7 +361,8 @@ def test_update_post_success():
         "content": f"Updated content {uuid.uuid4().hex[:8]}"
     }
     
-    response = requests.put(f"{API_URL}/posts/{post['id']}/update/", json=update_data, headers=headers)
+    response = requests.put(f"{API_URL}/posts/{post['id']}/update/", 
+                            json=update_data, headers=headers)
     
     assert response.status_code == 200, "Should update post successfully"
     data = response.json()
@@ -368,7 +383,8 @@ def test_update_post_partial():
         "title": f"Only Title Updated {uuid.uuid4().hex[:8]}"
     }
     
-    response = requests.put(f"{API_URL}/posts/{post['id']}/update/", json=title_update, headers=headers)
+    response = requests.put(f"{API_URL}/posts/{post['id']}/update/",
+                             json=title_update, headers=headers)
     
     assert response.status_code == 200, "Should update post successfully"
     data = response.json()
@@ -379,7 +395,8 @@ def test_update_post_partial():
         "content": f"Only content updated {uuid.uuid4().hex[:8]}"
     }
     
-    response = requests.put(f"{API_URL}/posts/{post['id']}/update/", json=content_update, headers=headers)
+    response = requests.put(f"{API_URL}/posts/{post['id']}/update/", 
+                            json=content_update, headers=headers)
     
     assert response.status_code == 200, "Should update post successfully"
     data = response.json()
@@ -412,7 +429,8 @@ def test_update_other_user_post():
         "content": "This update should fail"
     }
     
-    response = requests.put(f"{API_URL}/posts/{post['id']}/update/", json=update_data, headers=headers)
+    response = requests.put(f"{API_URL}/posts/{post['id']}/update/", 
+                            json=update_data, headers=headers)
     
     assert response.status_code == 403, "Should forbid updating another user's post"
     assert "forbidden" in response.text.lower() or "own" in response.text.lower(), \
@@ -430,7 +448,8 @@ def test_update_nonexistent_post():
         "content": "This update should fail"
     }
     
-    response = requests.put(f"{API_URL}/posts/{nonexistent_post_id}/update/", json=update_data, headers=headers)
+    response = requests.put(f"{API_URL}/posts/{nonexistent_post_id}/update/", 
+                            json=update_data, headers=headers)
     
     assert response.status_code == 404, "Should return 404 for non-existent post"
 
@@ -502,7 +521,8 @@ def test_get_channel_posts_success():
     assert data["count"] >= 2, "Should find at least 2 posts"
     
     for post in data["results"]:
-        assert post["channel"]["id"] == channel["id"], "All posts should belong to requested channel"
+        assert post["channel"]["id"] == channel["id"], "All posts "
+        "should belong to requested channel"
         
         assert "username" in post["author"], "Author should have username field"
         assert "name" not in post["author"], "Author should not have name field"
@@ -553,7 +573,8 @@ def test_get_channel_posts_with_pagination():
     """Test pagination when listing channel posts"""
     _, token, _, channel, _ = setup_test_environment()
     
-    posts = [create_test_post(token, channel["id"]) for _ in range(3)]
+    for _ in range(3):
+        create_test_post(token, channel["id"])
     
     headers = {"Authorization": f"Bearer {token}"}
     
@@ -653,3 +674,41 @@ def test_homepage_posts_ordering():
     data = response.json()
     if len(data["results"]) >= 2:
         assert "votes" in data["results"][0], "Posts should include vote information"
+
+def cleanup_test_data():
+    """Clean up all test data created during tests"""
+    print("\nCleaning up post test data...")
+    
+    for post in created_posts:
+        try:
+            headers = {"Authorization": f"Bearer {post['token']}"}
+            response = requests.delete(f"{API_URL}/posts/{post['id']}/delete/", headers=headers)
+            print(f"Deleted post {post['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting post {post['id']}: {e}")
+    
+    for channel in created_channels:
+        try:
+            headers = {"Authorization": f"Bearer {channel['token']}"}
+            response = requests.delete(f"{API_URL}/channels/{channel['id']}/", headers=headers)
+            print(f"Deleted channel {channel['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting channel {channel['id']}: {e}")
+    
+    for user in created_users:
+        try:
+            headers = {"Authorization": f"Bearer {user['token']}"}
+            response = requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers=headers)
+            print(f"Deleted user {user['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting user {user['id']}: {e}")
+    
+    created_posts.clear()
+    created_channels.clear()
+    created_users.clear()
+
+atexit.register(cleanup_test_data)
+
+def test_zzz_cleanup():
+    """Run cleanup for all created test data"""
+    cleanup_test_data()
