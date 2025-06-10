@@ -581,6 +581,6 @@ def cleanup_test_data():
 
 atexit.register(cleanup_test_data)
 
-def test_cleanup():
+def test_zzzz_cleanup(): # zzz because pytest will run this last then
     """Run cleanup for all created test data"""
     cleanup_test_data()
