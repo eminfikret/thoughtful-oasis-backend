@@ -327,3 +327,91 @@ def comments_paginated_response():
             )
         }
     )
+
+def post_author_schema():
+    """Example post author schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'username': openapi.Schema(type=openapi.TYPE_STRING, example="user123")
+        }
+    )
+
+def post_channel_schema():
+    """Example post channel schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'name': openapi.Schema(type=openapi.TYPE_STRING, example="Technology")
+        }
+    )
+
+def post_votes_schema():
+    """Example post votes schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'upvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=15),
+            'downvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=3),
+            'score': openapi.Schema(type=openapi.TYPE_INTEGER, example=12),
+            'voted': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True),
+            'is_upvote': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True)
+        }
+    )
+
+def post_example_response():
+    """Example post response schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'title': openapi.Schema(type=openapi.TYPE_STRING, example="The Amazon rainforest produces 20% of the world's oxygen."),
+            'content': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                example="It is a vital part of our ecosystem and plays a crucial role in regulating the Earth's climate."
+            ),
+            'channel': post_channel_schema(),
+            'author': post_author_schema(),
+            'created_at': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                format=openapi.FORMAT_DATETIME,
+                example="2025-06-05T14:30:45Z"
+            ),
+            'updated_at': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                format=openapi.FORMAT_DATETIME,
+                example="2025-06-05T14:30:45Z"
+            ),
+            'votes': post_votes_schema(),
+            'comment_count': openapi.Schema(type=openapi.TYPE_INTEGER, example=8),
+            'claims': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=claim_with_fact_check_example()
+            )
+        }
+    )
+
+def posts_paginated_response():
+    """Example paginated posts response"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'count': openapi.Schema(type=openapi.TYPE_INTEGER, example=42),
+            'next': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example="http://api.example.org/posts/?offset=10&limit=10",
+                nullable=True
+            ),
+            'previous': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example=None,
+                nullable=True
+            ),
+            'results': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=post_example_response()
+            )
+        }
+    )
