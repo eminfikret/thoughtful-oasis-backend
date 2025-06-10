@@ -156,6 +156,6 @@ SWAGGER_SETTINGS = {
     'OPERATIONS_SORTER': 'alpha',
     'TAGS_SORTER': 'alpha',
     'PERSIST_AUTH': True,
-    'REFETCH_SCHEMA_WITH_AUTH': True,
+    'REFETCH_SCHEMA_WITH_AUTH': False,
     'VALIDATOR_URL': None,
 }
