@@ -1,9 +1,15 @@
+import atexit
 import os
 import uuid
 
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
+
+created_users = []
+created_channels = []
+created_posts = []
+created_subscriptions = []
 
 # -------------------------
 # Test helper functions
@@ -35,6 +41,10 @@ def register_and_login_user():
         print(f"Login failed with status {login_response.status_code}")
         return None, None
     
+    user_id = login_response.json().get("user", {}).get("id")
+    if user_id:
+        created_users.append({"id": user_id, "token": login_response.json()["token"]})
+    
     return login_response.json()["token"], user_data
 
 def generate_unique_channel():
@@ -57,7 +67,14 @@ def create_test_channel(token):
         print(f"Response: {response.text[:200]}")
         return None
     
-    return response.json()
+    channel = response.json()
+    created_channels.append({"id": channel["id"], "token": token})
+    
+    return channel
+
+def track_created_post(post_data, token):
+    """Track a created post for cleanup"""
+    created_posts.append({"id": post_data["id"], "token": token})
 
 # -------------------------
 # Channel creation tests
@@ -420,6 +437,8 @@ def test_subscribe_to_channel():
     response = requests.post(f"{API_URL}/channels/{channel['id']}/subscribe/", headers=headers)
     
     assert response.status_code == 204, "Subscribe should succeed"
+    
+    created_subscriptions.append({"channel_id": channel["id"], "token": token})
 
 def test_unsubscribe_from_channel():
     """Test unsubscribing from a channel"""
@@ -499,6 +518,9 @@ def test_create_and_list_channel_post():
     post_response = requests.post(f"{API_URL}/posts/", json=post_data, headers=headers)
     
     if post_response.status_code == 201:
+        post = post_response.json()
+        created_posts.append({"id": post["id"], "token": token})
+        
         response = requests.get(f"{API_URL}/channels/{channel['id']}/posts/", headers=headers)
         
         assert response.status_code == 200, "Should return post list"
@@ -511,3 +533,54 @@ def test_create_and_list_channel_post():
     else:
         print(f"Note: Post creation returned status {post_response.status_code}, "
               f"skipping post listing test")
+
+def cleanup_test_data():
+    """Clean up all test data created during tests"""
+    print("\nCleaning up test data...")
+    
+    for post in created_posts:
+        try:
+            headers = {"Authorization": f"Bearer {post['token']}"}
+            response = requests.delete(f"{API_URL}/posts/{post['id']}/delete/", headers=headers)
+            print(f"Deleted post {post['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting post {post['id']}: {e}")
+    
+    for subscription in created_subscriptions:
+        try:
+            headers = {"Authorization": f"Bearer {subscription['token']}"}
+            response = requests.delete(
+                f"{API_URL}/channels/{subscription['channel_id']}/unsubscribe/", 
+                headers=headers
+            )
+            print(f"Unsubscribed from channel {subscription['channel_id']}: "
+                  f"Status {response.status_code}")
+        except Exception as e:
+            print(f"Error unsubscribing from channel {subscription['channel_id']}: {e}")
+    
+    for channel in created_channels:
+        try:
+            headers = {"Authorization": f"Bearer {channel['token']}"}
+            response = requests.delete(f"{API_URL}/channels/{channel['id']}/", headers=headers)
+            print(f"Deleted channel {channel['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting channel {channel['id']}: {e}")
+    
+    for user in created_users:
+        try:
+            headers = {"Authorization": f"Bearer {user['token']}"}
+            response = requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers=headers)
+            print(f"Deleted user {user['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting user {user['id']}: {e}")
+    
+    created_posts.clear()
+    created_subscriptions.clear()
+    created_channels.clear()
+    created_users.clear()
+
+atexit.register(cleanup_test_data)
+
+def test_cleanup():
+    """Run cleanup for all created test data"""
+    cleanup_test_data()
