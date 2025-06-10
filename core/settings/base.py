@@ -140,17 +140,22 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header',
-            'description': (
-                'JWT Authorization header using the Bearer scheme.\n\n'
-                'Example: "Bearer <your_token>"'
-            ),
+            'description': 'Format: Bearer <jwt_token>'
         }
     },
-    'DEFAULT_INFO': 'core.urls.schema_view',
+    'USE_SESSION_AUTH': False,
+    'JSON_EDITOR': True,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'DEFAULT_MODEL_RENDERING': 'example',
+    'DEFAULT_INFO': 'core.urls.schema_info',
+    'OPERATIONS_SORTER': 'alpha',
+    'TAGS_SORTER': 'alpha',
+    'PERSIST_AUTH': True,
+    'REFETCH_SCHEMA_WITH_AUTH': True,
+    'VALIDATOR_URL': None,
 }
