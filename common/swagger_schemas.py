@@ -415,3 +415,109 @@ def posts_paginated_response():
             )
         }
     )
+
+def user_summary_schema():
+    """Example user summary schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'username': openapi.Schema(type=openapi.TYPE_STRING, example="user123"),
+            'created_at': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                format=openapi.FORMAT_DATETIME,
+                example="2025-05-15T10:30:45Z"
+            )
+        }
+    )
+
+def channel_summary_schema():
+    """Example channel summary schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'name': openapi.Schema(type=openapi.TYPE_STRING, example="Technology"),
+            'created_at': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                format=openapi.FORMAT_DATETIME,
+                example="2025-05-10T14:30:45Z"
+            )
+        }
+    )
+
+def subscriber_example_schema():
+    """Example subscriber schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'subscriber': user_summary_schema(),
+            'subscribed_at': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                format=openapi.FORMAT_DATETIME,
+                example="2025-06-09T16:45:22Z"
+            )
+        }
+    )
+
+def subscription_example_schema():
+    """Example subscription schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'channel': channel_summary_schema(),
+            'subscribed_at': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                format=openapi.FORMAT_DATETIME,
+                example="2025-06-09T16:45:22Z"
+            )
+        }
+    )
+
+def subscribers_paginated_response():
+    """Example paginated subscribers response"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'count': openapi.Schema(type=openapi.TYPE_INTEGER, example=15),
+            'next': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example="http://api.example.org/channels/1/subscriptions/?offset=10&limit=10",
+                nullable=True
+            ),
+            'previous': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example=None,
+                nullable=True
+            ),
+            'results': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=subscriber_example_schema()
+            )
+        }
+    )
+
+def subscriptions_paginated_response():
+    """Example paginated subscriptions response"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'count': openapi.Schema(type=openapi.TYPE_INTEGER, example=8),
+            'next': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example="http://api.example.org/users/1/subscriptions/?offset=10&limit=10",
+                nullable=True
+            ),
+            'previous': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example=None,
+                nullable=True
+            ),
+            'results': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=subscription_example_schema()
+            )
+        }
+    )

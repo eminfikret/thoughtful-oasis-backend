@@ -15,6 +15,13 @@ from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
 from common.serializers import PaginatedResponseSerializer
+from common.swagger_schemas import (
+    unauthorized_response,
+    permission_denied_response,
+    not_found_response,
+    subscribers_paginated_response,
+    subscriptions_paginated_response
+)
 from subscriptions.exceptions import SubscriptionPermissionDeniedException
 from subscriptions.params import SubscriptionsParams
 from subscriptions.serializers import (
@@ -35,49 +42,23 @@ class SubscribersListController(APIView):
     @swagger_auto_schema(
         operation_summary="List subscribers of a channel",
         operation_description=(
-            "Returns all users subscribed to a given channel."
+            "Returns all users subscribed to a given channel. "
             "Only accessible by channel owner or admin."
         ),
         tags=["Subscriptions"],
+        query_serializer=SubscribersQueryParamsSerializer(),
         responses={
             200: openapi.Response(
                 description="Paginated list of subscribers",
-                schema=PaginatedResponseSerializer(SubscriberSerializer)
+                schema=subscribers_paginated_response()
             ),
             400: openapi.Response(
                 description="Invalid query parameters",
                 schema=SubscribersQueryParamsSerializer()
             ),
-            401: openapi.Response(
-                description="Unauthorized - Authentication required",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
-                                    example="Authentication credentials were not provided.")
-                    }
-                )
-            ),
-            403: openapi.Response(
-                description="Permission denied",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
-                                    example="You do not have permission to view subscribers.")
-                    }
-                )
-            ),
-            404: openapi.Response(
-                description="Not found",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
-                                                example="Channel with id 123 not found.")
-                    }
-                )
-            ),
+            401: unauthorized_response(),
+            403: permission_denied_response("You do not have permission to view subscribers."),
+            404: not_found_response(f"Channel with id 123 not found."),
         },
     )
     def get(self, request: Request, channel_id: ChannelId):
@@ -107,6 +88,7 @@ class SubscribersListController(APIView):
             request=request,
         )
 
+
 class SubscribeController(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -114,14 +96,14 @@ class SubscribeController(APIView):
     @swagger_auto_schema(
         operation_summary="Subscribe to a channel",
         operation_description=(
-            "Subscribes the authenticated user to the specified channel by ID."
+            "Subscribes the authenticated user to the specified channel by ID. "
             "Does nothing if already subscribed."
         ),
         tags=["Subscriptions"],
         responses={
             204: openapi.Response(description="Subscribed successfully (no content)"),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
-            404: openapi.Response(description=str(ChannelNotFoundException(ChannelId(123)))),
+            401: unauthorized_response(),
+            404: not_found_response(f"Channel with id 123 not found."),
         },
     )
     def post(self, request: Request, channel_id: ChannelId):
@@ -131,6 +113,7 @@ class SubscribeController(APIView):
         except NotFoundException as e:
             raise NotFoundAPIException(str(e))
 
+
 class UnsubscribeController(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -138,14 +121,14 @@ class UnsubscribeController(APIView):
     @swagger_auto_schema(
         operation_summary="Unsubscribe from a channel",
         operation_description=(
-            "Unsubscribes the authenticated user from the specified channel by ID."
+            "Unsubscribes the authenticated user from the specified channel by ID. "
             "Does nothing if not already subscribed."
         ),
         tags=["Subscriptions"],
         responses={
             204: openapi.Response(description="Unsubscribed successfully (no content)"),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
-            404: openapi.Response(description=str(ChannelNotFoundException(ChannelId(123)))),
+            401: unauthorized_response(),
+            404: not_found_response(f"Channel with id 123 not found."),
         },
     )
     def delete(self, request: Request, channel_id: ChannelId):
@@ -154,6 +137,7 @@ class UnsubscribeController(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except NotFoundException as e:
             raise NotFoundAPIException(str(e))
+
 
 class SubscriptionsListController(APIView):
     permission_classes = [IsAuthenticated]
@@ -170,17 +154,15 @@ class SubscriptionsListController(APIView):
         responses={
             200: openapi.Response(
                 description="Paginated list of subscribed channels",
-                schema=PaginatedResponseSerializer(SubscriptionSerializer)
+                schema=subscriptions_paginated_response()
             ),
             400: openapi.Response(
                 description="Invalid query parameters",
                 schema=SubscriptionsQueryParamsSerializer()
             ),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
-            403: openapi.Response(
-                description=str(SubscriptionPermissionDeniedException())
-            ),
-            404: openapi.Response(description=str(UserNotFoundException(UserId(123)))),
+            401: unauthorized_response(),
+            403: permission_denied_response("You don't have permission to view this user's subscriptions."),
+            404: not_found_response(f"User with id 123 not found."),
         },
     )
     def get(self, request: Request, user_id: UserId):
