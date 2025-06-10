@@ -16,6 +16,17 @@ from .serializers import (
     UserSerializer,
 )
 from .services import UserService
+from common.swagger_schemas import (
+    unauthorized_response,
+    permission_denied_response,
+    not_found_response,
+    user_detail_schema,
+    login_response_schema,
+    register_response_schema,
+    username_email_check_schema,
+    token_refresh_schema,
+    user_profile_schema
+)
 
 
 class UserListController(APIView):
@@ -29,22 +40,16 @@ class UserListController(APIView):
         operation_summary="List all users",
         operation_description="Get a list of all users",
         tags=["Users"],
-        responses={200: openapi.Response(
-            description="List of users",
-            schema=openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'username': openapi.Schema(type=openapi.TYPE_STRING),
-                        'email': openapi.Schema(type=openapi.TYPE_STRING),
-                        'first_name': openapi.Schema(type=openapi.TYPE_STRING),
-                        'last_name': openapi.Schema(type=openapi.TYPE_STRING),
-                    }
+        responses={
+            200: openapi.Response(
+                description="List of users",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=user_detail_schema()
                 )
-            )
-        )}
+            ),
+            401: unauthorized_response()
+        }
     )
     def get(self, request):
         """Get all users"""
@@ -62,35 +67,48 @@ class RegisterController(APIView):
     
     @swagger_auto_schema(
         operation_summary="Register a new user",
-        operation_description="Register a new user",
+        operation_description="Register a new user with username, email, and password",
         tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['username', 'password', 'password2', 'email'],
             properties={
-                'username': openapi.Schema(type=openapi.TYPE_STRING),
-                'password': openapi.Schema(type=openapi.TYPE_STRING),
-                'password2': openapi.Schema(type=openapi.TYPE_STRING),
-                'email': openapi.Schema(type=openapi.TYPE_STRING),
-                'first_name': openapi.Schema(type=openapi.TYPE_STRING),
-                'last_name': openapi.Schema(type=openapi.TYPE_STRING),
+                'username': openapi.Schema(type=openapi.TYPE_STRING, example="newuser"),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, example="StrongP@ssword123"),
+                'password2': openapi.Schema(type=openapi.TYPE_STRING, example="StrongP@ssword123"),
+                'email': openapi.Schema(type=openapi.TYPE_STRING, example="newuser@example.com"),
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="John"),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Doe"),
             }
         ),
         responses={
             201: openapi.Response(
                 description="User created successfully",
+                schema=register_response_schema()
+            ),
+            400: openapi.Response(
+                description="Bad Request - Invalid data",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'username': openapi.Schema(type=openapi.TYPE_STRING),
-                        'email': openapi.Schema(type=openapi.TYPE_STRING),
-                        'first_name': openapi.Schema(type=openapi.TYPE_STRING),
-                        'last_name': openapi.Schema(type=openapi.TYPE_STRING),
+                        'username': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["A user with that username already exists."]
+                        ),
+                        'email': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["A user with this email already exists."]
+                        ),
+                        'password': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["Password fields didn't match."]
+                        )
                     }
                 )
-            ),
-            400: "Bad Request"
+            )
         }
     )
     def post(self, request):
@@ -111,38 +129,51 @@ class LoginController(APIView):
     
     @swagger_auto_schema(
         operation_summary="Login a user",
-        operation_description="Login a user and receive an authentication token",
+        operation_description="Login a user with username and password to receive authentication tokens",
         tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['username', 'password'],
             properties={
-                'username': openapi.Schema(type=openapi.TYPE_STRING),
-                'password': openapi.Schema(type=openapi.TYPE_STRING),
+                'username': openapi.Schema(type=openapi.TYPE_STRING, example="user123"),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, example="password123")
             }
         ),
         responses={
             200: openapi.Response(
                 description="Successful login",
+                schema=login_response_schema()
+            ),
+            400: openapi.Response(
+                description="Bad Request - Invalid data",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'user': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                'username': openapi.Schema(type=openapi.TYPE_STRING),
-                                'email': openapi.Schema(type=openapi.TYPE_STRING),
-                                'first_name': openapi.Schema(type=openapi.TYPE_STRING),
-                                'last_name': openapi.Schema(type=openapi.TYPE_STRING),
-                            }
+                        'username': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is required."]
                         ),
-                        'token': openapi.Schema(type=openapi.TYPE_STRING),
-                        'refresh_token': openapi.Schema(type=openapi.TYPE_STRING)
+                        'password': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is required."]
+                        )
                     }
                 )
             ),
-            401: "Invalid credentials"
+            401: openapi.Response(
+                description="Invalid credentials",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="Invalid credentials"
+                        )
+                    }
+                )
+            )
         }
     )
     def post(self, request):
@@ -159,7 +190,6 @@ class LoginController(APIView):
                     'user': UserSerializer(result['user']).data,
                     'token': result['access_token'],
                     'refresh_token': result['refresh_token']
-
                 }, status=status.HTTP_200_OK)
             
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -169,26 +199,48 @@ class LoginController(APIView):
 
 class RefreshTokenView(APIView):
     @swagger_auto_schema(
+        operation_summary="Refresh access token",
         operation_description="Refresh an access token using a valid refresh token",
         tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['refresh_token'],
             properties={
-                'refresh_token': openapi.Schema(type=openapi.TYPE_STRING),
+                'refresh_token': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                )
             }
         ),
         responses={
             200: openapi.Response(
                 description="New access token",
+                schema=token_refresh_schema()
+            ),
+            400: openapi.Response(
+                description="Bad Request - Missing refresh token",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'access_token': openapi.Schema(type=openapi.TYPE_STRING),
+                        'error': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="Refresh token is required"
+                        )
                     }
                 )
             ),
-            401: "Invalid or expired refresh token"
+            401: openapi.Response(
+                description="Invalid or expired refresh token",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="Invalid or expired refresh token"
+                        )
+                    }
+                )
+            )
         }
     )
     def post(self, request):
@@ -217,11 +269,15 @@ class UserDetailController(APIView):
 
     @swagger_auto_schema(
         operation_summary="Get user details",
-        operation_description="Get details for a specific user",
+        operation_description="Get detailed information for a specific user by ID",
         tags=["Users"],
         responses={
-            200: UserDetailSerializer(),
-            404: "User not found"
+            200: openapi.Response(
+                description="User details retrieved successfully",
+                schema=user_detail_schema()
+            ),
+            401: unauthorized_response(),
+            404: not_found_response("User not found")
         }
     )
     def get(self, request, user_id):
@@ -235,14 +291,43 @@ class UserDetailController(APIView):
 
     @swagger_auto_schema(
         operation_summary="Update user details",
-        operation_description="Update details for a specific user",
+        operation_description="Update details for a specific user (can only update your own details)",
         tags=["Users"],
-        request_body=UserDetailSerializer,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="Updated"),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Name"),
+                'profile': openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'bio': openapi.Schema(type=openapi.TYPE_STRING, example="Updated bio information"),
+                        'website': openapi.Schema(type=openapi.TYPE_STRING, example="https://updated-site.com")
+                    }
+                )
+            }
+        ),
         responses={
-            200: UserDetailSerializer(),
-            400: "Bad request",
-            403: "Permission denied",
-            404: "User not found"
+            200: openapi.Response(
+                description="User details updated successfully",
+                schema=user_detail_schema()
+            ),
+            400: openapi.Response(
+                description="Bad Request - Invalid data",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'first_name': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is invalid."]
+                        )
+                    }
+                )
+            ),
+            401: unauthorized_response(),
+            403: permission_denied_response("You can only update your own details"),
+            404: not_found_response("User not found")
         }
     )
     def put(self, request, user_id):
@@ -274,11 +359,15 @@ class UserProfileController(APIView):
 
     @swagger_auto_schema(
         operation_summary="Get user profile",
-        operation_description="Get profile for a specific user",
+        operation_description="Get profile information for a specific user by ID",
         tags=["Users"],
         responses={
-            200: UserProfileSerializer(),
-            404: "Profile not found"
+            200: openapi.Response(
+                description="User profile retrieved successfully",
+                schema=user_profile_schema()
+            ),
+            401: unauthorized_response(),
+            404: not_found_response("Profile not found")
         }
     )
     def get(self, request, user_id):
@@ -292,32 +381,37 @@ class UserProfileController(APIView):
 
     @swagger_auto_schema(
         operation_summary="Update user profile",
-        operation_description="Update profile for a specific user",
+        operation_description="Update profile for a specific user (can only update your own profile)",
         tags=["Users"],
-        request_body=UserProfileUpdateSerializer,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'bio': openapi.Schema(type=openapi.TYPE_STRING, example="Updated bio information"),
+                'website': openapi.Schema(type=openapi.TYPE_STRING, example="https://updated-site.com"),
+                'profile_picture': openapi.Schema(type=openapi.TYPE_FILE, format="binary")
+            }
+        ),
         responses={
-            200: UserProfileSerializer(),
-            400: "Bad request",
-            403: openapi.Response(
-                description="Permission denied",
+            200: openapi.Response(
+                description="User profile updated successfully",
+                schema=user_profile_schema()
+            ),
+            400: openapi.Response(
+                description="Bad Request - Invalid data",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
-                                                example="You can only update your own profile")
+                        'website': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["Enter a valid URL."]
+                        )
                     }
                 )
             ),
-            404: openapi.Response(
-                description="Not found",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING, 
-                                                example="Profile not found")
-                    }
-                )
-            )
+            401: unauthorized_response(),
+            403: permission_denied_response("You can only update your own profile"),
+            404: not_found_response("Profile not found")
         }
     )
     def patch(self, request, user_id):
@@ -345,9 +439,9 @@ class CheckUsernameEmailController(APIView):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user_service = UserService()
-
+    
     @swagger_auto_schema(
-        operation_summary="Check if username or email exists",
+        operation_summary="Check username/email availability",
         operation_description="Check if a username or email is already registered in the system",
         tags=["Users"],
         manual_parameters=[
@@ -369,15 +463,20 @@ class CheckUsernameEmailController(APIView):
         responses={
             200: openapi.Response(
                 description="Check successful",
+                schema=username_email_check_schema()
+            ),
+            400: openapi.Response(
+                description="Bad request - Missing parameters",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'username_exists': openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                        'email_exists': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        'error': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="Either username or email parameter is required"
+                        )
                     }
                 )
-            ),
-            400: "Bad request - At least one parameter required"
+            )
         }
     )
     def get(self, request):
@@ -402,32 +501,25 @@ class UserDeleteController(APIView):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user_service = UserService()
-
+    
     @swagger_auto_schema(
         operation_summary="Delete user account",
         operation_description="Delete your own user account permanently",
         tags=["Users"],
         responses={
             204: openapi.Response(description="User deleted successfully"),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
-            403: openapi.Response(
-                description="Permission denied",
+            401: unauthorized_response(),
+            403: permission_denied_response("You can only delete your own account"),
+            404: not_found_response("User not found"),
+            500: openapi.Response(
+                description="Server error",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'error': openapi.Schema(
                             type=openapi.TYPE_STRING,
-                            example="You can only delete your own account"
+                            example="Failed to delete user"
                         )
-                    }
-                )
-            ),
-            404: openapi.Response(
-                description="User not found",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'error': openapi.Schema(type=openapi.TYPE_STRING, example="User not found")
                     }
                 )
             )

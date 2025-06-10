@@ -521,3 +521,86 @@ def subscriptions_paginated_response():
             )
         }
     )
+
+def user_profile_schema():
+    """Example user profile schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'bio': openapi.Schema(type=openapi.TYPE_STRING, example="Software engineer with 5 years of experience in Python"),
+            'profile_picture': openapi.Schema(type=openapi.TYPE_STRING, example="http://example.com/media/profile_pictures/avatar.jpg", nullable=True),
+            'website': openapi.Schema(type=openapi.TYPE_STRING, example="https://example.com", nullable=True),
+            'reputation': openapi.Schema(type=openapi.TYPE_INTEGER, example=42),
+            'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, example="2025-05-10T14:30:45Z"),
+            'updated_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, example="2025-05-15T09:45:12Z")
+        }
+    )
+
+def user_detail_schema():
+    """Example user detail schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'username': openapi.Schema(type=openapi.TYPE_STRING, example="user123"),
+            'email': openapi.Schema(type=openapi.TYPE_STRING, example="user123@example.com"),
+            'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="John"),
+            'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Doe"),
+            'profile': user_profile_schema(),
+            'date_joined': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, example="2025-05-10T14:30:45Z"),
+            'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True)
+        }
+    )
+
+def login_response_schema():
+    """Example login response schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'user': openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+                    'username': openapi.Schema(type=openapi.TYPE_STRING, example="user123"),
+                    'email': openapi.Schema(type=openapi.TYPE_STRING, example="user123@example.com"),
+                    'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="John"),
+                    'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Doe"),
+                    'profile': user_profile_schema()
+                }
+            ),
+            'token': openapi.Schema(type=openapi.TYPE_STRING, example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."),
+            'refresh_token': openapi.Schema(type=openapi.TYPE_STRING, example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+        }
+    )
+
+def register_response_schema():
+    """Example register response schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'username': openapi.Schema(type=openapi.TYPE_STRING, example="user123"),
+            'email': openapi.Schema(type=openapi.TYPE_STRING, example="user123@example.com"),
+            'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="John"),
+            'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Doe")
+        }
+    )
+
+def username_email_check_schema():
+    """Example username/email check response schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'username_exists': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True),
+            'email_exists': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=False)
+        }
+    )
+
+def token_refresh_schema():
+    """Example token refresh response schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'access_token': openapi.Schema(type=openapi.TYPE_STRING, example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+        }
+    )
