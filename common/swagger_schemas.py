@@ -604,3 +604,127 @@ def token_refresh_schema():
             'access_token': openapi.Schema(type=openapi.TYPE_STRING, example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
         }
     )
+
+def post_vote_response_schema():
+    """Example response when voting on a post"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'post_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'action': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                example="added",
+                description="Action taken: 'added', 'removed', or 'changed'"
+            ),
+            'vote_type': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                example="upvote",
+                enum=["upvote", "downvote"]
+            ),
+            'upvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=5),
+            'downvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=2),
+            'score': openapi.Schema(
+                type=openapi.TYPE_INTEGER, 
+                example=3,
+                description="Net score (upvotes minus downvotes)"
+            )
+        }
+    )
+
+def comment_vote_response_schema():
+    """Example response when voting on a comment"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'comment_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'action': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                example="added",
+                description="Action taken: 'added', 'removed', or 'changed'"
+            ),
+            'vote_type': openapi.Schema(
+                type=openapi.TYPE_STRING, 
+                example="upvote",
+                enum=["upvote", "downvote"]
+            ),
+            'upvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=3),
+            'downvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'score': openapi.Schema(
+                type=openapi.TYPE_INTEGER, 
+                example=2,
+                description="Net score (upvotes minus downvotes)"
+            )
+        }
+    )
+
+def post_vote_status_schema():
+    """Example response for post vote status"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'upvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=10),
+            'downvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=3),
+            'score': openapi.Schema(type=openapi.TYPE_INTEGER, example=7),
+            'voted': openapi.Schema(
+                type=openapi.TYPE_BOOLEAN, 
+                example=True,
+                description="Present only for authenticated users"
+            ),
+            'is_upvote': openapi.Schema(
+                type=openapi.TYPE_BOOLEAN, 
+                example=True,
+                description="Present only for authenticated users who have voted"
+            )
+        }
+    )
+
+def comment_vote_status_schema():
+    """Example response for comment vote status"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'upvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=5),
+            'downvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=2),
+            'score': openapi.Schema(type=openapi.TYPE_INTEGER, example=3),
+            'voted': openapi.Schema(
+                type=openapi.TYPE_BOOLEAN, 
+                example=True,
+                description="Present only for authenticated users"
+            ),
+            'is_upvote': openapi.Schema(
+                type=openapi.TYPE_BOOLEAN, 
+                example=False,
+                description="Present only for authenticated users who have voted"
+            )
+        }
+    )
+
+def vote_error_404_post_schema():
+    """404 error response for post votes"""
+    return openapi.Response(
+        description="Post not found",
+        schema=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    example="Post with ID 999 not found"
+                )
+            }
+        )
+    )
+
+def vote_error_404_comment_schema():
+    """404 error response for comment votes"""
+    return openapi.Response(
+        description="Comment not found",
+        schema=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    example="Comment with ID 999 not found"
+                )
+            }
+        )
+    )
