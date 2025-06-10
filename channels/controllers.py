@@ -28,14 +28,13 @@ from common.api_exceptions import ConflictAPIException
 from common.exceptions import ConflictException, NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
-from common.serializers import PaginatedResponseSerializer
 from common.swagger_schemas import (
-    unauthorized_response,
-    permission_denied_response,
-    not_found_response,
-    conflict_response,
     channel_example_response,
+    conflict_response,
+    not_found_response,
     paginated_response_schema,
+    permission_denied_response,
+    unauthorized_response,
 )
 
 
@@ -146,7 +145,8 @@ class ChannelDetailController(APIView):
 
     @swagger_auto_schema(
         operation_summary="Partially update a channel",
-        operation_description="Update a channel's name and/or description. Only channel owner or admin can update.",
+        operation_description="Update a channel's name and/or description. Only channel owner"
+        " or admin can update.",
         tags=["Channels"],
         request_body=ChannelUpdateSerializer,
         responses={

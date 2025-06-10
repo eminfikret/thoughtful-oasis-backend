@@ -9,20 +9,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from channels.exceptions import ChannelNotFoundException
 from channels.types import ChannelId
 from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
-from common.serializers import PaginatedResponseSerializer
 from common.swagger_schemas import (
-    unauthorized_response,
-    permission_denied_response,
     not_found_response,
+    permission_denied_response,
     subscribers_paginated_response,
-    subscriptions_paginated_response
+    subscriptions_paginated_response,
+    unauthorized_response,
 )
-from subscriptions.exceptions import SubscriptionPermissionDeniedException
 from subscriptions.params import SubscriptionsParams
 from subscriptions.serializers import (
     SubscriberSerializer,
@@ -31,7 +28,6 @@ from subscriptions.serializers import (
     SubscriptionsQueryParamsSerializer,
 )
 from subscriptions.services import SubscriptionService
-from users.exceptions import UserNotFoundException
 from users.types import UserId
 
 
@@ -58,7 +54,7 @@ class SubscribersListController(APIView):
             ),
             401: unauthorized_response(),
             403: permission_denied_response("You do not have permission to view subscribers."),
-            404: not_found_response(f"Channel with id 123 not found."),
+            404: not_found_response("Channel with id 123 not found."),
         },
     )
     def get(self, request: Request, channel_id: ChannelId):
@@ -103,7 +99,7 @@ class SubscribeController(APIView):
         responses={
             204: openapi.Response(description="Subscribed successfully (no content)"),
             401: unauthorized_response(),
-            404: not_found_response(f"Channel with id 123 not found."),
+            404: not_found_response("Channel with id 123 not found."),
         },
     )
     def post(self, request: Request, channel_id: ChannelId):
@@ -128,7 +124,7 @@ class UnsubscribeController(APIView):
         responses={
             204: openapi.Response(description="Unsubscribed successfully (no content)"),
             401: unauthorized_response(),
-            404: not_found_response(f"Channel with id 123 not found."),
+            404: not_found_response("Channel with id 123 not found."),
         },
     )
     def delete(self, request: Request, channel_id: ChannelId):
@@ -161,8 +157,9 @@ class SubscriptionsListController(APIView):
                 schema=SubscriptionsQueryParamsSerializer()
             ),
             401: unauthorized_response(),
-            403: permission_denied_response("You don't have permission to view this user's subscriptions."),
-            404: not_found_response(f"User with id 123 not found."),
+            403: permission_denied_response("You don't have permission to view this user's " \
+            "subscriptions."),
+            404: not_found_response("User with id 123 not found."),
         },
     )
     def get(self, request: Request, user_id: UserId):

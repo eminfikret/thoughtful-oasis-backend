@@ -7,6 +7,18 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.swagger_schemas import (
+    login_response_schema,
+    not_found_response,
+    permission_denied_response,
+    register_response_schema,
+    token_refresh_schema,
+    unauthorized_response,
+    user_detail_schema,
+    user_profile_schema,
+    username_email_check_schema,
+)
+
 from .serializers import (
     LoginSerializer,
     RegisterSerializer,
@@ -16,17 +28,6 @@ from .serializers import (
     UserSerializer,
 )
 from .services import UserService
-from common.swagger_schemas import (
-    unauthorized_response,
-    permission_denied_response,
-    not_found_response,
-    user_detail_schema,
-    login_response_schema,
-    register_response_schema,
-    username_email_check_schema,
-    token_refresh_schema,
-    user_profile_schema
-)
 
 
 class UserListController(APIView):
@@ -129,7 +130,8 @@ class LoginController(APIView):
     
     @swagger_auto_schema(
         operation_summary="Login a user",
-        operation_description="Login a user with username and password to receive authentication tokens",
+        operation_description="Login a user with username and password to receive " \
+        "authentication tokens",
         tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -291,7 +293,8 @@ class UserDetailController(APIView):
 
     @swagger_auto_schema(
         operation_summary="Update user details",
-        operation_description="Update details for a specific user (can only update your own details)",
+        operation_description="Update details for a specific user "
+        "(can only update your own details)",
         tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -301,8 +304,10 @@ class UserDetailController(APIView):
                 'profile': openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'bio': openapi.Schema(type=openapi.TYPE_STRING, example="Updated bio information"),
-                        'website': openapi.Schema(type=openapi.TYPE_STRING, example="https://updated-site.com")
+                        'bio': openapi.Schema(type=openapi.TYPE_STRING,
+                                               example="Updated bio information"),
+                        'website': openapi.Schema(type=openapi.TYPE_STRING, 
+                                                  example="https://updated-site.com")
                     }
                 )
             }
@@ -381,7 +386,8 @@ class UserProfileController(APIView):
 
     @swagger_auto_schema(
         operation_summary="Update user profile",
-        operation_description="Update profile for a specific user (can only update your own profile)",
+        operation_description="Update profile for a specific user "
+        "(can only update your own profile)",
         tags=["Users"],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,

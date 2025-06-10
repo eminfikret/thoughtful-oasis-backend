@@ -10,15 +10,15 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from claims.services import ClaimService
-from posts.models import Post
 from common.swagger_schemas import (
-    not_found_response,
-    unauthorized_response,
-    permission_denied_response,
     comment_example_response,
     comment_reply_example_response,
-    comments_paginated_response
+    comments_paginated_response,
+    not_found_response,
+    permission_denied_response,
+    unauthorized_response,
 )
+from posts.models import Post
 
 from .exceptions import CommentNotFound
 from .models import Comment
@@ -169,7 +169,8 @@ class CreateReplyView(views.APIView):
 class PostCommentsView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Get all comments for a post",
-        operation_description="Fetches all top-level comments for a post, using post_id as a query parameter.",
+        operation_description="Fetches all top-level comments for a post, " \
+        "using post_id as a query parameter.",
         tags=["Comments"],
         manual_parameters=[
             openapi.Parameter(
@@ -261,7 +262,8 @@ def get_comment_replies(request, comment_id):
 class CommentRepliesView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Get replies to a comment",
-        operation_description="Returns all replies for a given comment by comment_id (passed in URL).",
+        operation_description="Returns all replies for a given comment by comment_id"
+        " (passed in URL).",
         tags=["Comments"],
         manual_parameters=[
             openapi.Parameter(
@@ -308,7 +310,8 @@ class UpdateCommentView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Update a comment",
-        operation_description="Updates content of an existing comment. User can only update their own comments.",
+        operation_description="Updates content of an existing comment. " \
+        "User can only update their own comments.",
         tags=["Comments"],
         request_body=CommentUpdateSerializer,
         responses={
@@ -369,7 +372,8 @@ class UserCommentsView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Get all comments by a user",
-        operation_description="Retrieves all comments made by a specific user. Supports pagination.",
+        operation_description="Retrieves all comments made by a specific user." \
+        " Supports pagination.",
         tags=["Comments"],
         manual_parameters=[
             openapi.Parameter(

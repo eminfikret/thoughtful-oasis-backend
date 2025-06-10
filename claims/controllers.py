@@ -7,15 +7,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .serializers import TextSubmissionSerializer
-from .services import ClaimService
 from common.swagger_schemas import (
-    unauthorized_response, 
     claim_with_fact_check_example,
     error_response,
     not_found_response,
-    permission_denied_response
+    permission_denied_response,
+    unauthorized_response,
 )
+
+from .serializers import TextSubmissionSerializer
+from .services import ClaimService
 
 
 class TextAnalysisController(APIView):
@@ -113,7 +114,8 @@ class ClaimDetailController(APIView):
     
     @swagger_auto_schema(
         operation_summary="Get claim details",
-        operation_description="Get detailed information about a specific claim including its fact check if available",
+        operation_description="Get detailed information about a specific claim including" \
+        " its fact check if available",
         tags=["Claims"],
         responses={
             200: openapi.Response(

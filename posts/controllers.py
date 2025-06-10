@@ -17,11 +17,11 @@ from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
 from common.swagger_schemas import (
-    unauthorized_response, 
-    not_found_response, 
+    not_found_response,
     permission_denied_response,
     post_example_response,
-    posts_paginated_response
+    posts_paginated_response,
+    unauthorized_response,
 )
 from posts.dtos import CreatePostDto, UpdatePostDto
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
@@ -374,7 +374,8 @@ class UserPostsView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Get all posts by a user",
-        operation_description="Retrieves all posts created by a specific user. Supports pagination.",
+        operation_description="Retrieves all posts created by a specific user. " \
+        "Supports pagination.",
         tags=["Posts"],
         manual_parameters=[
             openapi.Parameter(
@@ -460,7 +461,8 @@ class HomePagePostsView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Get top posts for homepage",
-        operation_description="Returns highest-scoring posts across all channels for the homepage. Default time window is 5 days.",
+        operation_description="Returns highest-scoring posts across all channels " \
+        "for the homepage. Default time window is 5 days.",
         tags=["Posts"],
         manual_parameters=[
             openapi.Parameter("limit", openapi.IN_QUERY, "Page size", 

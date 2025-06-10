@@ -7,17 +7,17 @@ from rest_framework.response import Response
 
 from comments.exceptions import CommentNotFound
 from comments.models import Comment
+from common.swagger_schemas import (
+    comment_vote_response_schema,
+    comment_vote_status_schema,
+    post_vote_response_schema,
+    post_vote_status_schema,
+    unauthorized_response,
+    vote_error_404_comment_schema,
+    vote_error_404_post_schema,
+)
 from posts.exceptions import PostNotFoundException
 from posts.models import Post
-from common.swagger_schemas import (
-    unauthorized_response,
-    post_vote_response_schema,
-    comment_vote_response_schema,
-    post_vote_status_schema,
-    comment_vote_status_schema,
-    vote_error_404_post_schema,
-    vote_error_404_comment_schema
-)
 
 from .repositories import VoteRepository
 from .services import VoteService

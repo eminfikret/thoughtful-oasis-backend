@@ -1,5 +1,6 @@
 from drf_yasg import openapi
 
+
 def error_response(message="An error occurred", example="Error details"):
     """Generate a standard error response schema"""
     return openapi.Schema(
@@ -202,7 +203,8 @@ def fact_check_example_response():
             'summary': openapi.Schema(
                 type=openapi.TYPE_STRING, 
                 example="The claim is contradicted by available evidence." \
-                " According to wikipedia, the Amazon rainforest produces approximately 6-9% of the world's oxygen, not 20%."
+                " According to wikipedia, the Amazon rainforest produces approximately 6-9% of " \
+                "the world's oxygen, not 20%."
             ),
             'sources': openapi.Schema(
                 type=openapi.TYPE_ARRAY,
@@ -367,10 +369,12 @@ def post_example_response():
         type=openapi.TYPE_OBJECT,
         properties={
             'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
-            'title': openapi.Schema(type=openapi.TYPE_STRING, example="The Amazon rainforest produces 20% of the world's oxygen."),
+            'title': openapi.Schema(type=openapi.TYPE_STRING, example="The Amazon" \
+            " rainforest produces 20% of the world's oxygen."),
             'content': openapi.Schema(
                 type=openapi.TYPE_STRING, 
-                example="It is a vital part of our ecosystem and plays a crucial role in regulating the Earth's climate."
+                example="It is a vital part of our ecosystem and plays a " \
+                "crucial role in regulating the Earth's climate."
             ),
             'channel': post_channel_schema(),
             'author': post_author_schema(),
@@ -527,12 +531,18 @@ def user_profile_schema():
     return openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
-            'bio': openapi.Schema(type=openapi.TYPE_STRING, example="Software engineer with 5 years of experience in Python"),
-            'profile_picture': openapi.Schema(type=openapi.TYPE_STRING, example="http://example.com/media/profile_pictures/avatar.jpg", nullable=True),
-            'website': openapi.Schema(type=openapi.TYPE_STRING, example="https://example.com", nullable=True),
+            'bio': openapi.Schema(type=openapi.TYPE_STRING, 
+                                  example="Software engineer with 5 years of experience in Python"),
+            'profile_picture': openapi.Schema(type=openapi.TYPE_STRING, 
+                                              example="http://example.com/media/profile_pictures"
+                                              "/avatar.jpg", nullable=True),
+            'website': openapi.Schema(type=openapi.TYPE_STRING, 
+                                      example="https://example.com", nullable=True),
             'reputation': openapi.Schema(type=openapi.TYPE_INTEGER, example=42),
-            'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, example="2025-05-10T14:30:45Z"),
-            'updated_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, example="2025-05-15T09:45:12Z")
+            'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
+                                          example="2025-05-10T14:30:45Z"),
+            'updated_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, 
+                                         example="2025-05-15T09:45:12Z")
         }
     )
 
@@ -547,7 +557,9 @@ def user_detail_schema():
             'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="John"),
             'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Doe"),
             'profile': user_profile_schema(),
-            'date_joined': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, example="2025-05-10T14:30:45Z"),
+            'date_joined': openapi.Schema(type=openapi.TYPE_STRING,
+                                           format=openapi.FORMAT_DATETIME, 
+                                           example="2025-05-10T14:30:45Z"),
             'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True)
         }
     )
@@ -562,14 +574,17 @@ def login_response_schema():
                 properties={
                     'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
                     'username': openapi.Schema(type=openapi.TYPE_STRING, example="user123"),
-                    'email': openapi.Schema(type=openapi.TYPE_STRING, example="user123@example.com"),
+                    'email': openapi.Schema(type=openapi.TYPE_STRING, 
+                                            example="user123@example.com"),
                     'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="John"),
                     'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Doe"),
                     'profile': user_profile_schema()
                 }
             ),
-            'token': openapi.Schema(type=openapi.TYPE_STRING, example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."),
-            'refresh_token': openapi.Schema(type=openapi.TYPE_STRING, example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+            'token': openapi.Schema(type=openapi.TYPE_STRING, 
+                                    example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."),
+            'refresh_token': openapi.Schema(type=openapi.TYPE_STRING, 
+                                            example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
         }
     )
 
@@ -601,7 +616,8 @@ def token_refresh_schema():
     return openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
-            'access_token': openapi.Schema(type=openapi.TYPE_STRING, example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+            'access_token': openapi.Schema(type=openapi.TYPE_STRING, 
+                                           example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
         }
     )
 
