@@ -143,7 +143,6 @@ def paginated_response_schema(item_schema):
         }
     )
 
-# Claims schemas
 def claim_example_response():
     """Example claim response"""
     return openapi.Schema(
@@ -202,7 +201,8 @@ def fact_check_example_response():
             ),
             'summary': openapi.Schema(
                 type=openapi.TYPE_STRING, 
-                example="The claim is contradicted by available evidence. According to wikipedia, the Amazon rainforest produces approximately 6-9% of the world's oxygen, not 20%."
+                example="The claim is contradicted by available evidence." \
+                " According to wikipedia, the Amazon rainforest produces approximately 6-9% of the world's oxygen, not 20%."
             ),
             'sources': openapi.Schema(
                 type=openapi.TYPE_ARRAY,
@@ -223,5 +223,107 @@ def claim_with_fact_check_example():
         properties={
             'claim': claim_example_response(),
             'fact_check': fact_check_example_response()
+        }
+    )
+
+def comment_author_schema():
+    """Example comment author schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'username': openapi.Schema(type=openapi.TYPE_STRING, example="username123")
+        }
+    )
+
+def comment_votes_schema():
+    """Example comment votes schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'upvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=5),
+            'downvotes': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'score': openapi.Schema(type=openapi.TYPE_INTEGER, example=4),
+        }
+    )
+
+def comment_example_response():
+    """Example comment response schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'content': openapi.Schema(type=openapi.TYPE_STRING, 
+                                      example="This is a comment on the post."),
+            'post_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=42),
+            'author': comment_author_schema(),
+            'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME,
+                                          example="2025-06-10T15:30:45Z"),
+            'votes': comment_votes_schema(),
+            'parent_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=None, nullable=True),
+            'reply_count': openapi.Schema(type=openapi.TYPE_INTEGER, example=3),
+            'claims': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(type=openapi.TYPE_OBJECT),
+                example=[
+                    {
+                        "claim": {
+                            "id": 1,
+                            "extracted_claim": "The Earth orbits the Sun",
+                        },
+                        "fact_check": {
+                            "verdict": "supported",
+                            "summary": "The evidence supports the claim that"
+                            " the Earth orbits the Sun.",
+                        }
+                    }
+                ]
+            )
+        }
+    )
+
+def comment_reply_example_response():
+    """Example comment reply response schema"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=2),
+            'content': openapi.Schema(type=openapi.TYPE_STRING,
+                                       example="This is a reply to the comment."),
+            'post_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=42),
+            'author': comment_author_schema(),
+            'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, 
+                                         example="2025-06-10T16:15:22Z"),
+            'votes': comment_votes_schema(),
+            'parent_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+            'reply_count': openapi.Schema(type=openapi.TYPE_INTEGER, example=0),
+            'claims': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(type=openapi.TYPE_OBJECT),
+                example=[]
+            )
+        }
+    )
+
+def comments_paginated_response():
+    """Example paginated comments response"""
+    return openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'count': openapi.Schema(type=openapi.TYPE_INTEGER, example=25),
+            'next': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example="http://api.example.org/comments/user/?user_id=1&offset=10&limit=10",
+                nullable=True
+            ),
+            'previous': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example=None,
+                nullable=True
+            ),
+            'results': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=comment_example_response()
+            )
         }
     )
