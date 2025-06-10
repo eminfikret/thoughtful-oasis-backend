@@ -1,7 +1,8 @@
+import atexit
 import os
 import time
 import uuid
-import atexit
+
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
@@ -413,7 +414,8 @@ def cleanup_test_data():
     for comment in created_comments:
         try:
             headers = {"Authorization": f"Bearer {comment['token']}"}
-            response = requests.delete(f"{API_URL}/comments/{comment['id']}/delete/", headers=headers)
+            response = requests.delete(f"{API_URL}/comments/{comment['id']}/delete/", 
+                                       headers=headers)
             print(f"Deleted comment {comment['id']}: Status {response.status_code}")
         except Exception as e:
             print(f"Error deleting comment {comment['id']}: {e}")

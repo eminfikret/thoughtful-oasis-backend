@@ -1,9 +1,16 @@
+import atexit
 import os
 import uuid
 
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
+
+created_users = []
+created_channels = []
+created_posts = []
+created_comments = []
+created_replies = []
 
 # -------------------------
 # Utility Functions
@@ -37,6 +44,8 @@ def register_test_user():
     token = login_data["token"] 
     user_id = register_response.json()["id"]
     
+    created_users.append({"id": user_id, "token": token})
+    
     return user_data, token, user_id
 
 def create_test_channel(token):
@@ -51,6 +60,9 @@ def create_test_channel(token):
     response = requests.post(f"{API_URL}/channels/", json=channel_data, headers=headers)
     
     assert response.status_code == 201, f"Channel creation failed: {response.text}"
+    
+    created_channels.append({"id": response.json()["id"], "token": token})
+    
     return response.json()
 
 def create_test_post(token, channel_id, title=None, content=None):
@@ -70,6 +82,9 @@ def create_test_post(token, channel_id, title=None, content=None):
     response = requests.post(f"{API_URL}/posts/create/", json=post_data, headers=headers)
     
     assert response.status_code == 201, f"Post creation failed: {response.text}"
+    
+    created_posts.append({"id": response.json()["id"], "token": token})
+    
     return response.json()
 
 def create_test_comment(token, post_id, content=None):
@@ -86,6 +101,9 @@ def create_test_comment(token, post_id, content=None):
     response = requests.post(f"{API_URL}/comments/create/", json=comment_data, headers=headers)
     
     assert response.status_code == 201, f"Comment creation failed: {response.text}"
+    
+    created_comments.append({"id": response.json()["id"], "token": token})
+    
     return response.json()
 
 def create_test_reply(token, parent_comment_id, content=None):
@@ -102,6 +120,9 @@ def create_test_reply(token, parent_comment_id, content=None):
     response = requests.post(f"{API_URL}/comments/reply/", json=reply_data, headers=headers)
     
     assert response.status_code == 201, f"Reply creation failed: {response.text}"
+    
+    created_replies.append({"id": response.json()["id"], "token": token})
+    
     return response.json()
 
 def setup_test_environment():
@@ -558,3 +579,60 @@ def test_get_other_user_comments():
     for comment in data["results"]:
         assert comment["author"]["id"] == user_id1, "All comments should belong to "
         "the requested user"
+
+def cleanup_test_data():
+    """Clean up all test data created during tests"""
+    print("\nCleaning up comment test data...")
+    
+    for reply in created_replies:
+        try:
+            headers = {"Authorization": f"Bearer {reply['token']}"}
+            response = requests.delete(f"{API_URL}/comments/{reply['id']}/delete/", headers=headers)
+            print(f"Deleted reply {reply['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting reply {reply['id']}: {e}")
+    
+    for comment in created_comments:
+        try:
+            headers = {"Authorization": f"Bearer {comment['token']}"}
+            response = requests.delete(f"{API_URL}/comments/{comment['id']}/delete/",
+                                        headers=headers)
+            print(f"Deleted comment {comment['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting comment {comment['id']}: {e}")
+    
+    for post in created_posts:
+        try:
+            headers = {"Authorization": f"Bearer {post['token']}"}
+            response = requests.delete(f"{API_URL}/posts/{post['id']}/delete/", headers=headers)
+            print(f"Deleted post {post['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting post {post['id']}: {e}")
+    
+    for channel in created_channels:
+        try:
+            headers = {"Authorization": f"Bearer {channel['token']}"}
+            response = requests.delete(f"{API_URL}/channels/{channel['id']}/", headers=headers)
+            print(f"Deleted channel {channel['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting channel {channel['id']}: {e}")
+    
+    for user in created_users:
+        try:
+            headers = {"Authorization": f"Bearer {user['token']}"}
+            response = requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers=headers)
+            print(f"Deleted user {user['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting user {user['id']}: {e}")
+    
+    created_replies.clear()
+    created_comments.clear()
+    created_posts.clear()
+    created_channels.clear()
+    created_users.clear()
+
+atexit.register(cleanup_test_data)
+
+def test_zzz_cleanup(): # zzz because pytest will run this last then
+    """Run cleanup for all created test data"""
+    cleanup_test_data()
