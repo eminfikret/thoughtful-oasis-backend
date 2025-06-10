@@ -167,18 +167,7 @@ class DeleteClaimController(APIView):
         operation_description="Delete a specific claim owned by the current user",
         tags=["Claims"],
         responses={
-            200: openapi.Response(
-                description="Claim deleted successfully",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'message': openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="Claim deleted successfully"
-                        )
-                    }
-                )
-            ),
+            204: openapi.Response(description="Claim deleted successfully (no content)"),
             401: unauthorized_response(),
             403: permission_denied_response("You don't have permission to delete this claim"),
             404: not_found_response("Claim not found"),
@@ -193,7 +182,7 @@ class DeleteClaimController(APIView):
             success, message = claim_service.delete_claim(claim_id, user_id)
             
             if success:
-                return Response({'message': message}, status=status.HTTP_200_OK)
+                return Response(status=status.HTTP_204_NO_CONTENT)
             elif message == "Claim not found":
                 return Response({'error': message}, status=status.HTTP_404_NOT_FOUND)
             elif message == "You don't have permission to delete this claim":
