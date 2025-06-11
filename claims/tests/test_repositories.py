@@ -1,8 +1,8 @@
 from django.contrib.auth import get_user_model
-from django.db.utils import IntegrityError
+from django.db.utils import DataError, IntegrityError
 from django.test import TestCase
 
-from ..models import Claim, FactCheckSource
+from ..models import Claim, FactCheck, FactCheckSource
 from ..repositories import ClaimRepository, FactCheckRepository
 
 User = get_user_model()
@@ -97,6 +97,46 @@ class ClaimRepositoryTest(TestCase):
         
         self.assertIsNone(self.claim_repository.get_claim_by_id(claim_id))
 
+    def test_get_claims_for_post(self):
+        """Test getting claims for a specific post"""
+    
+        Claim.objects.filter(post_id=123).delete()
+        
+        post_claims = []
+        for i in range(3):
+            post_claims.append(self.claim_repository.create_claim(
+                user_id=self.user.id,
+                extracted_claim=f"Post claim {i}",
+                claim_index=i,
+                source_type="post",
+                post_id=123
+            ))
+    
+        claims = self.claim_repository.get_claims_for_post(123)
+    
+        self.assertEqual(len(claims), 3)
+        for claim in post_claims:
+            self.assertIn(claim, claims)
+
+    def test_get_claims_for_comment(self):
+        """Test getting claims for a specific comment"""
+        Claim.objects.filter(comment_id=456).delete()
+    
+        comment_claims = []
+        for i in range(3):
+            comment_claims.append(self.claim_repository.create_claim(
+                user_id=self.user.id,
+                extracted_claim=f"Comment claim {i}",
+                claim_index=i,
+                source_type="comment",
+                comment_id=456
+            ))
+    
+        claims = self.claim_repository.get_claims_for_comment(456)
+    
+        self.assertEqual(len(claims), 3)
+        for claim in comment_claims:
+            self.assertIn(claim, claims)
 
 class FactCheckRepositoryTest(TestCase):
     """Tests for the FactCheckRepository class"""
@@ -225,3 +265,73 @@ class FactCheckRepositoryTest(TestCase):
 
         sources = FactCheckSource.objects.filter(fact_check_id=fact_check_id)
         self.assertEqual(len(sources), 0)
+
+class RepositoriesExtendedTest(TestCase):
+    """Extended tests for the repository classes"""
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='password123'
+        )
+        
+        self.claim_repository = ClaimRepository()
+        self.fact_check_repository = FactCheckRepository()
+    
+    def test_create_claim_with_long_content(self):
+        """Test creating a claim with very long content (edge case)"""
+        long_text = "A" * 10000 
+        
+        claim = self.claim_repository.create_claim(
+            user_id=self.user.id,
+            extracted_claim=long_text[:200], 
+            claim_index=1,
+            source_type="raw",
+            source_text=long_text
+        )
+        
+        self.assertIsNotNone(claim.id)
+        self.assertEqual(claim.source_text, long_text)
+    
+    def test_create_fact_check_with_edge_values(self):
+        """Test creating a fact check with edge case values"""
+        claim = self.claim_repository.create_claim(
+            user_id=self.user.id,
+            extracted_claim="Edge case claim",
+            claim_index=1,
+            source_type="raw"
+        )
+
+        long_summary = "S" * 5000
+        
+        fact_check = self.fact_check_repository.create_fact_check(
+            claim_id=claim.id,
+            verdict="not_found",
+            summary=long_summary
+        )
+        
+        self.assertIsNotNone(fact_check.id)
+        self.assertEqual(fact_check.summary, long_summary)
+    
+    def test_create_fact_check_source_with_invalid_url(self):
+        """Test creating a fact check source with an invalid URL"""
+        claim = self.claim_repository.create_claim(
+            user_id=self.user.id,
+            extracted_claim="Test claim",
+            claim_index=1,
+            source_type="raw"
+        )
+        
+        fact_check = self.fact_check_repository.create_fact_check(
+            claim_id=claim.id,
+            verdict="supported",
+            summary="Test summary"
+        )
+        
+        with self.assertRaises(DataError):
+            self.fact_check_repository.create_fact_check_source(
+                fact_check_id=fact_check.id,
+                url="http://example.com/" + "a" * 2000,
+                title="Invalid URL Test"
+            )
