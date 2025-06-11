@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db.utils import DataError, IntegrityError
 from django.test import TestCase
 
-from ..models import Claim, FactCheck, FactCheckSource
+from ..models import Claim, FactCheckSource
 from ..repositories import ClaimRepository, FactCheckRepository
 
 User = get_user_model()

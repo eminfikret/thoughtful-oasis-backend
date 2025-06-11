@@ -1,8 +1,17 @@
-from django.test import TestCase
-from unittest.mock import patch, MagicMock
 import sys
-from django.db import transaction
 from types import FunctionType
+from unittest.mock import MagicMock, patch
+
+from django.test import TestCase
+
+from ..tasks import (
+    process_claim_extraction,
+    process_comment_claim_extraction,
+    process_comment_fact_checking_task,
+    process_post_claim_extraction,
+    process_post_fact_checking_task,
+)
+
 
 class SharedTaskMock:
     def __call__(self, *args, **kwargs):
@@ -14,14 +23,7 @@ mock_celery = MagicMock()
 mock_celery.shared_task = SharedTaskMock()
 sys.modules['celery'] = mock_celery
 
-from ..models import Claim
-from ..tasks import (
-    process_post_fact_checking_task,
-    process_comment_fact_checking_task,
-    process_claim_extraction,
-    process_post_claim_extraction,
-    process_comment_claim_extraction
-)
+
 
 class TasksExtendedTest(TestCase):
     """Extended tests for the tasks module"""

@@ -1,17 +1,22 @@
+import asyncio
 import os
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import requests
-import json
 from django.test import TestCase
-from unittest.mock import patch, MagicMock, Mock
+
 from ..utils import (
-    call_llm, extract_claims_from_text, check_claim_with_wikipedia,
-    get_verdict_and_summary, _verify_quotes_in_evidence, 
-    extract_claims_with_context, extract_claims_sync, extract_claims_async,
-    _create_content_prompt 
+    _create_content_prompt,
+    _verify_quotes_in_evidence,
+    call_llm,
+    check_claim_with_wikipedia,
+    extract_claims_async,
+    extract_claims_from_text,
+    extract_claims_sync,
+    extract_claims_with_context,
+    get_verdict_and_summary,
 )
-import asyncio
 
 LLM_URL_SET = bool(os.environ.get("LLM_URL", ""))
 WIKIPEDIA_API_URL_SET = bool(os.environ.get("WIKIPEDIA_API_URL", ""))
@@ -158,7 +163,8 @@ class GetVerdictAndSummaryTest(TestCase):
     @patch('claims.utils.call_llm')
     def test_get_verdict_and_summary_max_retries(self, mock_call_llm):
         """Test getting verdict with maximum retries exceeded"""
-        mock_call_llm.return_value = "Verdict: supported\nSummary: Contains \"invalid quote\" not in evidence"
+        mock_call_llm.return_value = "Verdict: supported\nSummary: Contains \"invalid quote\" " \
+        "not in evidence"
         
         evidence = "This is the evidence text."
         result = get_verdict_and_summary("Test claim", evidence)
@@ -315,7 +321,8 @@ class GetVerdictAndSummaryTest(TestCase):
     def test_get_verdict_and_summary_with_invalid_quotes(self, mock_call_llm):
         """Test verdict generation with retries - utils.py line 139-153"""
         mock_call_llm.side_effect = [
-            "Verdict: supported\nSummary: The evidence states that \"the earth is flat\" which is wrong.",
+            "Verdict: supported\nSummary: The evidence states that \"the earth is flat\" which"
+            " is wrong.",
             "Verdict: supported\nSummary: The evidence states that the Earth is round."
         ]
         
@@ -325,16 +332,7 @@ class GetVerdictAndSummaryTest(TestCase):
         self.assertEqual(result["verdict"], "supported")
         
     @patch('claims.utils.call_llm')
-    def test_get_verdict_and_summary_max_retries(self, mock_call_llm):
-        """Test verdict generation with max retries - utils.py line 139-153"""
-      
-        mock_call_llm.return_value = "Verdict: supported\nSummary: The evidence states that \"wrong quote\" which is incorrect."
-        
-        result = get_verdict_and_summary("The Earth is round", "The Earth is round and spherical.")
-        
-        self.assertEqual(mock_call_llm.call_count, 4) 
-        self.assertEqual(result["verdict"], "not_found")
-        self.assertIn("Unable to generate a summary with accurate quotations", result["summary"])
+    # Duplicate method removed to resolve redefinition error.
     
     @patch('claims.utils.extract_claims_from_text')
     def test_extract_claims_with_context(self, mock_extract):
@@ -360,29 +358,7 @@ class GetVerdictAndSummaryTest(TestCase):
             mock_extract.assert_called_once_with("Test prompt with context")
             self.assertEqual(result, ["The Earth is round"])
     
-    def test_create_content_prompt_with_context(self):
-        """Test creating content prompt - utils.py line 241-259"""
-        content = "This is the target comment"
-        context = {
-            "post": {
-                "title": "Test Post",
-                "content": "Test post content"
-            },
-            "conversation_thread": [
-                {"content": "Parent comment", "author": "user1", "depth": 0},
-                {"content": "Reply to parent", "author": "user2", "depth": 1}
-            ]
-        }
-        
-        prompt = _create_content_prompt(content, context)
-        
-        self.assertIn("POST TITLE: Test Post", prompt)
-        self.assertIn("POST CONTENT: Test post content", prompt)
-        self.assertIn("[Comment 1 by user1]", prompt)
-        self.assertIn("[Comment 2 by user2]", prompt)
-        self.assertIn("TARGET COMMENT", prompt)
-        self.assertIn(content, prompt)
-    
+ 
     @patch('claims.utils.call_llm')
     def test_extract_claims_from_text_no_claims(self, mock_call_llm):
         """Test extraction with no claims - utils.py line 278, 284"""
@@ -401,15 +377,6 @@ class GetVerdictAndSummaryTest(TestCase):
         
         self.assertEqual(result, ["Service temporarily unavailable."])
     
-    @patch('claims.utils.call_llm')
-    def test_get_verdict_and_summary_error(self, mock_call_llm):
-        """Test verdict generation error - utils.py line 306-309"""
-        mock_call_llm.side_effect = Exception("LLM error")
-        
-        result = get_verdict_and_summary("Test claim", "Test evidence")
-        
-        self.assertEqual(result["verdict"], "not_found")
-        self.assertIn("automatic fallback response", result["summary"])
     
     @patch('claims.utils.call_llm')
     def test_get_verdict_and_summary_parse_error(self, mock_call_llm):

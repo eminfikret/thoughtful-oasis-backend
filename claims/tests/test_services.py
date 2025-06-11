@@ -1,9 +1,10 @@
-from django.test import TestCase
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
-import json
-from ..services import ClaimService
+from django.test import TestCase
+
 from ..models import Claim, FactCheck, FactCheckSource
+from ..services import ClaimService
 
 User = get_user_model()
 
@@ -49,7 +50,8 @@ class ClaimServiceExtendedTest(TestCase):
         mock_extract.return_value = ["Test claim 1", "Test claim 2"]
         mock_wiki.return_value = {
             "evidence": "Evidence text",
-            "sources": [{"url": "https://example.com", "title": "Example", "description": "Desc", "relevance_score": 0.9}]
+            "sources": [{"url": "https://example.com", "title": "Example", "description": "Desc",
+                          "relevance_score": 0.9}]
         }
         mock_verdict.return_value = {"verdict": "supported", "summary": "Supported summary"}
         
@@ -80,7 +82,7 @@ class ClaimServiceExtendedTest(TestCase):
         with patch('claims.services.extract_claims_with_context') as mock_extract_context:
             mock_extract_context.return_value = ["Context claim"]
             
-            results = self.service.process_content_for_claims(
+            self.service.process_content_for_claims(
                 user_id=self.user.id,
                 content="Test comment",
                 source_type="comment",

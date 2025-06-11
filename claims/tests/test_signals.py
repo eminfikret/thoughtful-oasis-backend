@@ -1,11 +1,16 @@
-from django.test import TestCase
-from unittest.mock import patch, MagicMock
-from django.contrib.auth import get_user_model
-from django.db import transaction
+from unittest.mock import MagicMock, patch
 
-from posts.models import Post
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+
 from comments.models import Comment
-from ..signals import process_post_fact_checking, process_comment_fact_checking, build_comment_context
+from posts.models import Post
+
+from ..signals import (
+    build_comment_context,
+    process_comment_fact_checking,
+    process_post_fact_checking,
+)
 
 User = get_user_model()
 
