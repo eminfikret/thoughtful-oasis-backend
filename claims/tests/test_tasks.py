@@ -1,8 +1,16 @@
 import sys
-from types import ModuleType
 from unittest.mock import MagicMock, patch
+from types import ModuleType
 
 from django.test import TestCase
+
+mock_celery = ModuleType('celery')
+mock_celery.shared_task = lambda f=None, **kwargs: (lambda x: x) if f is None else f
+mock_celery.chord = MagicMock()
+mock_celery.canvas = ModuleType('celery.canvas')
+mock_celery.canvas.chunks = MagicMock()
+sys.modules['celery'] = mock_celery
+sys.modules['celery.canvas'] = mock_celery.canvas
 
 from ..tasks import (
     process_claim_extraction,
@@ -11,12 +19,6 @@ from ..tasks import (
     process_post_claim_extraction,
     process_post_fact_checking_task,
 )
-
-sys.modules['celery'] = ModuleType('celery')
-sys.modules['celery'].shared_task = lambda x=None, **kwargs: (lambda f: f) if x is None else x
-
-
-
 
 class TasksExtendedTest(TestCase):
     """Extended tests for the tasks module"""
