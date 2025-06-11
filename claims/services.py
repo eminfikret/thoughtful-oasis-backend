@@ -152,19 +152,14 @@ class ClaimService:
     def get_claims_for_content(self, source_type: str, source_id: int) -> List[Dict[str, Any]]:
         """
         Get all claims for a specific post or comment.
-        
-        Args:
-            source_type: Either 'post' or 'comment'
-            source_id: ID of the post or comment
-            
-        Returns:
-            List of claims with their fact check information
         """
         self._validate_source_type(source_type)
         
-        claims = (Claim.objects.filter(post_id=source_id) if source_type == 'post' 
-                 else Claim.objects.filter(comment_id=source_id))
-        
+        if source_type == 'post':
+            claims = self.claim_repository.get_claims_for_post(source_id)
+        else:
+            claims = self.claim_repository.get_claims_for_comment(source_id)
+    
         results = []
         for claim in claims:
             result = {"claim": self._format_claim_data(claim, include_source=False)}

@@ -52,36 +52,29 @@ def process_comment_fact_checking(sender, instance, created, **kwargs):
     )
 
 def build_comment_context(comment):
-    """
-    Build context information for a comment to help with fact-checking.
-    Includes the original post and any parent comments in the conversation thread.
-    
-    Args:
-        comment: The Comment instance to build context for
-        
-    Returns:
-        Dict containing context information
-    """
+    """Build context information for a comment to aid in fact checking"""
     post = comment.post
     context = {
         "post": {
             "title": post.title,
-            "content": post.content,
+            "content": post.content
         },
         "conversation_thread": []
     }
     
-    if comment.parent_comment:
-        thread = []
-        current = comment.parent_comment
-        
-        while current:
-            thread.append({
-                "author": current.author.username,
-                "content": current.content,
-            })
-            current = current.parent_comment
-        
-        context["conversation_thread"] = list(reversed(thread))
+    thread = []
+    current = comment.parent_comment
+    depth = 0
+    
+    while current:
+        thread.append({
+            "content": current.content,
+            "author": current.author.username,
+            "depth": depth  
+        })
+        current = current.parent_comment
+        depth += 1
+    
+    context["conversation_thread"] = list(reversed(thread))
     
     return context

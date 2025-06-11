@@ -181,29 +181,25 @@ class SignalsExtendedTest(TestCase):
         self, mock_process, mock_atomic, mock_filter
     ):
         """Test post fact checking with empty content"""
-        # Create mock post with empty content
+
         post = MagicMock()
         post.content = ""
-        
-        # Call the signal handler
+  
         process_post_fact_checking(sender=None, instance=post, created=False)
         
-        # Verify early return, no processing
         mock_process.assert_not_called()
         mock_filter.assert_not_called()
     
     def test_build_comment_context_no_parent(self):
         """Test building context for a comment with no parent"""
-        # Create mock comment with no parent
+
         comment = MagicMock()
         comment.parent_comment = None
         comment.post.title = "Post Title"
         comment.post.content = "Post Content"
         
-        # Call the function
         context = build_comment_context(comment)
         
-        # Verify context structure
         self.assertEqual(context["post"]["title"], "Post Title")
         self.assertEqual(context["post"]["content"], "Post Content")
         self.assertEqual(context["conversation_thread"], [])

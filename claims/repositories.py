@@ -42,6 +42,14 @@ class ClaimRepository:
         """Get all claims submitted by a user"""
         return Claim.objects.filter(user_id=user_id)
     
+    def get_claims_for_post(self, post_id: int) -> List[Claim]:
+        """Get all claims for a specific post"""
+        return Claim.objects.filter(post_id=post_id)
+
+    def get_claims_for_comment(self, comment_id: int) -> List[Claim]:
+        """Get all claims for a specific comment"""
+        return Claim.objects.filter(comment_id=comment_id)
+    
     
     def delete_claim(self, claim_id: int) -> bool:
         """Delete a claim by ID"""
@@ -84,4 +92,3 @@ class FactCheckRepository:
             'relevance_score': relevance_score
         }
         return FactCheckSource.objects.create(**source_data)
-    
