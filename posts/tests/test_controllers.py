@@ -407,3 +407,251 @@ class ChannelPostsControllerTest(MockLLMTestMixin, APITestCase):
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class UserPostsViewTest(MockLLMTestMixin, APITestCase):
+    def setUp(self):
+        super().setUp()
+        
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.other_user = User.objects.create_user(username='otheruser', password='otherpass')
+        
+        self.channel = Channel.objects.create(
+            name='Test Channel',
+            description='Test Desc',
+            slug='test-channel',
+            owner=self.user
+        )
+        
+        with disable_fact_checking_signals():
+            self.post1 = Post.objects.create(
+                title='Post 1 by testuser',
+                content='Content 1',
+                channel=self.channel,
+                author=self.user
+            )
+            self.post2 = Post.objects.create(
+                title='Post 2 by testuser',
+                content='Content 2',
+                channel=self.channel,
+                author=self.user
+            )
+            self.post3 = Post.objects.create(
+                title='Post by otheruser',
+                content='Other content',
+                channel=self.channel,
+                author=self.other_user
+            )
+    
+    def authenticate(self, user):
+        token = str(RefreshToken.for_user(user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+    
+    @patch('claims.services.ClaimService')
+    def test_get_user_posts_success(self, mock_claim_service_class):
+        """Test getting posts for a specific user"""
+        self.authenticate(self.user)
+        
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        url = reverse('user_posts') + f'?user_id={self.user.id}'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 2)
+        self.assertEqual(len(response.data['results']), 2)
+        titles = [post['title'] for post in response.data['results']]
+        self.assertIn('Post 1 by testuser', titles)
+        self.assertIn('Post 2 by testuser', titles)
+    
+    @patch('claims.services.ClaimService')
+    def test_get_user_posts_with_pagination(self, mock_claim_service_class):
+        """Test pagination for user posts"""
+        self.authenticate(self.user)
+        
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        with disable_fact_checking_signals():
+            for i in range(3, 13):
+                Post.objects.create(
+                    title=f'Post {i} by testuser',
+                    content=f'Content {i}',
+                    channel=self.channel,
+                    author=self.user
+                )
+        
+        url = reverse('user_posts') + f'?user_id={self.user.id}&limit=5&offset=0'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 12)
+        self.assertEqual(len(response.data['results']), 5)
+        self.assertIsNotNone(response.data['next'])
+        self.assertIsNone(response.data['previous'])
+        
+        url = reverse('user_posts') + f'?user_id={self.user.id}&limit=5&offset=5'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 5)
+        self.assertIsNotNone(response.data['next'])
+        self.assertIsNotNone(response.data['previous'])
+    
+    def test_get_user_posts_missing_user_id(self):
+        """Test getting user posts without user_id parameter"""
+        self.authenticate(self.user)
+        
+        url = reverse('user_posts')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_get_user_posts_invalid_user_id(self):
+        """Test getting posts for a non-existent user"""
+        self.authenticate(self.user)
+        
+        url = reverse('user_posts') + '?user_id=999'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_get_user_posts_unauthenticated(self):
+        """Test getting user posts without authentication"""
+        url = reverse('user_posts') + f'?user_id={self.user.id}'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class HomePagePostsViewTest(MockLLMTestMixin, APITestCase):
+    def setUp(self):
+        super().setUp()
+        
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        
+        self.channel = Channel.objects.create(
+            name='Test Channel',
+            description='Test Desc',
+            slug='test-channel',
+            owner=self.user
+        )
+        
+        with disable_fact_checking_signals():
+            self.post1 = Post.objects.create(
+                title='Popular Post 1',
+                content='Content 1',
+                channel=self.channel,
+                author=self.user
+            )
+            self.post2 = Post.objects.create(
+                title='Popular Post 2',
+                content='Content 2',
+                channel=self.channel,
+                author=self.user
+            )
+            self.post3 = Post.objects.create(
+                title='Popular Post 3',
+                content='Content 3',
+                channel=self.channel,
+                author=self.user
+            )
+    
+    def authenticate(self, user):
+        token = str(RefreshToken.for_user(user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+    
+    @patch('posts.services.PostService.get_top_posts')
+    @patch('claims.services.ClaimService')
+    def test_get_homepage_posts_success(self, mock_claim_service_class, mock_get_top_posts):
+        """Test getting homepage posts successfully"""
+        self.authenticate(self.user)
+        
+        mock_get_top_posts.return_value = ([self.post1, self.post2, self.post3], 3)
+        
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        url = reverse('homepage_posts')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 3)
+        self.assertEqual(len(response.data['results']), 3)
+        titles = [post['title'] for post in response.data['results']]
+        self.assertIn('Popular Post 1', titles)
+        self.assertIn('Popular Post 2', titles)
+        self.assertIn('Popular Post 3', titles)
+    
+    @patch('posts.services.PostService.get_top_posts')
+    @patch('claims.services.ClaimService')
+    def test_get_homepage_posts_with_pagination(self, mock_claim_service_class, mock_get_top_posts):
+        """Test pagination for homepage posts"""
+        self.authenticate(self.user)
+        
+        posts = [self.post1, self.post2, self.post3]
+        with disable_fact_checking_signals():
+            for i in range(4, 15):
+                post = Post.objects.create(
+                    title=f'Popular Post {i}',
+                    content=f'Content {i}',
+                    channel=self.channel,
+                    author=self.user
+                )
+                posts.append(post)
+        
+        mock_get_top_posts.return_value = (posts[:5], 14)
+        
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        url = reverse('homepage_posts') + '?limit=5&offset=0'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 14)
+        self.assertEqual(len(response.data['results']), 5)
+        self.assertIsNotNone(response.data['next'])
+        self.assertIsNone(response.data['previous'])
+        
+        mock_get_top_posts.return_value = (posts[5:10], 14)
+        
+        url = reverse('homepage_posts') + '?limit=5&offset=5'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 5)
+        self.assertIsNotNone(response.data['next'])
+        self.assertIsNotNone(response.data['previous'])
+    
+    def test_get_homepage_posts_invalid_days_parameter(self):
+        """Test homepage posts with invalid days parameter"""
+        self.authenticate(self.user)
+        
+        url = reverse('homepage_posts') + '?days=-1'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('must be positive', response.data['error'])
+        
+        url = reverse('homepage_posts') + '?days=abc'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('must be an integer', response.data['error'])
+    
+    def test_get_homepage_posts_unauthenticated(self):
+        """Test getting homepage posts without authentication"""
+        url = reverse('homepage_posts')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
