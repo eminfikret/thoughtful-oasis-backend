@@ -9,15 +9,12 @@ from rest_framework.views import APIView
 
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
-from common.swagger_schemas import search_parameter
-from .params import UsersParams
-from .serializers import UsersQueryParamsSerializer
-
 from common.swagger_schemas import (
     login_response_schema,
     not_found_response,
     permission_denied_response,
     register_response_schema,
+    search_parameter,
     token_refresh_schema,
     unauthorized_response,
     user_detail_schema,
@@ -32,6 +29,7 @@ from .serializers import (
     UserProfileSerializer,
     UserProfileUpdateSerializer,
     UserSerializer,
+    UsersQueryParamsSerializer,
 )
 from .services import UserService
 

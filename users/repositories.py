@@ -1,10 +1,11 @@
+from typing import List, Optional
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.shortcuts import get_object_or_404
 from django.db.models import Q
-from typing import List, Optional
+from django.shortcuts import get_object_or_404
 
 from common.params import PaginationParams
 
@@ -18,7 +19,10 @@ class UserRepository:
         return UserProfile.objects.create(user=user)
 
     @staticmethod
-    def get_all_users(search: Optional[str] = None, pagination: Optional[PaginationParams] = None) -> List[User]:
+    def get_all_users(
+        search: Optional[str] = None, 
+        pagination: Optional[PaginationParams] = None
+    ) -> List[User]:
         """
         Get all users with optional search and pagination
         """

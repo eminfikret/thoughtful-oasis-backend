@@ -224,7 +224,7 @@ class ClaimServiceExtendedTest(TestCase):
             claim_index=1,
             source_type="post"
         )
-        post_claim2 = Claim.objects.create(
+        Claim.objects.create(
             user=self.user,
             post_id=789,
             extracted_claim="Post claim 2",
@@ -251,7 +251,7 @@ class ClaimServiceExtendedTest(TestCase):
     def test_get_claims_for_content_comment(self):
         """Test getting claims for a comment"""
 
-        comment_claim = Claim.objects.create(
+        Claim.objects.create(
             user=self.user,
             comment_id=456,
             extracted_claim="Comment claim",

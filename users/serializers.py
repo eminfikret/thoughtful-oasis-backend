@@ -7,6 +7,7 @@ from django.contrib.auth.password_validation import (
 )
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
+
 from common.serializers import PaginationQueryParams
 
 from .models import UserProfile

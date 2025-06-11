@@ -9,6 +9,7 @@ from jwt import decode as jwt_decode
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from common.params import PaginationParams
+
 from .models import UserProfile
 from .repositories import UserRepository
 
@@ -31,7 +32,11 @@ class UserService:
     def __init__(self):
         self.user_repository = UserRepository()
 
-    def get_all_users(self, search: Optional[str] = None, pagination: Optional[PaginationParams] = None) -> List[User]:
+    def get_all_users(
+        self, 
+        search: Optional[str] = None, 
+        pagination: Optional[PaginationParams] = None
+    ) -> List[User]:
         """Get all users with optional search and pagination"""
         return UserRepository.get_all_users(search=search, pagination=pagination)
 
