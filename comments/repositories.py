@@ -46,15 +46,14 @@ class CommentRepository:
         queryset = Comment.objects.filter(
             author_id=user_id
         ).select_related(
-            'author', 'post'  # Keep necessary select_related for performance
+            'author', 'post'  
         ).order_by(
-            '-created_at'   # Ensure consistent ordering for pagination
+            '-created_at' 
         )
 
-        # Apply slicing directly to the queryset
         paginated_queryset = queryset[offset:offset + limit]
 
-        return list(paginated_queryset)  # Force evaluation and return as a list
+        return list(paginated_queryset)  
 
     @staticmethod
     def count_user_comments(user_id):

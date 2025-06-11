@@ -332,10 +332,8 @@ class GetVerdictAndSummaryTest(TestCase):
         self.assertEqual(result["verdict"], "supported")
         
     @patch('claims.utils.call_llm')
-    # Duplicate method removed to resolve redefinition error.
-    
     @patch('claims.utils.extract_claims_from_text')
-    def test_extract_claims_with_context(self, mock_extract):
+    def test_extract_claims_with_context(self, mock_extract, mock_call_llm):
         """Test claim extraction with context - utils.py line 208, 225-233"""
         mock_extract.return_value = ["The Earth is round"]
         

@@ -1,7 +1,10 @@
 import sys
-from types import FunctionType
-from unittest.mock import MagicMock, patch
+from types import ModuleType
 
+sys.modules['celery'] = ModuleType('celery')
+sys.modules['celery'].shared_task = lambda x=None, **kwargs: (lambda f: f) if x is None else x
+
+from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 from ..tasks import (
@@ -11,19 +14,6 @@ from ..tasks import (
     process_post_claim_extraction,
     process_post_fact_checking_task,
 )
-
-
-class SharedTaskMock:
-    def __call__(self, *args, **kwargs):
-        if len(args) == 1 and isinstance(args[0], FunctionType):
-            return args[0]
-        return lambda func: func
-
-mock_celery = MagicMock()
-mock_celery.shared_task = SharedTaskMock()
-sys.modules['celery'] = mock_celery
-
-
 
 class TasksExtendedTest(TestCase):
     """Extended tests for the tasks module"""
