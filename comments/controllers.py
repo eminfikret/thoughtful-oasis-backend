@@ -10,6 +10,14 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from claims.services import ClaimService
+from common.swagger_schemas import (
+    comment_example_response,
+    comment_reply_example_response,
+    comments_paginated_response,
+    not_found_response,
+    permission_denied_response,
+    unauthorized_response,
+)
 from posts.models import Post
 
 from .exceptions import CommentNotFound
@@ -27,6 +35,7 @@ from .services import CommentService
 class CreateCommentView(views.APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    
     @swagger_auto_schema(
         operation_summary="Create a comment on a post",
         operation_description="Creates a new top-level comment on the specified post by post_id.",
@@ -47,10 +56,28 @@ class CreateCommentView(views.APIView):
         responses={
             201: openapi.Response(
                 description="Comment created successfully",
-                schema=PostCommentSerializer),
-            400: openapi.Response(description="Invalid input"),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
-            404: openapi.Response(description="Post not found"),
+                schema=comment_example_response()
+            ),
+            400: openapi.Response(
+                description="Invalid input",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "post_id": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is required."]
+                        ),
+                        "content": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is required."]
+                        )
+                    }
+                )
+            ),
+            401: unauthorized_response(),
+            404: not_found_response("Post not found"),
         },
     )
     def post(self, request):
@@ -75,6 +102,7 @@ class CreateCommentView(views.APIView):
 class CreateReplyView(views.APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    
     @swagger_auto_schema(
         operation_summary="Reply to a comment",
         operation_description="Creates a reply to an existing comment using parent_comment_id.",
@@ -96,11 +124,28 @@ class CreateReplyView(views.APIView):
         responses={
             201: openapi.Response(
                 description="Reply created successfully",
-                schema=PostCommentSerializer
+                schema=comment_reply_example_response()
             ),
-            400: openapi.Response(description="Invalid input"),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
-            404: openapi.Response(description="Parent comment not found"),
+            400: openapi.Response(
+                description="Invalid input",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "parent_comment_id": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is required."]
+                        ),
+                        "content": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is required."]
+                        )
+                    }
+                )
+            ),
+            401: unauthorized_response(),
+            404: not_found_response("Parent comment not found"),
         },
     )
     def post(self, request):
@@ -124,8 +169,8 @@ class CreateReplyView(views.APIView):
 class PostCommentsView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Get all comments for a post",
-        operation_description="Fetches all top-level comments for a" \
-        " post, using post_id as a query parameter.",
+        operation_description="Fetches all top-level comments for a post, " \
+        "using post_id as a query parameter.",
         tags=["Comments"],
         manual_parameters=[
             openapi.Parameter(
@@ -137,10 +182,26 @@ class PostCommentsView(views.APIView):
             )
         ],
         responses={
-            200: openapi.Response(description="List of comments",
-                                   schema=PostCommentSerializer(many=True)),
-            400: openapi.Response(description="Missing or invalid post_id"),
-            404: openapi.Response(description="Post not found"),
+            200: openapi.Response(
+                description="List of comments", 
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=comment_example_response()
+                )
+            ),
+            400: openapi.Response(
+                description="Missing post_id", 
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "error": openapi.Schema(
+                            type=openapi.TYPE_STRING, 
+                            example="Missing post_id parameter"
+                        )
+                    }
+                )
+            ),
+            404: not_found_response("Post not found"),
         },
     )
     def get(self, request):
@@ -201,8 +262,8 @@ def get_comment_replies(request, comment_id):
 class CommentRepliesView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Get replies to a comment",
-        operation_description="Returns all replies for a given" \
-        " comment by comment_id (passed in URL).",
+        operation_description="Returns all replies for a given comment by comment_id"
+        " (passed in URL).",
         tags=["Comments"],
         manual_parameters=[
             openapi.Parameter(
@@ -216,9 +277,12 @@ class CommentRepliesView(views.APIView):
         responses={
             200: openapi.Response(
                 description="List of replies",
-                schema=PostCommentSerializer(many=True)
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=comment_reply_example_response()
+                )
             ),
-            404: openapi.Response(description="Comment not found"),
+            404: not_found_response("Comment not found"),
         },
     )
     def get(self, request, comment_id):
@@ -253,12 +317,24 @@ class UpdateCommentView(views.APIView):
         responses={
             200: openapi.Response(
                 description="Comment updated successfully",
-                schema=PostCommentSerializer
+                schema=comment_example_response()
             ),
-            400: openapi.Response(description="Invalid input"),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
-            403: openapi.Response(description="Forbidden - Not the comment author"),
-            404: openapi.Response(description="Comment not found"),
+            400: openapi.Response(
+                description="Invalid input",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT, 
+                    properties={
+                        "content": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is required."]
+                        )
+                    }
+                )
+            ),
+            401: unauthorized_response(),
+            403: permission_denied_response("You can only update your own comments"),
+            404: not_found_response("Comment not found"),
         },
     )
     def put(self, request, comment_id):
@@ -296,8 +372,8 @@ class UserCommentsView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Get all comments by a user",
-        operation_description="Retrieves all comments made by a" \
-        " specific user. Supports pagination.",
+        operation_description="Retrieves all comments made by a specific user." \
+        " Supports pagination.",
         tags=["Comments"],
         manual_parameters=[
             openapi.Parameter(
@@ -325,25 +401,23 @@ class UserCommentsView(views.APIView):
         responses={
             200: openapi.Response(
                 description="User comments retrieved successfully",
+                schema=comments_paginated_response()
+            ),
+            400: openapi.Response(
+                description="Missing or invalid parameters",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'next': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                        'previous': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                        'results': openapi.Schema(
+                        "user_id": openapi.Schema(
                             type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                ref="#/components/schemas/Comment"
-                            )
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field is required."]
                         )
                     }
                 )
             ),
-            400: openapi.Response(description="Missing or invalid parameters"),
-            401: openapi.Response(description="Unauthorized - Authentication required"),
-            404: openapi.Response(description="User not found")
+            401: unauthorized_response(),
+            404: not_found_response("User not found"),
         }
     )
     def get(self, request):
@@ -357,7 +431,6 @@ class UserCommentsView(views.APIView):
         try:
             comments, total = CommentService.get_user_comments(user_id, offset, limit)
             
-            # Create a paginated response
             next_url = None
             previous_url = None
             

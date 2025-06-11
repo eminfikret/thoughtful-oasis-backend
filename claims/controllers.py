@@ -7,6 +7,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from common.swagger_schemas import (
+    claim_with_fact_check_example,
+    error_response,
+    not_found_response,
+    permission_denied_response,
+    unauthorized_response,
+)
+
 from .serializers import TextSubmissionSerializer
 from .services import ClaimService
 
@@ -43,67 +51,7 @@ class TextAnalysisController(APIView):
                         ),
                         'results': openapi.Schema(
                             type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    'claim': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(type=openapi.TYPE_INTEGER,
-                                                                  example=1),
-                                            'extracted_claim': openapi.Schema(
-                                                type=openapi.TYPE_STRING,
-                                                example="The Amazon rainforest produces " \
-                                                "20% of the world's oxygen"
-                                            ),
-                                            'claim_index': openapi.Schema(
-                                                type=openapi.TYPE_INTEGER,
-                                                example=1
-                                            )
-                                        }
-                                    ),
-                                    'fact_check': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(
-                                                type=openapi.TYPE_INTEGER,
-                                                example=1
-                                            ),
-                                            'verdict': openapi.Schema(
-                                                type=openapi.TYPE_STRING,
-                                                example="contradicted"
-                                            ),
-                                            'summary': openapi.Schema(
-                                                type=openapi.TYPE_STRING,
-                                                example="The claim is contradicted by available " \
-                                                "evidence. According to wikipedia, " \
-                                                "the Amazon rainforest produces approximately" \
-                                                " 6-9% of the world's oxygen, not 20%."
-                                            ),
-                                            'sources': openapi.Schema(
-                                                type=openapi.TYPE_ARRAY,
-                                                items=openapi.Schema(
-                                                    type=openapi.TYPE_OBJECT,
-                                                    properties={
-                                                        'id': openapi.Schema(
-                                                            type=openapi.TYPE_INTEGER,
-                                                            example=1
-                                                        ),
-                                                        'url': openapi.Schema(
-                                                            type=openapi.TYPE_STRING,
-                                                            example="https://en.wikipedia.org/wiki/Amazon_rainforest"
-                                                        ),
-                                                        'title': openapi.Schema(
-                                                            type=openapi.TYPE_STRING,
-                                                            example="Amazon rainforest"
-                                                        )
-                                                    }
-                                                )
-                                            )
-                                        }
-                                    )
-                                }
-                            )
+                            items=claim_with_fact_check_example()
                         )
                     }
                 )
@@ -121,29 +69,10 @@ class TextAnalysisController(APIView):
                     }
                 )
             ),
-            401: openapi.Response(
-                description="Unauthorized",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'detail': openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="Authentication credentials were not provided."
-                        )
-                    }
-                )
-            ),
+            401: unauthorized_response(),
             500: openapi.Response(
                 description="Server error",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'error': openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="Error processing text"
-                        )
-                    }
-                )
+                schema=error_response("Error processing text", "Error processing text")
             )
         }
     )
@@ -185,114 +114,24 @@ class ClaimDetailController(APIView):
     
     @swagger_auto_schema(
         operation_summary="Get claim details",
-        operation_description="Get details for a specific claim by ID",
+        operation_description="Get detailed information about a specific claim including" \
+        " its fact check if available",
         tags=["Claims"],
         responses={
             200: openapi.Response(
-                description="Successful operation",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'claim': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
-                                'extracted_claim': openapi.Schema(
-                                    type=openapi.TYPE_STRING,
-                                    example="The Amazon rainforest " \
-                                    "produces 20% of the world's oxygen"
-                                ),
-                                'source_type': openapi.Schema(
-                                    type=openapi.TYPE_STRING,
-                                    example="raw"
-                                ),
-                                'claim_index': openapi.Schema(
-                                    type=openapi.TYPE_INTEGER,
-                                    example=1
-                                ),
-                                'created_at': openapi.Schema(
-                                    type=openapi.TYPE_STRING,
-                                    format=openapi.FORMAT_DATETIME,
-                                    example="2025-05-14T10:30:45.123Z"
-                                )
-                            }
-                        ),
-                        'fact_check': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                'id': openapi.Schema(
-                                    type=openapi.TYPE_INTEGER,
-                                    example=1
-                                ),
-                                'verdict': openapi.Schema(
-                                    type=openapi.TYPE_STRING,
-                                    example="contradicted"
-                                ),
-                                'summary': openapi.Schema(
-                                    type=openapi.TYPE_STRING,
-                                    example="The claim is contradicted by available evidence."
-                                ),
-                                'sources': openapi.Schema(
-                                    type=openapi.TYPE_ARRAY,
-                                    items=openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(
-                                                type=openapi.TYPE_INTEGER,
-                                                example=1
-                                            ),
-                                            'url': openapi.Schema(
-                                                type=openapi.TYPE_STRING,
-                                                example="https://en.wikipedia.org/wiki/Amazon_rainforest"
-                                            ),
-                                            'title': openapi.Schema(
-                                                type=openapi.TYPE_STRING,
-                                                example="Amazon rainforest"
-                                            ),
-                                            'description': openapi.Schema(
-                                                type=openapi.TYPE_STRING,
-                                                example="The Amazon rainforest, " \
-                                                "also called the Amazonia, Amazon jungle "
-                                                "or Amazonian forest..."
-                                            )
-                                        }
-                                    )
-                                )
-                            }
-                        )
-                    }
-                )
+                description="Claim details retrieved successfully",
+                schema=claim_with_fact_check_example()
             ),
-            404: openapi.Response(
-                description="Claim not found",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'error': openapi.Schema(
-                            type=openapi.TYPE_STRING, 
-                            example="Claim not found"
-                        )
-                    }
-                )
-            ),
-            401: openapi.Response(
-                description="Unauthorized",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'detail': openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="Authentication credentials were not provided."
-                        )
-                    }
-                )
+            401: unauthorized_response(),
+            404: not_found_response("Claim not found"),
+            500: openapi.Response(
+                description="Server error",
+                schema=error_response("Error retrieving claim", "Database error")
             )
         }
     )
-    def get(self, request, claim_id):
-        """
-        Get details for a specific claim
-        """
+    def get(self, request, claim_id: int):
+        """Get claim details"""
         try:
             claim_service = ClaimService()
             result = claim_service.get_claim_with_fact_check(claim_id)
@@ -325,28 +164,17 @@ class DeleteClaimController(APIView):
     
     @swagger_auto_schema(
         operation_summary="Delete a claim",
-        operation_description="Delete a claim and its associated fact check." \
-        " Only the user who created the claim can delete it.",
+        operation_description="Delete a specific claim owned by the current user",
         tags=["Claims"],
         responses={
-            200: openapi.Response(
-                description="Claim deleted successfully",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'message': openapi.Schema(type=openapi.TYPE_STRING, 
-                                                  example="Claim deleted successfully")
-                    }
-                )
-            ),
-            404: openapi.Response(description="Claim not found"),
-            403: openapi.Response(description="Forbidden - Not authorized to delete this claim"),
-            401: openapi.Response(description="Unauthorized"),
-            500: openapi.Response(description="Server error")
+            204: openapi.Response(description="Claim deleted successfully (no content)"),
+            401: unauthorized_response(),
+            403: permission_denied_response("You don't have permission to delete this claim"),
+            404: not_found_response("Claim not found"),
         }
     )
-    def delete(self, request, claim_id):
-        """Delete a user's claim"""
+    def delete(self, request, claim_id: int):
+        """Delete a claim owned by the current user"""
         user_id = request.user.id
         
         try:
@@ -354,7 +182,7 @@ class DeleteClaimController(APIView):
             success, message = claim_service.delete_claim(claim_id, user_id)
             
             if success:
-                return Response({'message': message}, status=status.HTTP_200_OK)
+                return Response(status=status.HTTP_204_NO_CONTENT)
             elif message == "Claim not found":
                 return Response({'error': message}, status=status.HTTP_404_NOT_FOUND)
             elif message == "You don't have permission to delete this claim":
@@ -377,18 +205,26 @@ class UserClaimsController(APIView):
     authentication_classes = [JWTAuthentication]
     
     @swagger_auto_schema(
-        operation_summary="Get your claims",
-        operation_description="Retrieve all claims created by the authenticated " \
-        "user with their fact check information",
+        operation_summary="Get current user's claims",
+        operation_description="Retrieve a list of all claims created by the current user",
         tags=["Claims"],
         responses={
-            200: openapi.Response(description="Claims retrieved successfully"),
-            401: openapi.Response(description="Unauthorized"),
-            500: openapi.Response(description="Server error")
+            200: openapi.Response(
+                description="User claims retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=claim_with_fact_check_example()
+                )
+            ),
+            401: unauthorized_response(),
+            500: openapi.Response(
+                description="Server error",
+                schema=error_response("Error retrieving claims", "Database error")
+            )
         }
     )
     def get(self, request):
-        """Get the current user's claims"""
+        """Get claims for the current user"""
         user_id = request.user.id
         
         try:

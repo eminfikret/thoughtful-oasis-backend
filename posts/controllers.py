@@ -16,6 +16,13 @@ from claims.services import ClaimService
 from common.exceptions import NotFoundException, PermissionDeniedException
 from common.params import PaginationParams
 from common.responses import PaginatedResponse
+from common.swagger_schemas import (
+    not_found_response,
+    permission_denied_response,
+    post_example_response,
+    posts_paginated_response,
+    unauthorized_response,
+)
 from posts.dtos import CreatePostDto, UpdatePostDto
 from posts.exceptions import PostNotFoundException, UnauthorizedPostAccessException
 from posts.models import Post
@@ -39,39 +46,19 @@ class ChannelPostsController(APIView):
         tags=["Posts"],
         manual_parameters=[
             openapi.Parameter("limit", openapi.IN_QUERY, "Page size", 
-                              type=openapi.TYPE_INTEGER, default=10),
+                            type=openapi.TYPE_INTEGER, default=10),
             openapi.Parameter("offset", openapi.IN_QUERY, "Pagination offset", 
-                              type=openapi.TYPE_INTEGER, default=0),
+                            type=openapi.TYPE_INTEGER, default=0),
             openapi.Parameter("search", openapi.IN_QUERY, "Search term", type=openapi.TYPE_STRING),
         ],
         responses={
             200: openapi.Response(
                 description="Paginated list of posts",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "count": openapi.Schema(type=openapi.TYPE_INTEGER),
-                        "results": openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema( type=openapi.TYPE_OBJECT,
-                                                  properties={
-                                        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "title": openapi.Schema(type=openapi.TYPE_STRING),
-                                        "content": openapi.Schema(type=openapi.TYPE_STRING),
-                                        "created_at": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                      format="date-time"),
-                                        "updated_at": openapi.Schema(type=openapi.TYPE_STRING,
-                                                                      format="date-time"),
-                                                  })
-                        )
-                    }
-                )
+                schema=posts_paginated_response()
             ),
-            401: openapi.Response(description="Unauthorized"),
-            403: openapi.Response(description="Permission denied"),
-            404: openapi.Response(description="Channel not found"),
+            401: unauthorized_response(),
+            403: permission_denied_response(),
+            404: not_found_response("Channel not found"),
         }
     )
     def get(self, request, pk: int):
@@ -134,9 +121,35 @@ class ChannelPostsController(APIView):
     tags=["Posts"],
     request_body=CreatePostSerializer,
     responses={
-        201: PostSerializer,
-        400: "Bad request - Invalid data",
-        404: "Channel not found"
+        201: openapi.Response(
+            description="Post created successfully",
+            schema=post_example_response()
+        ),
+        400: openapi.Response(
+            description="Bad request - Invalid data",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'title': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(type=openapi.TYPE_STRING),
+                        example=["This field is required."]
+                    ),
+                    'content': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(type=openapi.TYPE_STRING),
+                        example=["This field is required."]
+                    ),
+                    'channel_id': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(type=openapi.TYPE_STRING),
+                        example=["This field is required."]
+                    )
+                }
+            )
+        ),
+        401: unauthorized_response(),
+        404: not_found_response("Channel not found"),
     }
 )
 @api_view(['POST'])
@@ -175,9 +188,9 @@ def create_post(request):
     tags=["Posts"],
     responses={
         204: openapi.Response(description="Deleted successfully"),
-        401: openapi.Response(description="Unauthorized"),
-        403: openapi.Response(description="Forbidden"),
-        404: openapi.Response(description="Post not found"),
+        401: unauthorized_response(),
+        403: permission_denied_response("You don't have permission to delete this post"),
+        404: not_found_response("Post not found"),
     }
 )
 @api_view(['DELETE'])
@@ -201,23 +214,31 @@ class PostDetailController(APIView):
         tags=["Posts"],
         request_body=PostUpdateSerializer,
         responses={
-            200: openapi.Response(description="Updated post",
-                                schema=openapi.Schema( type=openapi.TYPE_OBJECT,
-                                    properties={
-                                        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "channel_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "author_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                        "title": openapi.Schema(type=openapi.TYPE_STRING),
-                                        "content": openapi.Schema(type=openapi.TYPE_STRING),
-                                        "created_at": openapi.Schema(type=openapi.TYPE_STRING, 
-                                                                     format="date-time"),
-                                         "updated_at": openapi.Schema(type=openapi.TYPE_STRING, 
-                                                                      format="date-time"),
-                                                                                     })),
-            400: openapi.Response(description="Invalid input"),
-            401: openapi.Response(description="Unauthorized"),
-            403: openapi.Response(description="Forbidden"),
-            404: openapi.Response(description="Post not found"),
+            200: openapi.Response(
+                description="Updated post",
+                schema=post_example_response()
+            ),
+            400: openapi.Response(
+                description="Invalid input",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'title': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["Ensure this field has no more than 255 characters."]
+                        ),
+                        'content': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=["This field may not be blank."]
+                        )
+                    }
+                )
+            ),
+            401: unauthorized_response(),
+            403: permission_denied_response("You can only update your own posts"),
+            404: not_found_response("Post not found"),
         }
     )
     def put(self, request, post_id: int):
@@ -280,26 +301,10 @@ class PostDetailController(APIView):
     responses={
         200: openapi.Response(
             description="Paginated list of posts",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "count": openapi.Schema(type=openapi.TYPE_INTEGER),
-                    "results": openapi.Schema(
-                        type=openapi.TYPE_ARRAY,
-                        items=openapi.Schema(type=openapi.TYPE_OBJECT)
-                    )
-                }
-            )
+            schema=posts_paginated_response()
         ),
-        404: openapi.Response(
-            description="No posts found",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "error": openapi.Schema(type=openapi.TYPE_STRING, example="Not found.")
-                }
-            )
-        ),
+        401: unauthorized_response(),
+        404: not_found_response("No posts found"),
     }
 )
 @api_view(['GET'])
@@ -337,17 +342,10 @@ def list_posts(request):
     responses={
         200: openapi.Response(
             description="Post details retrieved successfully",
-            schema=PostSerializer
+            schema=post_example_response()
         ),
-        404: openapi.Response(
-            description="Post not found",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "error": openapi.Schema(type=openapi.TYPE_STRING, example="Not found.")
-                }
-            )
-        ),
+        401: unauthorized_response(),
+        404: not_found_response("Post not found"),
     }
 )
 @api_view(['GET'])
@@ -376,8 +374,8 @@ class UserPostsView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Get all posts by a user",
-        operation_description="Retrieves all posts created by" \
-        " a specific user. Supports pagination.",
+        operation_description="Retrieves all posts created by a specific user. " \
+        "Supports pagination.",
         tags=["Posts"],
         manual_parameters=[
             openapi.Parameter(
@@ -405,25 +403,11 @@ class UserPostsView(views.APIView):
         responses={
             200: openapi.Response(
                 description="User posts retrieved successfully",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'next': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                        'previous': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                        'results': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                ref="#/components/schemas/Post"
-                            )
-                        )
-                    }
-                )
+                schema=posts_paginated_response()
             ),
             400: openapi.Response(description="Missing or invalid parameters"),
-            401: openapi.Response(description="Unauthorized"),
-            404: openapi.Response(description="User not found")
+            401: unauthorized_response(),
+            404: not_found_response("User not found")
         }
     )
     def get(self, request):
@@ -477,9 +461,8 @@ class HomePagePostsView(views.APIView):
     
     @swagger_auto_schema(
         operation_summary="Get top posts for homepage",
-        operation_description="Returns highest-scoring posts across all " \
-        "channels for the homepage." \
-        " Default time window is 5 days.",
+        operation_description="Returns highest-scoring posts across all channels " \
+        "for the homepage. Default time window is 5 days.",
         tags=["Posts"],
         manual_parameters=[
             openapi.Parameter("limit", openapi.IN_QUERY, "Page size", 
@@ -492,24 +475,21 @@ class HomePagePostsView(views.APIView):
         responses={
             200: openapi.Response(
                 description="Top-voted posts",
+                schema=posts_paginated_response()
+            ),
+            400: openapi.Response(
+                description="Invalid parameters",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'next': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                        'previous': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                        'results': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                ref="#/components/schemas/Post"
-                            )
+                        'error': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="Days parameter must be positive"
                         )
                     }
                 )
             ),
-            400: openapi.Response(description="Invalid parameters"),
-            401: openapi.Response(description="Unauthorized")
+            401: unauthorized_response()
         }
     )
     def get(self, request):

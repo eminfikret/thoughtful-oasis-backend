@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List
 
@@ -43,8 +44,18 @@ def extract_claims_from_text(text: str) -> List[str]:
     - Do NOT include statements that start with or imply "I", "my", "we", "us", or any form of personal reference.
     - Do NOT include opinions, subjective descriptions, or unverifiable experiences.
     - Do NOT infer multiple claims from one sentence unless **each is clearly presented as a distinct assertion**.
+    - **EACH CLAIM MUST BE COMPLETELY SELF-CONTAINED** with all necessary context included.
+    - **RESOLVE ALL PRONOUNS AND REFERENCES** to ensure claims stand alone without additional context.
 
-    ### EXAMPLES:
+    ### EXAMPLES OF SELF-CONTAINED CLAIMS:
+
+    Input: "It crashed last year and caused billions in damage."
+    BAD CLAIM: It crashed last year. (unclear what "it" refers to)
+    GOOD CLAIM: The stock market crashed in 2025 and caused billions in damage.
+
+    Input: "These animals can survive there for months without food."
+    BAD CLAIM: These animals can survive for months without food. (unclear which animals)
+    GOOD CLAIM: Polar bears can survive in Arctic conditions for months without food.
 
     Input: "I'm a nurse in Chicago. I see a lot of flu cases every winter."
     Output:
@@ -63,8 +74,12 @@ def extract_claims_from_text(text: str) -> List[str]:
 
     Text: {text}
 
-    List each **clearly asserted** claim on a new line starting with "CLAIM:".
+    List each **clearly asserted, self-contained claim** on a new line starting with "CLAIM:".
+    Every claim must be fully understandable on its own without requiring additional context.
     If there are **no clear factual claims**, write: (No factual claims found.)
+
+    If it is unclear what the speaker is referring to (even with all the context provided),
+    do NOT extract a claim.
     """ # noqa: E501
     
     try:
@@ -157,7 +172,21 @@ Use "not_found" when there is insufficient evidence from Wikipedia to assess whe
 
 Also provide a short explanation in the summary. Your summary must be in the tone of addressing the original claim made. 
 When referring to the wikipedia evidence, refer to it as "available evidence". So for example you can say "the available evidence suggests".
-Use Direct Quotes from the evidence too.
+
+IMPORTANT FOR QUOTATIONS:
+- Use ONLY EXACT, VERBATIM quotes from the evidence.
+- Place all direct quotes in double quotation marks.
+- DO NOT paraphrase, modify, or adjust ANY quotation in ANY way.
+- ONLY quote text that appears EXACTLY as written in the evidence.
+- If you cannot find an exact quote that supports your point, do not use quotation marks.
+- Every single character within quotation marks must match the evidence precisely.
+
+IMPORTANT FOR RELEVANCE:
+1. Only refer to evidence that is DIRECTLY RELEVANT to the claim.
+2. DO NOT mention unrelated information from the evidence in your summary.
+3. If parts of the evidence are irrelevant to the claim, ignore those parts completely.
+4. If none of the evidence is relevant to the specific claim, use "not_found" verdict and explain that the evidence doesn't address the claim.
+5. Focus only on verifying the exact claim provided, not tangential aspects.
 
 CLAIM: {claim}
 
@@ -166,48 +195,99 @@ EVIDENCE:
 
 Respond in this format:
 Verdict: <one of supported, contradicted, not_found>
-Summary: <short explanation>
+Summary: <short explanation focusing ONLY on relevant evidence and using ONLY EXACT quotes>
 """  # noqa: E501
     
-    try:
-        result = call_llm(prompt)
-        if result == "FALLBACK_RESPONSE":
+    max_retries = 4
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            result = call_llm(prompt)
+            if result == "FALLBACK_RESPONSE":
+                return {
+                    "verdict": "not_found",
+                    "summary": "This is an automatic fallback response due to service "
+                    "unavailability."
+                }
+                
+            lines = result.strip().split('\n')
+            verdict = ""
+            summary = ""
+            
+            for line in lines:
+                if line.lower().startswith("verdict:"):
+                    verdict = line.split(":", 1)[1].strip().lower()
+                elif line.lower().startswith("summary:"):
+                    summary = line.split(":", 1)[1].strip()
+                    summary_index = lines.index(line)
+                    if summary_index < len(lines) - 1:
+                        summary += "\n" + "\n".join(lines[summary_index + 1:])
+
+            if verdict not in ["supported", "contradicted", "not_found"]:
+                if "support" in verdict:
+                    verdict = "supported"
+                elif "contradict" in verdict:
+                    verdict = "contradicted"
+                else:
+                    verdict = "not_found"
+            
+            if _verify_quotes_in_evidence(summary, evidence):
+                return {
+                    "verdict": verdict,
+                    "summary": summary
+                }
+            
+            logger.warning(f"Quote verification failed on attempt {retry_count + 1}. Retrying...")
+            retry_count += 1
+            
+            prompt += (
+                f"\n\nWARNING: Your previous response contained quotes that DO NOT EXACTLY match "
+                f"the evidence. Review the evidence again carefully and ONLY use EXACT quotes "
+                f"that appear verbatim in the evidence. This is attempt "
+                f"{retry_count + 1} of {max_retries}."
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to get verdict: {e}")
             return {
                 "verdict": "not_found",
                 "summary": "This is an automatic fallback response due to service unavailability."
             }
-            
-        lines = result.strip().split('\n')
-        verdict = ""
-        summary = ""
-        
-        for line in lines:
-            if line.lower().startswith("verdict:"):
-                verdict = line.split(":", 1)[1].strip().lower()
-            elif line.lower().startswith("summary:"):
-                summary = line.split(":", 1)[1].strip()
-                summary_index = lines.index(line)
-                if summary_index < len(lines) - 1:
-                    summary += "\n" + "\n".join(lines[summary_index + 1:])
+    
+    logger.error(f"Failed to generate summary with valid quotes after {max_retries} attempts")
+    return {
+        "verdict": "not_found",
+        "summary": "Unable to generate a summary with accurate quotations. Please try again later."
+    }
 
-        if verdict not in ["supported", "contradicted", "not_found"]:
-            if "support" in verdict:
-                verdict = "supported"
-            elif "contradict" in verdict:
-                verdict = "contradicted"
-            else:
-                verdict = "not_found"
+def _verify_quotes_in_evidence(summary: str, evidence: str) -> bool:
+    """
+    Verify that all quoted text in summary appears exactly in the evidence.
+    
+    Args:
+        summary: The summary text containing quotes
+        evidence: The evidence text to check against
         
-        return {
-            "verdict": verdict,
-            "summary": summary
-        }
-    except Exception as e:
-        logger.error(f"Failed to get verdict: {e}")
-        return {
-            "verdict": "not_found",
-            "summary": "This is an automatic fallback response due to service unavailability."
-        }
+    Returns:
+        True if all quotes match exactly, False otherwise
+    """
+    quoted_texts = re.findall(r'"([^"]*)"', summary)
+    
+    if not quoted_texts:
+        return True
+    
+    evidence_lower = evidence.lower()
+    
+    for quote in quoted_texts:
+        if not quote.strip(): 
+            continue
+            
+        if quote.lower() not in evidence_lower:
+            logger.warning(f"Quote verification failed: '{quote}' not found in evidence")
+            return False
+    
+    return True
 
 _executor = ThreadPoolExecutor(max_workers=3)
 
