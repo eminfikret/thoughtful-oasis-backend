@@ -2,10 +2,16 @@
 
 import os
 import uuid
-
+import atexit
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
+
+# Track resources for cleanup
+created_users = []
+created_channels = []
+created_posts = []
+created_comments = []
 
 # -------------------------
 # Utility Functions
@@ -34,6 +40,9 @@ def register_test_user():
     token = login_data["token"] 
     user_id = register_response.json()["id"]
     
+    # Track user for cleanup
+    created_users.append({"id": user_id, "token": token})
+    
     return user_data, token, user_id
 
 def create_test_channel(token):
@@ -47,6 +56,11 @@ def create_test_channel(token):
     
     channel_response = requests.post(f"{API_URL}/channels/", json=channel_data, headers=headers)
     assert channel_response.status_code == 201, f"Channel creation failed: {channel_response.text}"
+    
+    # Track channel for cleanup
+    channel_id = channel_response.json()["id"]
+    created_channels.append({"id": channel_id, "token": token})
+    
     return channel_response.json()
 
 def create_test_post(token, channel_id):
@@ -60,6 +74,11 @@ def create_test_post(token, channel_id):
     
     post_response = requests.post(f"{API_URL}/posts/create/", json=post_data, headers=headers)
     assert post_response.status_code == 201, f"Post creation failed: {post_response.text}"
+    
+    # Track post for cleanup
+    post_id = post_response.json()["id"]
+    created_posts.append({"id": post_id, "token": token})
+    
     return post_response.json()
 
 def create_test_comment(token, post_id):
@@ -72,6 +91,11 @@ def create_test_comment(token, post_id):
     
     comment_response = requests.post(f"{API_URL}/comments/create/", json=comment_data, headers=headers)
     assert comment_response.status_code == 201, f"Comment creation failed: {comment_response.text}"
+    
+    # Track comment for cleanup
+    comment_id = comment_response.json()["id"]
+    created_comments.append({"id": comment_id, "token": token})
+    
     return comment_response.json()
 
 def setup_test_objects():
@@ -480,3 +504,56 @@ def test_full_comment_upvote_flow():
     assert votes_data["is_upvote"] == True
     
     print("Comment upvote test completed successfully")
+
+def cleanup_test_data():
+    """Clean up all test data created during tests"""
+    print("\nCleaning up vote test data...")
+    
+    # Clean up comments first
+    for comment in created_comments:
+        try:
+            headers = {"Authorization": f"Bearer {comment['token']}"}
+            response = requests.delete(f"{API_URL}/comments/{comment['id']}/delete/", headers=headers)
+            print(f"Deleted comment {comment['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting comment {comment['id']}: {e}")
+    
+    # Clean up posts
+    for post in created_posts:
+        try:
+            headers = {"Authorization": f"Bearer {post['token']}"}
+            response = requests.delete(f"{API_URL}/posts/{post['id']}/delete/", headers=headers)
+            print(f"Deleted post {post['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting post {post['id']}: {e}")
+    
+    # Clean up channels
+    for channel in created_channels:
+        try:
+            headers = {"Authorization": f"Bearer {channel['token']}"}
+            response = requests.delete(f"{API_URL}/channels/{channel['id']}/", headers=headers)
+            print(f"Deleted channel {channel['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting channel {channel['id']}: {e}")
+    
+    # Clean up users
+    for user in created_users:
+        try:
+            headers = {"Authorization": f"Bearer {user['token']}"}
+            response = requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers=headers)
+            print(f"Deleted user {user['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting user {user['id']}: {e}")
+    
+    # Clear all tracked resources
+    created_comments.clear()
+    created_posts.clear()
+    created_channels.clear()
+    created_users.clear()
+
+# Register cleanup function to run at exit
+atexit.register(cleanup_test_data)
+
+def test_zzz_cleanup():
+    """Run cleanup for all created test data"""
+    cleanup_test_data()
