@@ -307,3 +307,155 @@ class CommentControllerTest(MockLLMTestMixin, APITestCase):
         response = self.client.put(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        
+    @patch('claims.services.ClaimService')
+    def test_get_user_comments(self, mock_claim_service_class):
+        """Test retrieving comments for a user"""
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        with disable_fact_checking_signals():
+        
+            comment1 = Comment.objects.create(
+                post=self.post,
+                author=self.user,
+                content="User comment 1"
+            )
+            comment2 = Comment.objects.create(
+                post=self.post,
+                author=self.user,
+                content="User comment 2"
+            )
+            
+            Comment.objects.create(
+                post=self.post,
+                author=self.another_user,
+                content="Another user's comment"
+            )
+        
+        self.authenticate(self.user)
+        url = reverse('user_comments')
+        response = self.client.get(f"{url}?user_id={self.user.id}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 2)
+        self.assertEqual(len(response.data['results']), 2)
+        
+        result_contents = [item["content"] for item in response.data['results']]
+        self.assertIn(comment1.content, result_contents)
+        self.assertIn(comment2.content, result_contents)
+
+    def test_get_user_comments_missing_user_id(self):
+        """Test retrieving user comments without providing user_id"""
+        self.authenticate(self.user)
+        url = reverse('user_comments')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_user_comments_nonexistent_user(self):
+        """Test retrieving comments for a non-existent user"""
+        self.authenticate(self.user)
+        url = reverse('user_comments')
+        response = self.client.get(f"{url}?user_id=999")
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    @patch('claims.services.ClaimService')
+    def test_user_comments_pagination(self, mock_claim_service_class):
+        """Test pagination of user comments"""
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        with disable_fact_checking_signals():
+            
+            for i in range(15):
+                Comment.objects.create(
+                    post=self.post,
+                    author=self.user,
+                    content=f"Comment {i}"
+                )
+        
+        self.authenticate(self.user)
+        url = reverse('user_comments')
+        
+        response = self.client.get(f"{url}?user_id={self.user.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 15)
+        self.assertEqual(len(response.data['results']), 10)
+        self.assertIsNotNone(response.data['next'])
+        self.assertIsNone(response.data['previous'])
+        
+        response = self.client.get(f"{url}?user_id={self.user.id}&offset=10")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 5)
+        self.assertIsNone(response.data['next'])
+        self.assertIsNotNone(response.data['previous'])
+        
+        response = self.client.get(f"{url}?user_id={self.user.id}&limit=5")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 5)
+        self.assertIsNotNone(response.data['next'])
+
+    def test_create_comment_invalid_data(self):
+        """Test creating a comment with invalid data"""
+        self.authenticate(self.user)
+        url = reverse('create_comment')
+        
+        data = {"content": "Test content"}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        data = {"post_id": self.post.id}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reply_invalid_data(self):
+        """Test replying with invalid data"""
+        self.authenticate(self.user)
+        url = reverse('create_reply')
+        
+        data = {"content": "Test reply"}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        with disable_fact_checking_signals():
+            parent = Comment.objects.create(
+                post=self.post,
+                author=self.user,
+                content="Parent comment"
+            )
+        
+        data = {"parent_comment_id": parent.id}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_comment_invalid_data(self):
+        """Test updating a comment with invalid data"""
+        self.authenticate(self.user)
+        
+        with disable_fact_checking_signals():
+            comment = Comment.objects.create(
+                post=self.post,
+                author=self.user,
+                content="Original content"
+            )
+        
+        url = reverse('update_comment', kwargs={'comment_id': comment.id})
+        
+        data = {"content": ""}
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    @patch('claims.services.ClaimService')
+    @patch('comments.services.CommentService.get_comments_for_post')
+    def test_get_post_comments_service_error(self, mock_get_comments, mock_claim_service):
+        """Test error handling when comment service fails"""
+        mock_get_comments.side_effect = Exception("Service error")
+        
+        url = reverse('post_comments')
+        response = self.client.get(f"{url}?post_id={self.post.id}")
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
