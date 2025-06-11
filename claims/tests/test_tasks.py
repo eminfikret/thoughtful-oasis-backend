@@ -1,6 +1,6 @@
 import sys
-from unittest.mock import MagicMock, patch
 from types import ModuleType
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
@@ -12,13 +12,14 @@ mock_celery.canvas.chunks = MagicMock()
 sys.modules['celery'] = mock_celery
 sys.modules['celery.canvas'] = mock_celery.canvas
 
-from ..tasks import (
+from ..tasks import (  # noqa: E402
     process_claim_extraction,
     process_comment_claim_extraction,
     process_comment_fact_checking_task,
     process_post_claim_extraction,
     process_post_fact_checking_task,
 )
+
 
 class TasksExtendedTest(TestCase):
     """Extended tests for the tasks module"""
