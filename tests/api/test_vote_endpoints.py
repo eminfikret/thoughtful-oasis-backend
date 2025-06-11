@@ -437,7 +437,7 @@ def test_full_upvote_flow():
     
     token = login_response.json()["token"]
     user_id = login_response.json()["user"]["id"]
-    # Track the user
+
     created_users.append({"id": user_id, "token": token})
     
     headers = {"Authorization": f"Bearer {token}"}
@@ -451,7 +451,7 @@ def test_full_upvote_flow():
     channel_response = requests.post(f"{API_URL}/channels/", json=channel_data, headers=headers)
     assert channel_response.status_code == 201, f"Channel creation failed: {channel_response.text}"
     channel = channel_response.json()
-    # Track the channel
+
     created_channels.append({"id": channel["id"], "token": token})
     
     post = create_test_post(token, channel["id"])
@@ -507,12 +507,11 @@ def test_full_comment_upvote_flow():
     
     token = login_response.json()["token"]
     user_id = login_response.json()["user"]["id"]
-    # Track the user
+
     created_users.append({"id": user_id, "token": token})
     
     headers = {"Authorization": f"Bearer {token}"}
-    
-    # Rest of the function uses helper methods that already track resources
+    print(headers)
 
 def cleanup_test_data():
     """Clean up all test data created during tests"""
@@ -534,7 +533,10 @@ def cleanup_test_data():
                                 f"{API_URL}/channels/{channel['id']}/", 
                                 headers=headers
                             )
-                            print(f"Cleaned up untracked test channel {channel['id']}: {delete_response.status_code}")
+                            print(
+                                f"Cleaned up untracked test channel {channel['id']}: "
+                                f"{delete_response.status_code}"
+                            )
                         except Exception as e:
                             print(f"Failed to clean untracked channel {channel['id']}: {e}")
     except Exception as e:
@@ -543,7 +545,11 @@ def cleanup_test_data():
     for comment in created_comments:
         try:
             headers = {"Authorization": f"Bearer {comment['token']}"}
-            response = requests.delete(f"{API_URL}/comments/{comment['id']}/delete/", headers=headers)
+            response = requests.delete(
+                f"{API_URL}/comments/{comment['id']}/delete/",
+                headers=headers,
+                timeout=10
+            )
             print(f"Deleted comment {comment['id']}: Status {response.status_code}")
         except Exception as e:
             print(f"Error deleting comment {comment['id']}: {e}")
