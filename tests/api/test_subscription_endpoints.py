@@ -1,9 +1,14 @@
+import atexit
 import os
 import uuid
 
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
+
+created_users = []
+created_channels = []
+created_subscriptions = []
 
 # -------------------------
 # Utility Functions
@@ -46,6 +51,8 @@ def register_test_user(is_admin=False):
     login_data = login_response.json()
     user_id = login_data["user"]["id"]
     
+    created_users.append({"id": user_id, "token": login_data["token"]})
+    
     return user_data, login_data["token"], user_id
 
 def create_test_channel(token, name=None, description=None):
@@ -68,12 +75,20 @@ def create_test_channel(token, name=None, description=None):
         print(f"Channel creation failed: {response.status_code} - {response.text}")
         return None
     
-    return response.json()
+    channel = response.json()
+
+    created_channels.append({"id": channel["id"], "token": token})
+    
+    return channel
 
 def subscribe_to_channel(token, channel_id):
     """Subscribe to a channel and return response"""
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.post(f"{API_URL}/channels/{channel_id}/subscribe/", headers=headers)
+    
+    if response.status_code == 204:
+        created_subscriptions.append({"channel_id": channel_id, "token": token})
+    
     return response
 
 def setup_test_environment():
@@ -346,3 +361,45 @@ def test_admin_list_user_subscriptions():
     if response.status_code == 200:
         data = response.json()
         assert "results" in data, "Response should include results field"
+
+def cleanup_test_data():
+    """Clean up all test data created during tests"""
+    print("\nCleaning up subscription test data...")
+    
+    for subscription in created_subscriptions:
+        try:
+            headers = {"Authorization": f"Bearer {subscription['token']}"}
+            response = requests.delete(
+                f"{API_URL}/channels/{subscription['channel_id']}/unsubscribe/", 
+                headers=headers
+            )
+            print(f"Unsubscribed from channel {subscription['channel_id']}: "
+                  f"Status {response.status_code}")
+        except Exception as e:
+            print(f"Error unsubscribing from channel {subscription['channel_id']}: {e}")
+    
+    for channel in created_channels:
+        try:
+            headers = {"Authorization": f"Bearer {channel['token']}"}
+            response = requests.delete(f"{API_URL}/channels/{channel['id']}/", headers=headers)
+            print(f"Deleted channel {channel['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting channel {channel['id']}: {e}")
+    
+    for user in created_users:
+        try:
+            headers = {"Authorization": f"Bearer {user['token']}"}
+            response = requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers=headers)
+            print(f"Deleted user {user['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting user {user['id']}: {e}")
+    
+    created_subscriptions.clear()
+    created_channels.clear()
+    created_users.clear()
+
+atexit.register(cleanup_test_data)
+
+def test_zzz_cleanup():
+    """Run cleanup for all created test data"""
+    cleanup_test_data()
