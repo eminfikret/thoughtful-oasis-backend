@@ -226,6 +226,9 @@ class PostCommentsView(views.APIView):
             return Response(response_data, status=status.HTTP_200_OK)
         except Post.DoesNotExist:
             return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception:
+            # Add this generic exception handler to catch service errors
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
 @swagger_auto_schema(
     method="get",
@@ -429,8 +432,10 @@ class UserCommentsView(views.APIView):
         limit = serializer.validated_data.get('limit', 10)
         
         try:
+            # Use CommentService for consistent behavior
             comments, total = CommentService.get_user_comments(user_id, offset, limit)
             
+            # Format pagination URLs
             next_url = None
             previous_url = None
             
@@ -448,6 +453,7 @@ class UserCommentsView(views.APIView):
             claim_service = ClaimService()
             results = []
             
+            # Use the pagination-limited comments
             for comment in comments:
                 comment_data = PostCommentSerializer(comment, context={'request': request}).data
                 claims = claim_service.get_claims_for_content('comment', comment.id)
