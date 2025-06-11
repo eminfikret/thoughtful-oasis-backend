@@ -100,7 +100,10 @@ def test_register_duplicate_username():
     """Test registration with duplicate username"""
 
     user_data = generate_unique_user()
-    requests.post(f"{API_URL}/users/register/", json=user_data)
+    response = requests.post(f"{API_URL}/users/register/", json=user_data)
+    
+    if response.status_code == 201:
+        track_registered_user(user_data["username"], user_data["password"])
     
     duplicate_user = user_data.copy()
     duplicate_user["email"] = f"different_{uuid.uuid4().hex[:8]}@example.com"
@@ -113,7 +116,10 @@ def test_register_duplicate_username():
 def test_register_duplicate_email():
     """Test registration with duplicate email"""
     user_data = generate_unique_user()
-    requests.post(f"{API_URL}/users/register/", json=user_data)
+    response = requests.post(f"{API_URL}/users/register/", json=user_data)
+    
+    if response.status_code == 201:
+        track_registered_user(user_data["username"], user_data["password"])
     
     duplicate_user = user_data.copy()
     duplicate_user["username"] = f"different_{uuid.uuid4().hex[:8]}"
@@ -178,6 +184,8 @@ def test_login_success():
     register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
     assert register_response.status_code == 201, "Registration failed" 
 
+    track_registered_user(user_data["username"], user_data["password"])
+
     login_payload = {
         "username": user_data["username"],
         "password": user_data["password"]
@@ -214,7 +222,10 @@ def test_login_missing_credentials():
 def test_login_case_insensitive_username():
     """Test that login is case-insensitive for username"""
     user_data = generate_unique_user()
-    requests.post(f"{API_URL}/users/register/", json=user_data)
+    response = requests.post(f"{API_URL}/users/register/", json=user_data)
+    
+    if response.status_code == 201:
+        track_registered_user(user_data["username"], user_data["password"])
     
     login_payload = {
         "username": user_data["username"].upper(),
@@ -226,8 +237,7 @@ def test_login_case_insensitive_username():
     if response.status_code == 200:
         data = response.json()
         assert "token" in data, "Response should contain a token"
-        assert data["user"]["username"].lower() == user_data["username"].lower(), "Username"
-        " should match (case-insensitive)"
+        assert data["user"]["username"].lower() == user_data["username"].lower()
     else:
         print("Note: Server appears to use case-sensitive usernames")
 
@@ -383,7 +393,9 @@ def test_check_availability():
     """Test checking username and email availability"""
     user_data = generate_unique_user()
     register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
-    assert register_response.status_code == 201, "Registration failed"  
+    assert register_response.status_code == 201, "Registration failed"
+    
+    track_registered_user(user_data["username"], user_data["password"])
     
     response = requests.get(f"{API_URL}/users/check-availability/?username={user_data['username']}")
     assert response.status_code == 200, "Check availability should work"
@@ -527,9 +539,28 @@ def cleanup_test_data():
     """Clean up all test data created during tests"""
     print("\nCleaning up user test data...")
     
+    try:
+        if created_users and len(created_users) > 0:
+            admin_token = created_users[0]['token']
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            
+            users_response = requests.get(f"{API_URL}/users/", headers=headers)
+            if users_response.status_code == 200:
+                users = users_response.json()
+                test_users = [u for u in users if u.get('username', '').startswith('testuser_')]
+                
+                tracked_ids = [u['id'] for u in created_users]
+                for user in test_users:
+                    if user['id'] not in tracked_ids:
+                        print(f"Found untracked test user: {user['username']}")
+    
+    except Exception as e:
+        print(f"Error looking for additional test users: {e}")
+    
     for user in created_users:
         try:
-            headers = {"Authorization": f"Bearer {user['token']}"}
+            headers = {"Authorization": f"Bearer {user['token']}"
+            }
             response = requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers=headers)
             print(f"Deleted user {user['id']}: Status {response.status_code}")
         except Exception as e:
