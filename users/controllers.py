@@ -7,6 +7,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.params import PaginationParams
+from common.responses import PaginatedResponse
+from common.swagger_schemas import search_parameter
+from .params import UsersParams
+from .serializers import UsersQueryParamsSerializer
+
 from common.swagger_schemas import (
     login_response_schema,
     not_found_response,
@@ -32,6 +38,7 @@ from .services import UserService
 
 class UserListController(APIView):
     """Controller for listing all users"""
+    permission_classes = [IsAuthenticated]
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -39,24 +46,66 @@ class UserListController(APIView):
     
     @swagger_auto_schema(
         operation_summary="List all users",
-        operation_description="Get a list of all users",
+        operation_description="Get a paginated list of all users with optional search filtering",
         tags=["Users"],
+        manual_parameters=[
+            openapi.Parameter("limit", openapi.IN_QUERY, "Page size", 
+                            type=openapi.TYPE_INTEGER, default=10),
+            openapi.Parameter("offset", openapi.IN_QUERY, "Pagination offset", 
+                            type=openapi.TYPE_INTEGER, default=0),
+            search_parameter(),
+        ],
         responses={
             200: openapi.Response(
-                description="List of users",
+                description="Paginated list of users",
                 schema=openapi.Schema(
-                    type=openapi.TYPE_ARRAY,
-                    items=user_detail_schema()
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'count': openapi.Schema(type=openapi.TYPE_INTEGER, example=42),
+                        'next': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="http://api.example.org/users/?offset=10&limit=10",
+                            nullable=True
+                        ),
+                        'previous': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example=None,
+                            nullable=True
+                        ),
+                        'results': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=user_detail_schema()
+                        )
+                    }
                 )
             ),
             401: unauthorized_response()
         }
     )
     def get(self, request):
-        """Get all users"""
-        users = self.user_service.get_all_users()
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
+        """Get all users with pagination and search"""
+        try:
+            search = request.query_params.get('search')
+
+            query_serializer = UsersQueryParamsSerializer(data=request.query_params)
+            query_serializer.is_valid(raise_exception=True)
+            data = query_serializer.validated_data
+            
+            limit = data.get('limit') if data.get('limit') is not None else 10
+            offset = data.get('offset') if data.get('offset') is not None else 0
+
+            pagination = PaginationParams(limit=limit, offset=offset)
+
+            users = self.user_service.get_all_users(search=search, pagination=pagination)
+            count = self.user_service.get_users_count(search=search)
+            
+            return PaginatedResponse(
+                results=UserSerializer(users, many=True, context={'request': request}).data,
+                count=count,
+                request=request
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class RegisterController(APIView):
@@ -337,7 +386,7 @@ class UserDetailController(APIView):
     )
     def put(self, request, user_id):
         """Update a specific user's details"""
-        # Only allow users to update their own details
+
         if request.user.id != int(user_id):
             raise PermissionDenied("You can only update your own details")
 
@@ -422,7 +471,8 @@ class UserProfileController(APIView):
     )
     def patch(self, request, user_id):
         """Update a specific user's profile"""
-        # Only allow users to update their own profile
+
+
         if request.user.id != int(user_id):
             return Response({"error": "You can only update your own profile"}, 
                             status=status.HTTP_403_FORBIDDEN)
