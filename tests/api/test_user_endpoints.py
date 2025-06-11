@@ -6,7 +6,6 @@ import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
 
-# Add tracking collections for cleanup
 created_users = []
 
 # -------------------------
@@ -48,7 +47,6 @@ def register_test_user():
     token = login_data["token"]
     user_id = login_data["user"]["id"]
     
-    # Track for cleanup
     created_users.append({"id": user_id, "token": token})
     
     return user_data, token, login_data["refresh_token"]
@@ -70,7 +68,6 @@ def track_registered_user(username, password):
     
     created_users.append({"id": user_id, "token": token})
 
-# Cleanup function to delete created test users
 def cleanup_created_users():
     for user in created_users:
         try:
@@ -97,7 +94,6 @@ def test_register_user_success():
     assert data["username"] == user_data["username"]
     assert data["email"] == user_data["email"]
     
-    # Track the registered user for cleanup
     track_registered_user(user_data["username"], user_data["password"])
 
 def test_register_duplicate_username():
@@ -531,7 +527,6 @@ def cleanup_test_data():
     """Clean up all test data created during tests"""
     print("\nCleaning up user test data...")
     
-    # Clean up users
     for user in created_users:
         try:
             headers = {"Authorization": f"Bearer {user['token']}"}
@@ -540,10 +535,8 @@ def cleanup_test_data():
         except Exception as e:
             print(f"Error deleting user {user['id']}: {e}")
     
-    # Clear all tracked resources
     created_users.clear()
 
-# Register cleanup function to run at exit
 atexit.register(cleanup_test_data)
 
 def test_zzz_cleanup():
