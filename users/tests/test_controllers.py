@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
@@ -28,7 +30,6 @@ class UserControllersTest(APITestCase):
         self.client = APIClient()
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         
-        # second user for testing
         self.other_user = User.objects.create_user(
             username='otheruser',
             email='other@example.com',
@@ -38,12 +39,74 @@ class UserControllersTest(APITestCase):
         )
     
     def test_user_list_controller_get(self):
-        """Test getting all users"""
+        """Test getting all users with pagination"""
         url = reverse('user-list')
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        
+        for i in range(3):
+            User.objects.create_user(
+                username=f'testuser{i}',
+                email=f'test{i}@example.com',
+                password='password123'
+            )
+        
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)  #  testuser and otheruser
+        
+        self.assertIn('results', response.data)
+        self.assertIn('count', response.data)
+        self.assertEqual(response.data['count'], User.objects.count())
+        self.assertLessEqual(len(response.data['results']), 10)  
+
+        response = self.client.get(f'{url}?limit=2&offset=1')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertLessEqual(len(response.data['results']), 2)
+
+    def test_user_list_controller_with_search(self):
+        """Test user list with search functionality"""
+        User.objects.filter(username__contains='searchable').delete()
+        User.objects.filter(username__contains='another').delete()
+        User.objects.filter(first_name__contains='Search').delete()
+        
+        unique_prefix = f"VERY_UNIQUE_PREFIX_{uuid.uuid4().hex}"
+        searchable_username = f"{unique_prefix}_searchable_user"
+        
+        unique_first_name = f"UniqueFirstName{uuid.uuid4().hex[:8]}"
+        
+        User.objects.create_user(
+            username=searchable_username,
+            email='search_test@example.com',
+            password='password123'
+        )
+        User.objects.create_user(
+            username='another_user',
+            email='search_test2@example.com',
+            password='password123',
+            first_name=unique_first_name,
+            last_name='Test'
+        )
+        
+        url = reverse('user-list')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        
+        response = self.client.get(f'{url}?search={unique_prefix}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['username'], searchable_username)
+        
+        response = self.client.get(f'{url}?search=search_test')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 2)
+        
+        response = self.client.get(f'{url}?search={unique_first_name}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['username'], 'another_user')
+        
+        response = self.client.get(f'{url}?search=nonexistentkeyword')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 0)
+        self.assertEqual(len(response.data['results']), 0)
     
     def test_register_controller_post(self):
         """Test user registration"""
@@ -64,7 +127,7 @@ class UserControllersTest(APITestCase):
 
         user = User.objects.get(username='newuser')
         self.assertIsNotNone(user)
-        self.assertIsNotNone(user.profile)  # profile should be created too
+        self.assertIsNotNone(user.profile) 
     
     def test_register_controller_post_password_mismatch(self):
         """Test user registration with mismatched passwords"""
@@ -90,7 +153,6 @@ class UserControllersTest(APITestCase):
             password='password123'
         )
         
-        # try to register with the same email
         url = reverse('user-register')
         data = {
             'username': 'newuser',

@@ -60,28 +60,21 @@ class ClaimService:
         return results
     
     def process_content_for_claims(self, user_id: int, content: str, source_type: str, 
-                                  source_id: int, context: dict = None) -> List[Dict[str, Any]]:
+                                   source_id: int, context: dict = None) -> List[Dict[str, Any]]:
         """
         Process content to extract claims and create fact checks.
-        
-        Args:
-            user_id: User ID of the author
-            content: Text content to process
-            source_type: Type of content source ('post', 'comment', or 'raw')
-            source_id: ID of the post or comment
-            context: Optional additional context (for comment threads)
-            
-        Returns:
-            List of claims with their fact check information
         """
         if source_type not in ['post', 'comment', 'raw']:
             raise ValueError(f"Invalid source_type: {source_type}")
         
-        # Use the new utility function that handles context when provided
         context_to_use = context if context and source_type == 'comment' else None
         extracted_claims = extract_claims_with_context(content, context_to_use)
-        results = []
         
+        # Return early if no claims are extracted
+        if not extracted_claims:
+            return []
+        
+        results = []
         with transaction.atomic():
             for i, claim_text in enumerate(extracted_claims, 1):
                 claim = self._create_claim(
@@ -100,7 +93,7 @@ class ClaimService:
                     "claim": claim_data,
                     "fact_check": fact_check_info
                 })
-                
+    
         return results
     
     def get_claim_with_fact_check(self, claim_id: int) -> Optional[Dict[str, Any]]:
@@ -152,19 +145,14 @@ class ClaimService:
     def get_claims_for_content(self, source_type: str, source_id: int) -> List[Dict[str, Any]]:
         """
         Get all claims for a specific post or comment.
-        
-        Args:
-            source_type: Either 'post' or 'comment'
-            source_id: ID of the post or comment
-            
-        Returns:
-            List of claims with their fact check information
         """
         self._validate_source_type(source_type)
         
-        claims = (Claim.objects.filter(post_id=source_id) if source_type == 'post' 
-                 else Claim.objects.filter(comment_id=source_id))
-        
+        if source_type == 'post':
+            claims = self.claim_repository.get_claims_for_post(source_id)
+        else:
+            claims = self.claim_repository.get_claims_for_comment(source_id)
+    
         results = []
         for claim in claims:
             result = {"claim": self._format_claim_data(claim, include_source=False)}

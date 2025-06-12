@@ -35,6 +35,27 @@ This project consists of tests for each module. To run all tests, navigate to th
 docker compose exec app python manage.py test
 ```
 
+### Test Coverage
+The project includes a coverage reporting tool to measure test coverage. To run tests with coverage reporting:
+
+```bash
+docker compose exec app ./run_coverage.sh
+```
+
+This generates:
+- A terminal output showing coverage statistics
+- An HTML report for detailed line-by-line coverage analysis
+
+To view the HTML coverage report, open `htmlcov/index.html` in a web browser:
+
+```bash
+start htmlcov/index.html  # Windows
+# or
+open htmlcov/index.html   # Mac
+# or
+xdg-open htmlcov/index.html  # Linux
+```
+
 ### Linting
 This project uses Ruff for Python code linting. To run linting checks, navigate to the `/docker` folder and run:
 

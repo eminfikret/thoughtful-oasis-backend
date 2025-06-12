@@ -1,9 +1,12 @@
+import atexit
 import os
 import uuid
 
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
+
+created_users = []
 
 # -------------------------
 # Test helper functions
@@ -41,7 +44,40 @@ def register_test_user():
         return user_data, None, None
     
     login_data = login_response.json()
-    return user_data, login_data["token"], login_data["refresh_token"]
+    token = login_data["token"]
+    user_id = login_data["user"]["id"]
+    
+    created_users.append({"id": user_id, "token": token})
+    
+    return user_data, token, login_data["refresh_token"]
+
+def track_registered_user(username, password):
+    """Track a registered user for cleanup"""
+    login_response = requests.post(f"{API_URL}/users/login/", json={
+        "username": username,
+        "password": password
+    })
+    
+    if login_response.status_code != 200:
+        print(f"Login failed for tracking user {username}: {login_response.status_code}")
+        return
+    
+    login_data = login_response.json()
+    token = login_data["token"]
+    user_id = login_data["user"]["id"]
+    
+    created_users.append({"id": user_id, "token": token})
+
+def cleanup_created_users():
+    for user in created_users:
+        try:
+            requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers={
+                "Authorization": f"Bearer {user['token']}"
+            })
+        except Exception as e:
+            print(f"Error cleaning up user {user['id']}: {e}")
+
+atexit.register(cleanup_created_users)
 
 # -------------------------
 # Registration tests
@@ -57,12 +93,17 @@ def test_register_user_success():
     data = response.json()
     assert data["username"] == user_data["username"]
     assert data["email"] == user_data["email"]
+    
+    track_registered_user(user_data["username"], user_data["password"])
 
 def test_register_duplicate_username():
     """Test registration with duplicate username"""
 
     user_data = generate_unique_user()
-    requests.post(f"{API_URL}/users/register/", json=user_data)
+    response = requests.post(f"{API_URL}/users/register/", json=user_data)
+    
+    if response.status_code == 201:
+        track_registered_user(user_data["username"], user_data["password"])
     
     duplicate_user = user_data.copy()
     duplicate_user["email"] = f"different_{uuid.uuid4().hex[:8]}@example.com"
@@ -75,7 +116,10 @@ def test_register_duplicate_username():
 def test_register_duplicate_email():
     """Test registration with duplicate email"""
     user_data = generate_unique_user()
-    requests.post(f"{API_URL}/users/register/", json=user_data)
+    response = requests.post(f"{API_URL}/users/register/", json=user_data)
+    
+    if response.status_code == 201:
+        track_registered_user(user_data["username"], user_data["password"])
     
     duplicate_user = user_data.copy()
     duplicate_user["username"] = f"different_{uuid.uuid4().hex[:8]}"
@@ -140,6 +184,8 @@ def test_login_success():
     register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
     assert register_response.status_code == 201, "Registration failed" 
 
+    track_registered_user(user_data["username"], user_data["password"])
+
     login_payload = {
         "username": user_data["username"],
         "password": user_data["password"]
@@ -176,7 +222,10 @@ def test_login_missing_credentials():
 def test_login_case_insensitive_username():
     """Test that login is case-insensitive for username"""
     user_data = generate_unique_user()
-    requests.post(f"{API_URL}/users/register/", json=user_data)
+    response = requests.post(f"{API_URL}/users/register/", json=user_data)
+    
+    if response.status_code == 201:
+        track_registered_user(user_data["username"], user_data["password"])
     
     login_payload = {
         "username": user_data["username"].upper(),
@@ -188,8 +237,7 @@ def test_login_case_insensitive_username():
     if response.status_code == 200:
         data = response.json()
         assert "token" in data, "Response should contain a token"
-        assert data["user"]["username"].lower() == user_data["username"].lower(), "Username"
-        " should match (case-insensitive)"
+        assert data["user"]["username"].lower() == user_data["username"].lower()
     else:
         print("Note: Server appears to use case-sensitive usernames")
 
@@ -252,24 +300,93 @@ def test_get_users_authenticated():
         "Authorization": f"Bearer {token}"
     }
     
-    response = requests.get(f"{API_URL}/users/", headers=headers)
+    login_response = requests.post(f"{API_URL}/users/login/", json={
+        "username": user_data["username"],
+        "password": user_data["password"]
+    })
+    assert login_response.status_code == 200, "Login failed to confirm user exists"
+    login_response.json()["user"]["id"]
+    
+    response = requests.get(f"{API_URL}/users/?search={user_data['username']}", headers=headers)
     
     assert response.status_code == 200, "Should return user list for authenticated users"
     data = response.json()
-    assert isinstance(data, list), "Response should be a list of users"
-    assert any(user["username"] == user_data["username"] for user in data), "Created"
-    " user should be in the list"
-
-def test_get_users_unauthenticated():
-    """Test getting user list while unauthenticated"""
-    response = requests.get(f"{API_URL}/users/")
+    assert "results" in data, "Response should include results field for pagination"
+    assert "count" in data, "Response should include total count"
+    assert isinstance(data["results"], list), "Results should be a list of users"
     
-    if response.status_code == 401:
-        assert "authentication" in response.text.lower(), "Should mention"
-        " authentication requirements"
-    else:
-        assert response.status_code == 200, "Public user list should be accessible"
-        assert isinstance(response.json(), list), "Response should be a list of users"
+    assert data["count"] > 0, "Search should return at least one result"
+    assert any(
+        user["username"] == user_data["username"] for user in data["results"]
+    ), "Created user should be found by search"
+
+def test_get_users_with_pagination():
+    """Test user list pagination"""
+    tokens = []
+    usernames = []
+    for _ in range(3):
+        user_data, token, _ = register_test_user()
+        if token:
+            tokens.append(token)
+            usernames.append(user_data["username"])
+    
+    assert tokens, "Failed to create test users"
+    
+    headers = {"Authorization": f"Bearer {tokens[0]}"}
+    
+    response = requests.get(f"{API_URL}/users/?limit=2&offset=0", headers=headers)
+    assert response.status_code == 200, "Should return paginated results"
+    data = response.json()
+    
+    assert "results" in data, "Response should include results field"
+    assert "count" in data, "Response should include total count"
+    assert "next" in data, "Response should include next page URL"
+    assert len(data["results"]) <= 2, "Should respect the limit parameter"
+    
+    if data.get("next"):
+        response = requests.get(data["next"], headers=headers)
+        assert response.status_code == 200, "Should fetch second page"
+        page2_data = response.json()
+        assert "results" in page2_data, "Second page should include results"
+        assert "previous" in page2_data, "Second page should include previous page URL"
+        
+        page1_ids = [user["id"] for user in data["results"]]
+        page2_ids = [user["id"] for user in page2_data["results"]]
+        assert not any(id in page2_ids for id in page1_ids), "Pages should contain different users"
+
+def test_get_users_with_search():
+    """Test searching users"""
+
+    unique_id = uuid.uuid4().hex[:8]
+    search_username = f"searchable_user_{unique_id}"
+    
+    user_data = generate_unique_user()
+    user_data["username"] = search_username
+    
+    register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
+    assert register_response.status_code == 201, "Failed to create searchable user"
+    
+    login_response = requests.post(f"{API_URL}/users/login/", json={
+        "username": search_username,
+        "password": user_data["password"]
+    })
+    token = login_response.json()["token"]
+    user_id = login_response.json()["user"]["id"]
+    created_users.append({"id": user_id, "token": token})
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    search_term = "searchable"
+    response = requests.get(f"{API_URL}/users/?search={search_term}", headers=headers)
+    
+    assert response.status_code == 200, "Search should work"
+    data = response.json()
+    
+    assert "results" in data, "Response should include results field"
+    assert "count" in data, "Response should include count field"
+    assert len(data["results"]) > 0, "Should find at least the created user"
+    assert any(
+        search_term in user["username"].lower() for user in data["results"]
+    ), "Search should find username match"
 
 # -------------------------
 # User detail tests
@@ -310,12 +427,13 @@ def test_get_user_detail_nonexistent():
     users_response = requests.get(f"{API_URL}/users/", headers=headers)
     assert users_response.status_code == 200, "Should get users list"
     
-
-    users = users_response.json()
+    data = users_response.json()
     max_id = 0
-    for user in users:
-        if isinstance(user.get("id"), int) and user["id"] > max_id:
-            max_id = user["id"]
+    
+    if "results" in data and isinstance(data["results"], list):
+        for user in data["results"]:
+            if isinstance(user, dict) and isinstance(user.get("id"), int) and user["id"] > max_id:
+                max_id = user["id"]
     
     nonexistent_id = max_id + 10000
     
@@ -345,7 +463,9 @@ def test_check_availability():
     """Test checking username and email availability"""
     user_data = generate_unique_user()
     register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
-    assert register_response.status_code == 201, "Registration failed"  
+    assert register_response.status_code == 201, "Registration failed"
+    
+    track_registered_user(user_data["username"], user_data["password"])
     
     response = requests.get(f"{API_URL}/users/check-availability/?username={user_data['username']}")
     assert response.status_code == 200, "Check availability should work"
@@ -484,3 +604,42 @@ def test_delete_other_user_account():
         "password": user2_data["password"]
     })
     assert login_response.status_code == 200, "User2 should still be able to login"
+
+def cleanup_test_data():
+    """Clean up all test data created during tests"""
+    print("\nCleaning up user test data...")
+    
+    try:
+        if created_users and len(created_users) > 0:
+            admin_token = created_users[0]['token']
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            
+            users_response = requests.get(f"{API_URL}/users/", headers=headers)
+            if users_response.status_code == 200:
+                users = users_response.json()
+                test_users = [u for u in users if u.get('username', '').startswith('testuser_')]
+                
+                tracked_ids = [u['id'] for u in created_users]
+                for user in test_users:
+                    if user['id'] not in tracked_ids:
+                        print(f"Found untracked test user: {user['username']}")
+    
+    except Exception as e:
+        print(f"Error looking for additional test users: {e}")
+    
+    for user in created_users:
+        try:
+            headers = {"Authorization": f"Bearer {user['token']}"
+            }
+            response = requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers=headers)
+            print(f"Deleted user {user['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting user {user['id']}: {e}")
+    
+    created_users.clear()
+
+atexit.register(cleanup_test_data)
+
+def test_zzz_cleanup():
+    """Run cleanup for all created test data"""
+    cleanup_test_data()

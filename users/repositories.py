@@ -1,8 +1,13 @@
+from typing import List, Optional
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
+
+from common.params import PaginationParams
 
 from .models import UserProfile
 
@@ -13,8 +18,44 @@ class UserRepository:
         """Create a new user profile."""
         return UserProfile.objects.create(user=user)
 
-    def get_all_users(self):
-        return User.objects.all()
+    @staticmethod
+    def get_all_users(
+        search: Optional[str] = None, 
+        pagination: Optional[PaginationParams] = None
+    ) -> List[User]:
+        """
+        Get all users with optional search and pagination
+        """
+        pagination = pagination or PaginationParams()
+        queryset = User.objects.all()
+
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search) | 
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
+            )
+
+        return list(queryset[pagination.offset:pagination.offset + pagination.limit])
+    
+    @staticmethod
+    def get_users_count(search: Optional[str] = None) -> int:
+        """
+        Returns total count of User records.
+        Optional filtering by search term.
+        """
+        queryset = User.objects.all()
+
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search) | 
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
+            )
+
+        return queryset.count()
     
     def get_user_by_username(self, username):
         try:
@@ -41,7 +82,6 @@ class UserRepository:
     
     def update_user(self, user, update_data):
         """Update user fields"""
-        # If password is being updated, validate it
         if 'password' in update_data:
             try:
                 validate_password(update_data['password'])
@@ -49,7 +89,6 @@ class UserRepository:
             except ValidationError as e:
                 raise e
         
-        # Update other fields
         for key, value in update_data.items():
             setattr(user, key, value)
         
@@ -82,11 +121,10 @@ class UserRepository:
         }
         
         if username:
-            # Use case-insensitive comparison with __iexact
+
             result['username_exists'] = User.objects.filter(username__iexact=username).exists()
         
         if email:
-            # Use case-insensitive comparison with __iexact
             result['email_exists'] = User.objects.filter(email__iexact=email).exists()
         
         return result

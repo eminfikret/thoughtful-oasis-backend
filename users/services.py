@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -6,6 +7,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from jwt import decode as jwt_decode
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+
+from common.params import PaginationParams
 
 from .models import UserProfile
 from .repositories import UserRepository
@@ -24,12 +27,22 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
         if hasattr(instance, 'profile'):
             instance.profile.save()
 
+
 class UserService:
     def __init__(self):
         self.user_repository = UserRepository()
-    
-    def get_all_users(self):
-        return self.user_repository.get_all_users()
+
+    def get_all_users(
+        self, 
+        search: Optional[str] = None, 
+        pagination: Optional[PaginationParams] = None
+    ) -> List[User]:
+        """Get all users with optional search and pagination"""
+        return UserRepository.get_all_users(search=search, pagination=pagination)
+
+    def get_users_count(self, search: Optional[str] = None) -> int:
+        """Get count of users matching the search criteria"""
+        return UserRepository.get_users_count(search=search)
 
     def get_user_by_id(self, user_id):
         return self.user_repository.get_user_by_id(user_id)
@@ -39,16 +52,16 @@ class UserService:
             password = user_data.pop('password')
             user = self.user_repository.create_user({
                 'username': user_data['username'],
-                'email': user_data['email'], 
+                'email': user_data['email'],
                 'password': password,
                 'first_name': user_data.get('first_name', ''),
                 'last_name': user_data.get('last_name', '')
             })
             return user
         except KeyError as e:
-        
+
             raise ValueError(f"Missing required field: {str(e)}")
-    
+
     def login_user(self, username, password):
         user = self.user_repository.authenticate_user(username, password)
         if not user:
@@ -82,12 +95,11 @@ class UserService:
 
             return {
                 'access_token': new_access_token,
-                'refresh_token': str(refresh_token), 
+                'refresh_token': str(refresh_token),
             }
         except TokenError as e:
             print("[ERROR] Invalid refresh token:", str(e))
             return None
-
 
     def update_user(self, user_id, user_data):
         user = self.user_repository.get_user_by_id(user_id)
@@ -106,7 +118,7 @@ class UserService:
 
     def update_reputation(self, user_id, amount):
         return self.user_repository.update_user_reputation(user_id, amount)
-    
+
     def check_username_email_exists(self, username=None, email=None):
         """Check if a username or email already exists."""
         return self.user_repository.check_username_email_exists(username, email)

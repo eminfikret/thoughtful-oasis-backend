@@ -109,3 +109,25 @@ class ChannelServiceTest(TestCase):
     def test_delete_channel_unauthorized(self):
         with self.assertRaises(ChannelPermissionDeniedException):
             ChannelService.delete_channel(self.channel.id, requester=self.other_user)
+
+    def test_update_channel_no_changes(self):
+        """Test updating a channel with no actual changes returns the unchanged channel"""
+  
+        dto = UpdateChannelDto(
+            name=self.channel.name,
+            description=self.channel.description
+        )
+
+        updated = ChannelService.update_channel(self.channel.id, dto, requester=self.owner)
+
+        self.assertEqual(updated.id, self.channel.id)
+        self.assertEqual(updated.name, self.channel.name)
+        self.assertEqual(updated.description, self.channel.description)
+        self.assertEqual(updated.slug, self.channel.slug)
+
+    def test_delete_channel_not_found(self):
+        """Test deleting a non-existent channel raises ChannelNotFoundException"""
+        non_existent_id = 9999
+
+        with self.assertRaises(ChannelNotFoundException):
+            ChannelService.delete_channel(non_existent_id, requester=self.owner)

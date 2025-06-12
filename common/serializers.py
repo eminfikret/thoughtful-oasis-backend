@@ -10,7 +10,7 @@ class PaginationQueryParams(serializers.Serializer):
         required=False,
         min_value=Pagination.MIN_LIMIT,
         max_value=Pagination.MAX_LIMIT,
-        default=Pagination.DEFAULT_LIMIT)
+        default=10) 
     offset = serializers.IntegerField(
         required=False,
         min_value=Pagination.MIN_OFFSET,

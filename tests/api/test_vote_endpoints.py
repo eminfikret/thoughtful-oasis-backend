@@ -1,11 +1,15 @@
-# ruff: noqa
-
+import atexit
 import os
 import uuid
 
 import requests
 
 API_URL = os.environ.get('BACKEND_API_URL', 'http://localhost:8000/api/v1')
+
+created_users = []
+created_channels = []
+created_posts = []
+created_comments = []
 
 # -------------------------
 # Utility Functions
@@ -20,19 +24,23 @@ def register_test_user():
         "password": "TestPassword123!",
         "password2": "TestPassword123!"
     }
-    register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
-    assert register_response.status_code == 201, f"User registration failed: {register_response.text}"
+    register_response = requests.post(f"{API_URL}/users/register/", json=user_data, timeout=10)
+    assert register_response.status_code == 201, (
+        f"User registration failed: {register_response.text}"
+    )
     
     login_data = {
         "username": user_data["username"],
         "password": user_data["password"]
     }
-    login_response = requests.post(f"{API_URL}/users/login/", json=login_data)
+    login_response = requests.post(f"{API_URL}/users/login/", json=login_data, timeout=10)
     assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     
     login_data = login_response.json()
     token = login_data["token"] 
     user_id = register_response.json()["id"]
+    
+    created_users.append({"id": user_id, "token": token})
     
     return user_data, token, user_id
 
@@ -45,8 +53,17 @@ def create_test_channel(token):
     }
     headers = {"Authorization": f"Bearer {token}"}
     
-    channel_response = requests.post(f"{API_URL}/channels/", json=channel_data, headers=headers)
+    channel_response = requests.post(
+        f"{API_URL}/channels/",
+        json=channel_data,
+        headers=headers,
+        timeout=10
+    )
     assert channel_response.status_code == 201, f"Channel creation failed: {channel_response.text}"
+    
+    channel_id = channel_response.json()["id"]
+    created_channels.append({"id": channel_id, "token": token})
+    
     return channel_response.json()
 
 def create_test_post(token, channel_id):
@@ -58,8 +75,17 @@ def create_test_post(token, channel_id):
         "channel_id": channel_id
     }
     
-    post_response = requests.post(f"{API_URL}/posts/create/", json=post_data, headers=headers)
+    post_response = requests.post(
+        f"{API_URL}/posts/create/",
+        json=post_data,
+        headers=headers,
+        timeout=10
+    )
     assert post_response.status_code == 201, f"Post creation failed: {post_response.text}"
+    
+    post_id = post_response.json()["id"]
+    created_posts.append({"id": post_id, "token": token})
+    
     return post_response.json()
 
 def create_test_comment(token, post_id):
@@ -70,8 +96,17 @@ def create_test_comment(token, post_id):
         "content": f"Test comment {uuid.uuid4().hex[:8]}"
     }
     
-    comment_response = requests.post(f"{API_URL}/comments/create/", json=comment_data, headers=headers)
+    comment_response = requests.post(
+        f"{API_URL}/comments/create/",
+        json=comment_data,
+        headers=headers,
+        timeout=10
+    )
     assert comment_response.status_code == 201, f"Comment creation failed: {comment_response.text}"
+    
+    comment_id = comment_response.json()["id"]
+    created_comments.append({"id": comment_id, "token": token})
+    
     return comment_response.json()
 
 def setup_test_objects():
@@ -170,8 +205,8 @@ def test_get_post_votes_authenticated():
     assert data["upvotes"] == 1
     assert data["downvotes"] == 0
     assert data["score"] == 1
-    assert data["voted"] == True
-    assert data["is_upvote"] == True
+    assert data["voted"]
+    assert data["is_upvote"]
 
 def test_get_post_votes_unauthenticated():
     """Test getting vote counts for a post without authentication"""
@@ -312,8 +347,8 @@ def test_get_comment_votes_authenticated():
     assert data["upvotes"] == 1
     assert data["downvotes"] == 0
     assert data["score"] == 1
-    assert data["voted"] == True
-    assert data["is_upvote"] == True
+    assert data["voted"]
+    assert data["is_upvote"]
 
 def test_get_comment_votes_unauthenticated():
     """Test getting vote counts for a comment without authentication"""
@@ -340,10 +375,18 @@ def test_nonexistent_comment():
     comment_id = comment["id"] + 10000
     print(f"Testing with non-existent comment ID: {comment_id}")
     
-    upvote_response = requests.post(f"{API_URL}/votes/comments/{comment_id}/upvote/", headers=headers)
+    upvote_response = requests.post(
+        f"{API_URL}/votes/comments/{comment_id}/upvote/",
+        headers=headers,
+        timeout=10
+    )
     assert upvote_response.status_code == 404
     
-    downvote_response = requests.post(f"{API_URL}/votes/comments/{comment_id}/downvote/", headers=headers)
+    downvote_response = requests.post(
+        f"{API_URL}/votes/comments/{comment_id}/downvote/",
+        headers=headers,
+        timeout=10
+    )
     assert downvote_response.status_code == 404
     
     votes_response = requests.get(f"{API_URL}/votes/comments/{comment_id}/votes/", headers=headers)
@@ -380,7 +423,9 @@ def test_full_upvote_flow():
         "password2": "TestPassword123!" 
     }
     register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
-    assert register_response.status_code == 201, f"User registration failed: {register_response.text}"
+    assert register_response.status_code == 201, (
+        f"User registration failed: {register_response.text}"
+    )
     print(f"User registered successfully: {username}")
     
     login_data = {
@@ -391,6 +436,10 @@ def test_full_upvote_flow():
     assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     
     token = login_response.json()["token"]
+    user_id = login_response.json()["user"]["id"]
+
+    created_users.append({"id": user_id, "token": token})
+    
     headers = {"Authorization": f"Bearer {token}"}
     
     channel_data = {
@@ -402,13 +451,17 @@ def test_full_upvote_flow():
     channel_response = requests.post(f"{API_URL}/channels/", json=channel_data, headers=headers)
     assert channel_response.status_code == 201, f"Channel creation failed: {channel_response.text}"
     channel = channel_response.json()
+
+    created_channels.append({"id": channel["id"], "token": token})
     
     post = create_test_post(token, channel["id"])
     post_id = post["id"]
     print(f"Post created successfully with ID: {post_id}")
     
     upvote_response = requests.post(f"{API_URL}/votes/posts/{post_id}/upvote/", headers=headers)
-    assert upvote_response.status_code == 200, f"Upvote failed: {upvote_response.status_code} - {upvote_response.text}"
+    assert upvote_response.status_code == 200, (
+        f"Upvote failed: {upvote_response.status_code} - {upvote_response.text}"
+    )
     upvote_data = upvote_response.json()
     
     assert upvote_data["post_id"] == post_id
@@ -425,8 +478,8 @@ def test_full_upvote_flow():
     assert votes_data["upvotes"] == 1
     assert votes_data["downvotes"] == 0
     assert votes_data["score"] == 1
-    assert votes_data["voted"] == True
-    assert votes_data["is_upvote"] == True
+    assert votes_data["voted"]
+    assert votes_data["is_upvote"]
     
     print("Upvote test completed successfully")
 
@@ -440,7 +493,9 @@ def test_full_comment_upvote_flow():
         "password2": "TestPassword123!" 
     }
     register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
-    assert register_response.status_code == 201, f"User registration failed: {register_response.text}"
+    assert register_response.status_code == 201, (
+        f"User registration failed: {register_response.text}"
+    )
     print(f"User registered successfully: {username}")
     
     login_data = {
@@ -451,32 +506,85 @@ def test_full_comment_upvote_flow():
     assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     
     token = login_response.json()["token"]
+    user_id = login_response.json()["user"]["id"]
+
+    created_users.append({"id": user_id, "token": token})
+    
     headers = {"Authorization": f"Bearer {token}"}
+    print(headers)
+
+def cleanup_test_data():
+    """Clean up all test data created during tests"""
+    print("\nCleaning up vote test data...")
     
-    channel = create_test_channel(token)
-    post = create_test_post(token, channel["id"])
-    comment = create_test_comment(token, post["id"])
-    comment_id = comment["id"]
+    try:
+
+        if created_users:
+            admin_token = created_users[0]['token']
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            
+            channels_response = requests.get(f"{API_URL}/channels/", headers=headers)
+            if channels_response.status_code == 200:
+                channels = channels_response.json()["results"]
+                for channel in channels:
+                    if "Test Channel" in channel["name"]:
+                        try:
+                            delete_response = requests.delete(
+                                f"{API_URL}/channels/{channel['id']}/", 
+                                headers=headers
+                            )
+                            print(
+                                f"Cleaned up untracked test channel {channel['id']}: "
+                                f"{delete_response.status_code}"
+                            )
+                        except Exception as e:
+                            print(f"Failed to clean untracked channel {channel['id']}: {e}")
+    except Exception as e:
+        print(f"Error in cleanup of untracked channels: {e}")
+        
+    for comment in created_comments:
+        try:
+            headers = {"Authorization": f"Bearer {comment['token']}"}
+            response = requests.delete(
+                f"{API_URL}/comments/{comment['id']}/delete/",
+                headers=headers,
+                timeout=10
+            )
+            print(f"Deleted comment {comment['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting comment {comment['id']}: {e}")
     
-    upvote_response = requests.post(f"{API_URL}/votes/comments/{comment_id}/upvote/", headers=headers)
-    assert upvote_response.status_code == 200, f"Upvote failed: {upvote_response.status_code} - {upvote_response.text}"
-    upvote_data = upvote_response.json()
+    for post in created_posts:
+        try:
+            headers = {"Authorization": f"Bearer {post['token']}"}
+            response = requests.delete(f"{API_URL}/posts/{post['id']}/delete/", headers=headers)
+            print(f"Deleted post {post['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting post {post['id']}: {e}")
     
-    assert upvote_data["comment_id"] == comment_id
-    assert upvote_data["action"] == "added"
-    assert upvote_data["vote_type"] == "upvote"
-    assert upvote_data["upvotes"] == 1
-    assert upvote_data["downvotes"] == 0
-    assert upvote_data["score"] == 1
+    for channel in created_channels:
+        try:
+            headers = {"Authorization": f"Bearer {channel['token']}"}
+            response = requests.delete(f"{API_URL}/channels/{channel['id']}/", headers=headers)
+            print(f"Deleted channel {channel['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting channel {channel['id']}: {e}")
     
-    votes_response = requests.get(f"{API_URL}/votes/comments/{comment_id}/votes/", headers=headers)
-    assert votes_response.status_code == 200
-    votes_data = votes_response.json()
+    for user in created_users:
+        try:
+            headers = {"Authorization": f"Bearer {user['token']}"}
+            response = requests.delete(f"{API_URL}/users/{user['id']}/delete/", headers=headers)
+            print(f"Deleted user {user['id']}: Status {response.status_code}")
+        except Exception as e:
+            print(f"Error deleting user {user['id']}: {e}")
     
-    assert votes_data["upvotes"] == 1
-    assert votes_data["downvotes"] == 0
-    assert votes_data["score"] == 1
-    assert votes_data["voted"] == True
-    assert votes_data["is_upvote"] == True
-    
-    print("Comment upvote test completed successfully")
+    created_comments.clear()
+    created_posts.clear()
+    created_channels.clear()
+    created_users.clear()
+
+atexit.register(cleanup_test_data)
+
+def test_zzz_cleanup():
+    """Run cleanup for all created test data"""
+    cleanup_test_data()

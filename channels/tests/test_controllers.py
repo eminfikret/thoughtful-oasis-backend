@@ -161,6 +161,16 @@ class ChannelControllerTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
 
+    def test_update_channel_not_found(self):
+        """Test PATCH request for a non-existent channel returns 404"""
+        self.authenticate(self.owner)
+
+        url = reverse('channel-detail', args=[999])
+        data = {'name': 'Updated Name'}
+        response = self.client.patch(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_delete_channel_as_owner(self):
         self.authenticate(self.owner)
 

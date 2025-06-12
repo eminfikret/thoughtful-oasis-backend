@@ -31,9 +31,10 @@ class UserRepositoryTest(TestCase):
         self.assertEqual(profile.reputation, 0)
     
     def test_get_all_users(self):
+        """Test getting all users"""
         users = self.repo.get_all_users()
-        self.assertEqual(users.count(), 1)
-        self.assertEqual(users.first(), self.test_user)
+        self.assertEqual(len(users), 1) 
+        self.assertIn(self.test_user, users) 
     
     def test_get_user_by_username_existing(self):
         user = self.repo.get_user_by_username('testuser')
@@ -109,6 +110,5 @@ class UserRepositoryTest(TestCase):
         updated_profile = self.repo.update_user_reputation(self.test_user.id, 5)
         self.assertEqual(updated_profile.reputation, 5)
         
-        # Test another update
         updated_profile = self.repo.update_user_reputation(self.test_user.id, 10)
         self.assertEqual(updated_profile.reputation, 15)
