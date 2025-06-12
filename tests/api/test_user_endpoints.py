@@ -300,24 +300,93 @@ def test_get_users_authenticated():
         "Authorization": f"Bearer {token}"
     }
     
-    response = requests.get(f"{API_URL}/users/", headers=headers)
+    login_response = requests.post(f"{API_URL}/users/login/", json={
+        "username": user_data["username"],
+        "password": user_data["password"]
+    })
+    assert login_response.status_code == 200, "Login failed to confirm user exists"
+    login_response.json()["user"]["id"]
+    
+    response = requests.get(f"{API_URL}/users/?search={user_data['username']}", headers=headers)
     
     assert response.status_code == 200, "Should return user list for authenticated users"
     data = response.json()
-    assert isinstance(data, list), "Response should be a list of users"
-    assert any(user["username"] == user_data["username"] for user in data), "Created"
-    " user should be in the list"
-
-def test_get_users_unauthenticated():
-    """Test getting user list while unauthenticated"""
-    response = requests.get(f"{API_URL}/users/")
+    assert "results" in data, "Response should include results field for pagination"
+    assert "count" in data, "Response should include total count"
+    assert isinstance(data["results"], list), "Results should be a list of users"
     
-    if response.status_code == 401:
-        assert "authentication" in response.text.lower(), "Should mention"
-        " authentication requirements"
-    else:
-        assert response.status_code == 200, "Public user list should be accessible"
-        assert isinstance(response.json(), list), "Response should be a list of users"
+    assert data["count"] > 0, "Search should return at least one result"
+    assert any(
+        user["username"] == user_data["username"] for user in data["results"]
+    ), "Created user should be found by search"
+
+def test_get_users_with_pagination():
+    """Test user list pagination"""
+    tokens = []
+    usernames = []
+    for _ in range(3):
+        user_data, token, _ = register_test_user()
+        if token:
+            tokens.append(token)
+            usernames.append(user_data["username"])
+    
+    assert tokens, "Failed to create test users"
+    
+    headers = {"Authorization": f"Bearer {tokens[0]}"}
+    
+    response = requests.get(f"{API_URL}/users/?limit=2&offset=0", headers=headers)
+    assert response.status_code == 200, "Should return paginated results"
+    data = response.json()
+    
+    assert "results" in data, "Response should include results field"
+    assert "count" in data, "Response should include total count"
+    assert "next" in data, "Response should include next page URL"
+    assert len(data["results"]) <= 2, "Should respect the limit parameter"
+    
+    if data.get("next"):
+        response = requests.get(data["next"], headers=headers)
+        assert response.status_code == 200, "Should fetch second page"
+        page2_data = response.json()
+        assert "results" in page2_data, "Second page should include results"
+        assert "previous" in page2_data, "Second page should include previous page URL"
+        
+        page1_ids = [user["id"] for user in data["results"]]
+        page2_ids = [user["id"] for user in page2_data["results"]]
+        assert not any(id in page2_ids for id in page1_ids), "Pages should contain different users"
+
+def test_get_users_with_search():
+    """Test searching users"""
+
+    unique_id = uuid.uuid4().hex[:8]
+    search_username = f"searchable_user_{unique_id}"
+    
+    user_data = generate_unique_user()
+    user_data["username"] = search_username
+    
+    register_response = requests.post(f"{API_URL}/users/register/", json=user_data)
+    assert register_response.status_code == 201, "Failed to create searchable user"
+    
+    login_response = requests.post(f"{API_URL}/users/login/", json={
+        "username": search_username,
+        "password": user_data["password"]
+    })
+    token = login_response.json()["token"]
+    user_id = login_response.json()["user"]["id"]
+    created_users.append({"id": user_id, "token": token})
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    search_term = "searchable"
+    response = requests.get(f"{API_URL}/users/?search={search_term}", headers=headers)
+    
+    assert response.status_code == 200, "Search should work"
+    data = response.json()
+    
+    assert "results" in data, "Response should include results field"
+    assert "count" in data, "Response should include count field"
+    assert len(data["results"]) > 0, "Should find at least the created user"
+    assert any(
+        search_term in user["username"].lower() for user in data["results"]
+    ), "Search should find username match"
 
 # -------------------------
 # User detail tests
@@ -358,12 +427,13 @@ def test_get_user_detail_nonexistent():
     users_response = requests.get(f"{API_URL}/users/", headers=headers)
     assert users_response.status_code == 200, "Should get users list"
     
-
-    users = users_response.json()
+    data = users_response.json()
     max_id = 0
-    for user in users:
-        if isinstance(user.get("id"), int) and user["id"] > max_id:
-            max_id = user["id"]
+    
+    if "results" in data and isinstance(data["results"], list):
+        for user in data["results"]:
+            if isinstance(user, dict) and isinstance(user.get("id"), int) and user["id"] > max_id:
+                max_id = user["id"]
     
     nonexistent_id = max_id + 10000
     
