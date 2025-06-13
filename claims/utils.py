@@ -417,7 +417,7 @@ def generate_claim_linked_xml(post_content: str, claims: list) -> str:
         claims: List of claim objects with id, extracted_claim, and verdict
         
     Returns:
-        XML string with claim links embedded in the post content
+        XML string with claim links embedded in the post content or None if LLM fails
     """
     if not claims:
         return f"<text>{post_content}</text>"
@@ -456,6 +456,10 @@ def generate_claim_linked_xml(post_content: str, claims: list) -> str:
     """
     
     llm_response = call_llm(prompt).strip()
+    
+    if llm_response == "FALLBACK_RESPONSE":
+        logger.warning("LLM failed while generating claim-linked XML, returning None")
+        return None
     
     segments = []
     claim_id_to_text = {}
