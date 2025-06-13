@@ -19,6 +19,7 @@ from common.responses import PaginatedResponse
 from common.swagger_schemas import (
     not_found_response,
     permission_denied_response,
+    post_detail_response,
     post_example_response,
     posts_paginated_response,
     unauthorized_response,
@@ -343,7 +344,7 @@ def list_posts(request):
     responses={
         200: openapi.Response(
             description="Post details retrieved successfully",
-            schema=post_example_response()
+            schema=post_detail_response() 
         ),
         401: unauthorized_response(),
         404: not_found_response("Post not found"),
@@ -365,7 +366,6 @@ def get_post_details(request, post_id):
         claims = claim_service.get_claims_for_content('post', post.id)
         response_data['claims'] = claims
         
-        # Add XML representation of claims
         if claims:
             if post.claims_xml:
                 response_data['claims_xml'] = post.claims_xml
@@ -373,13 +373,11 @@ def get_post_details(request, post_id):
                 from claims.utils import generate_claim_linked_xml
                 xml_content = generate_claim_linked_xml(post.content, claims)
                 
-                # Save XML to the post for future use
                 post.claims_xml = xml_content
                 post.save(update_fields=['claims_xml'])
                 
                 response_data['claims_xml'] = xml_content
         else:
-            # If no claims, just wrap the entire content in text tags
             response_data['claims_xml'] = f"<text>{post.content}</text>"
         
         return Response(response_data)
@@ -513,7 +511,6 @@ class HomePagePostsView(views.APIView):
     def get(self, request):
         offset = int(request.query_params.get('offset', 0))
         limit = int(request.query_params.get('limit', 10))
-        
         try:
             days = int(request.query_params.get('days', 5))
             if days <= 0:
@@ -526,10 +523,8 @@ class HomePagePostsView(views.APIView):
                 {"error": "Days parameter must be an integer"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
         try:
             posts, total = PostService.get_top_posts(offset, limit, days)
-            
             next_url = None
             previous_url = None
             
@@ -537,7 +532,7 @@ class HomePagePostsView(views.APIView):
                 next_url = request.build_absolute_uri(
                     f'?offset={offset+limit}&limit={limit}&days={days}'
                 )
-                
+            
             if offset > 0:
                 prev_offset = max(0, offset - limit)
                 previous_url = request.build_absolute_uri(
@@ -552,14 +547,13 @@ class HomePagePostsView(views.APIView):
                 claims = claim_service.get_claims_for_content('post', post.id)
                 post_data['claims'] = claims
                 results.append(post_data)
-            
+                
             return Response({
                 'count': total,
                 'next': next_url,
                 'previous': previous_url,
                 'results': results
             }, status=status.HTTP_200_OK)
-            
         except Exception as e:
             return Response(
                 {"error": str(e)}, 

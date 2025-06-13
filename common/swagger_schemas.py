@@ -369,12 +369,12 @@ def post_example_response():
         type=openapi.TYPE_OBJECT,
         properties={
             'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
-            'title': openapi.Schema(type=openapi.TYPE_STRING, example="The Amazon" \
-            " rainforest produces 20% of the world's oxygen."),
+            'title': openapi.Schema(type=openapi.TYPE_STRING, example="The Amazon rainforest " \
+            "produces 20% of the world's oxygen."),
             'content': openapi.Schema(
                 type=openapi.TYPE_STRING, 
-                example="It is a vital part of our ecosystem and plays a " \
-                "crucial role in regulating the Earth's climate."
+                example="It is a vital part of our ecosystem and plays a crucial role"
+                " in regulating the Earth's climate."
             ),
             'channel': post_channel_schema(),
             'author': post_author_schema(),
@@ -393,16 +393,24 @@ def post_example_response():
             'claims': openapi.Schema(
                 type=openapi.TYPE_ARRAY,
                 items=claim_with_fact_check_example()
-            ),
-            'claims_xml': openapi.Schema(
-                type=openapi.TYPE_STRING,
-                example='<text>A comprehensive meta-analysis published in the <link id="4">' \
-                'Journal of Medicine</link> suggests that the benefits of vitamin D ' \
-                'supplementation for healthy adults may have been overstated in' \
-                ' previous research.</text>'
             )
         }
     )
+
+def post_detail_response():
+    """Example post detail response including claims XML"""
+    schema = post_example_response()
+    properties = schema.properties
+    
+    properties['claims_xml'] = openapi.Schema(
+        type=openapi.TYPE_STRING,
+        example='<text>A comprehensive meta-analysis published in the '
+        '<link id="4">Journal of Medicine</link> suggests that the benefits' \
+        ' of vitamin D supplementation for healthy adults may have been overstated'
+        ' in previous research.</text>'
+    )
+    
+    return schema
 
 def posts_paginated_response():
     """Example paginated posts response"""
