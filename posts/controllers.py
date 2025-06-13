@@ -337,7 +337,8 @@ def list_posts(request):
 @swagger_auto_schema(
     method="get",
     operation_summary="Get post details",
-    operation_description="Returns the details of a specific post by ID.",
+    operation_description="Returns the details of a specific post by ID, including XML" \
+    " representation with claim links.",
     tags=["Posts"],
     responses={
         200: openapi.Response(
@@ -364,9 +365,26 @@ def get_post_details(request, post_id):
         claims = claim_service.get_claims_for_content('post', post.id)
         response_data['claims'] = claims
         
+        # Add XML representation of claims
+        if claims:
+            if post.claims_xml:
+                response_data['claims_xml'] = post.claims_xml
+            else:
+                from claims.utils import generate_claim_linked_xml
+                xml_content = generate_claim_linked_xml(post.content, claims)
+                
+                # Save XML to the post for future use
+                post.claims_xml = xml_content
+                post.save(update_fields=['claims_xml'])
+                
+                response_data['claims_xml'] = xml_content
+        else:
+            # If no claims, just wrap the entire content in text tags
+            response_data['claims_xml'] = f"<text>{post.content}</text>"
+        
         return Response(response_data)
-    except Exception:
-        return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": f"Not found: {str(e)}"}, status=status.HTTP_404_NOT_FOUND)
 
 class UserPostsView(views.APIView):
     permission_classes = [IsAuthenticated]

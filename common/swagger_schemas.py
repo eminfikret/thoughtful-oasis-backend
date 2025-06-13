@@ -364,7 +364,7 @@ def post_votes_schema():
     )
 
 def post_example_response():
-    """Example post response schema"""
+    """Example post response"""
     return openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
@@ -393,6 +393,13 @@ def post_example_response():
             'claims': openapi.Schema(
                 type=openapi.TYPE_ARRAY,
                 items=claim_with_fact_check_example()
+            ),
+            'claims_xml': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                example='<text>A comprehensive meta-analysis published in the <link id="4">' \
+                'Journal of Medicine</link> suggests that the benefits of vitamin D ' \
+                'supplementation for healthy adults may have been overstated in' \
+                ' previous research.</text>'
             )
         }
     )
