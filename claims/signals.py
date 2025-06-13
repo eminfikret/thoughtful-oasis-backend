@@ -17,6 +17,10 @@ def process_post_fact_checking(sender, instance, created, **kwargs):
 
     if not created:
         with transaction.atomic():
+            if instance.claims_xml is not None:
+                instance.claims_xml = None
+                instance.save(update_fields=['claims_xml'])
+                
             claims = Claim.objects.filter(post_id=instance.id)
             claims.delete()
 
