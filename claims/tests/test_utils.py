@@ -16,8 +16,8 @@ from ..utils import (
     extract_claims_from_text,
     extract_claims_sync,
     extract_claims_with_context,
+    generate_claim_linked_xml,
     get_verdict_and_summary,
-    generate_claim_linked_xml
 )
 
 LLM_URL_SET = bool(os.environ.get("LLM_URL", ""))
@@ -418,7 +418,8 @@ class ClaimLinkedXmlTest(TestCase):
     """Tests for the XML claim linking functionality"""
     
     def setUp(self):
-        self.sample_post_content = "The Amazon rainforest produces oxygen. Climate change is concerning."
+        self.sample_post_content = "The Amazon rainforest produces oxygen. " \
+        "Climate change is concerning."
         self.sample_claims = [
             {
                 "claim": {

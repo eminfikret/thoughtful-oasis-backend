@@ -238,6 +238,50 @@ class PostControllerTest(MockLLMTestMixin, APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    @patch('claims.services.ClaimService')
+    def test_get_post_details_returns_wrapped_text_with_no_claims(self, mock_claim_service_class):
+        """Test that posts with no claims just return wrapped text"""
+        self.authenticate(self.user)
+        
+        self.post.claims_xml = None
+        self.post.save()
+        
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        url = reverse('get_post', kwargs={'post_id': self.post.id})
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('claims_xml', response.data)
+        expected_xml = f"<text>{self.post.content}</text>"
+        self.assertEqual(expected_xml, response.data['claims_xml'])
+
+
+    @patch('claims.services.ClaimService')
+    def test_update_post_clears_xml(self, mock_claim_service_class):
+        """Test that updating a post clears its XML so it will be regenerated"""
+        self.authenticate(self.user)
+        
+        pre_saved_xml = "<text>Pre-saved XML content</text>"
+        self.post.claims_xml = pre_saved_xml
+        self.post.save()
+        
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        update_url = reverse('update_post', kwargs={'post_id': self.post.id})
+        update_data = {'title': 'Updated Title', 'content': 'Updated content with new '
+        'factual claims.'}
+        response = self.client.put(update_url, update_data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        refreshed_post = Post.objects.get(pk=self.post.id)
+        self.assertIsNone(refreshed_post.claims_xml)
+
 
 class ListPostsControllerTest(MockLLMTestMixin, APITestCase):
     def setUp(self):
@@ -463,10 +507,12 @@ class UserPostsViewTest(MockLLMTestMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], 2)
         self.assertEqual(len(response.data['results']), 2)
+        
         titles = [post['title'] for post in response.data['results']]
         self.assertIn('Post 1 by testuser', titles)
         self.assertIn('Post 2 by testuser', titles)
-    
+        self.assertNotIn('Post by otheruser', titles)
+
     @patch('claims.services.ClaimService')
     def test_get_user_posts_with_pagination(self, mock_claim_service_class):
         """Test pagination for user posts"""
@@ -484,7 +530,7 @@ class UserPostsViewTest(MockLLMTestMixin, APITestCase):
                     channel=self.channel,
                     author=self.user
                 )
-        
+
         url = reverse('user_posts') + f'?user_id={self.user.id}&limit=5&offset=0'
         response = self.client.get(url)
         
