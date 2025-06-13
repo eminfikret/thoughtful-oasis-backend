@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -16,6 +17,7 @@ from ..utils import (
     extract_claims_sync,
     extract_claims_with_context,
     get_verdict_and_summary,
+    generate_claim_linked_xml
 )
 
 LLM_URL_SET = bool(os.environ.get("LLM_URL", ""))
@@ -410,3 +412,39 @@ class GetVerdictAndSummaryTest(TestCase):
         self.assertIn("No relevant Wikipedia data", result["evidence"]) 
 
         self.assertTrue(isinstance(result["sources"], list))
+
+
+class ClaimLinkedXmlTest(TestCase):
+    """Tests for the XML claim linking functionality"""
+    
+    def setUp(self):
+        self.sample_post_content = "The Amazon rainforest produces oxygen. Climate change is concerning."
+        self.sample_claims = [
+            {
+                "claim": {
+                    "id": 1,
+                    "extracted_claim": "The Amazon produces oxygen",
+                }
+            },
+            {
+                "claim": {
+                    "id": 2,
+                    "extracted_claim": "Climate change is concerning",
+                }
+            }
+        ]
+
+    def test_empty_claims_returns_wrapped_content(self):
+        """Test that empty claims list returns the content wrapped in text tag"""
+        result = generate_claim_linked_xml(self.sample_post_content, [])
+        self.assertEqual(f"<text>{self.sample_post_content}</text>", result)
+    
+    @patch('claims.utils.call_llm')
+    def test_xml_generation_preserves_original_text(self, mock_call_llm):
+        """Test that XML generation preserves the original text exactly"""
+        mock_call_llm.return_value = "1:The Amazon rainforest produces oxygen."
+        
+        result = generate_claim_linked_xml(self.sample_post_content, [self.sample_claims[0]])
+        
+        text_without_tags = re.sub(r'<[^>]+>', '', result)
+        self.assertEqual(self.sample_post_content, text_without_tags)
