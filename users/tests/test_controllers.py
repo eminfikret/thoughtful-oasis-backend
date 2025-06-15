@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
@@ -28,7 +30,6 @@ class UserControllersTest(APITestCase):
         self.client = APIClient()
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         
-        # second user for testing
         self.other_user = User.objects.create_user(
             username='otheruser',
             email='other@example.com',
@@ -38,12 +39,74 @@ class UserControllersTest(APITestCase):
         )
     
     def test_user_list_controller_get(self):
-        """Test getting all users"""
+        """Test getting all users with pagination"""
         url = reverse('user-list')
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        
+        for i in range(3):
+            User.objects.create_user(
+                username=f'testuser{i}',
+                email=f'test{i}@example.com',
+                password='password123'
+            )
+        
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)  #  testuser and otheruser
+        
+        self.assertIn('results', response.data)
+        self.assertIn('count', response.data)
+        self.assertEqual(response.data['count'], User.objects.count())
+        self.assertLessEqual(len(response.data['results']), 10)  
+
+        response = self.client.get(f'{url}?limit=2&offset=1')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertLessEqual(len(response.data['results']), 2)
+
+    def test_user_list_controller_with_search(self):
+        """Test user list with search functionality"""
+        User.objects.filter(username__contains='searchable').delete()
+        User.objects.filter(username__contains='another').delete()
+        User.objects.filter(first_name__contains='Search').delete()
+        
+        unique_prefix = f"VERY_UNIQUE_PREFIX_{uuid.uuid4().hex}"
+        searchable_username = f"{unique_prefix}_searchable_user"
+        
+        unique_first_name = f"UniqueFirstName{uuid.uuid4().hex[:8]}"
+        
+        User.objects.create_user(
+            username=searchable_username,
+            email='search_test@example.com',
+            password='password123'
+        )
+        User.objects.create_user(
+            username='another_user',
+            email='search_test2@example.com',
+            password='password123',
+            first_name=unique_first_name,
+            last_name='Test'
+        )
+        
+        url = reverse('user-list')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        
+        response = self.client.get(f'{url}?search={unique_prefix}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['username'], searchable_username)
+        
+        response = self.client.get(f'{url}?search=search_test')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 2)
+        
+        response = self.client.get(f'{url}?search={unique_first_name}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['username'], 'another_user')
+        
+        response = self.client.get(f'{url}?search=nonexistentkeyword')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 0)
+        self.assertEqual(len(response.data['results']), 0)
     
     def test_register_controller_post(self):
         """Test user registration"""
@@ -64,7 +127,7 @@ class UserControllersTest(APITestCase):
 
         user = User.objects.get(username='newuser')
         self.assertIsNotNone(user)
-        self.assertIsNotNone(user.profile)  # profile should be created too
+        self.assertIsNotNone(user.profile) 
     
     def test_register_controller_post_password_mismatch(self):
         """Test user registration with mismatched passwords"""
@@ -80,6 +143,28 @@ class UserControllersTest(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('password', response.data)
+    
+    def test_register_controller_post_duplicate_email(self):
+        """Test user registration with duplicate email"""
+
+        User.objects.create_user(
+            username='existinguser',
+            email='duplicate@example.com',
+            password='password123'
+        )
+        
+        url = reverse('user-register')
+        data = {
+            'username': 'newuser',
+            'email': 'duplicate@example.com', 
+            'password': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+            'first_name': 'New',
+            'last_name': 'User'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
     
     def test_login_controller_post_valid(self):
         """Test valid login"""
@@ -183,3 +268,121 @@ class UserControllersTest(APITestCase):
         }
         response = self.client.patch(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    
+    def test_check_username_email_controller_get_username_exists(self):
+        """Test checking if an existing username exists"""
+        url = reverse('check-availability')
+        response = self.client.get(f"{url}?username={self.test_user.username}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['username_exists'])
+
+        if 'email_exists' in response.data:
+            self.assertFalse(response.data['email_exists'])
+
+    def test_check_username_email_controller_get_username_not_exists(self):
+        """Test checking if a non-existing username exists"""
+        url = reverse('check-availability')
+        response = self.client.get(f"{url}?username=nonexistentuser")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['username_exists'])
+
+        if 'email_exists' in response.data:
+            self.assertFalse(response.data['email_exists'])
+
+    def test_check_username_email_controller_get_email_exists(self):
+        """Test checking if an existing email exists"""
+        url = reverse('check-availability')
+        response = self.client.get(f"{url}?email={self.test_user.email}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['email_exists'])
+
+        if 'username_exists' in response.data:
+            self.assertFalse(response.data['username_exists'])
+
+    def test_check_username_email_controller_get_email_not_exists(self):
+        """Test checking if a non-existing email exists"""
+        url = reverse('check-availability')
+        response = self.client.get(f"{url}?email=nonexistent@example.com")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['email_exists'])
+
+        if 'username_exists' in response.data:
+            self.assertFalse(response.data['username_exists'])
+
+    def test_check_username_email_controller_get_both(self):
+        """Test checking both username and email"""
+        url = reverse('check-availability')
+        response = self.client.get(
+            f"{url}?username={self.test_user.username}&email=nonexistent@example.com"
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['username_exists'])
+        self.assertFalse(response.data['email_exists'])
+
+    def test_check_username_email_controller_get_no_params(self):
+        """Test checking without any parameters"""
+        url = reverse('check-availability')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+
+    def test_check_username_email_controller_get_case_insensitive_username(self):
+        """Test that username checking is case-insensitive"""
+        url = reverse('check-availability')
+        upper_username = self.test_user.username.upper()
+        response = self.client.get(f"{url}?username={upper_username}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['username_exists'])
+
+    def test_check_username_email_controller_get_case_insensitive_email(self):
+        """Test that email checking is case-insensitive"""
+        url = reverse('check-availability')
+        upper_email = self.test_user.email.upper()
+        response = self.client.get(f"{url}?email={upper_email}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['email_exists'])
+
+    def test_user_delete_controller_delete_own_account(self):
+        """Test deleting your own account"""
+        url = reverse('user-delete', args=[self.test_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        self.assertFalse(User.objects.filter(id=self.test_user.id).exists())
+
+    def test_user_delete_controller_delete_other_user(self):
+        """Test attempting to delete another user's account (should fail)"""
+        url = reverse('user-delete', args=[self.other_user.id])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('error', response.data)
+        
+        self.assertTrue(User.objects.filter(id=self.other_user.id).exists())
+
+    def test_user_delete_controller_delete_nonexistent(self):
+        """Test attempting to delete a non-existent account"""
+        url = reverse('user-delete', args=[999])
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('error', response.data)
+
+    def test_user_delete_controller_delete_unauthorized(self):
+        """Test attempting to delete without authentication"""
+        url = reverse('user-delete', args=[self.test_user.id])
+
+        self.client.credentials()
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        self.assertTrue(User.objects.filter(id=self.test_user.id).exists())

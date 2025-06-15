@@ -23,6 +23,12 @@ class ChannelCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = ['name', 'description']
+        # Disable automatic uniqueness validation on the 'name' field.
+        # This allows us to handle duplicate name conflicts manually in the service layer
+        # and return a proper 409 Conflict instead of DRF's default 400 Bad Request.
+        extra_kwargs = {
+            'name': {'validators': []},
+        }
 
 class ChannelUpdateSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=False, max_length=255)
@@ -31,6 +37,12 @@ class ChannelUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = ['name', 'description']
+        # Disable automatic uniqueness validation on the 'name' field.
+        # This all ows us to handle duplicate name conflicts manually in the service layer
+        # and return a proper 409 Conflict instead of DRF's default 400 Bad Request.
+        extra_kwargs = {
+            'name': {'validators': []},
+        }
 
 class ChannelsQueryParamsSerializer(PaginationQueryParams):
     search = serializers.CharField(required=False, allow_blank=True)

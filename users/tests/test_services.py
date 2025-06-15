@@ -22,9 +22,10 @@ class UserServiceTest(TestCase):
         self.assertEqual(self.test_user.profile.user, self.test_user)
     
     def test_get_all_users(self):
+        """Test getting all users"""
         users = self.service.get_all_users()
-        self.assertEqual(users.count(), 1)
-        self.assertEqual(users.first(), self.test_user)
+        self.assertEqual(len(users), 1)
+        self.assertIn(self.test_user, users)  
     
     def test_get_user_by_id_existing(self):
         user = self.service.get_user_by_id(self.test_user.id)
@@ -105,3 +106,14 @@ class UserServiceTest(TestCase):
         
         updated_profile = self.service.update_reputation(self.test_user.id, 5)
         self.assertEqual(updated_profile.reputation, 15)
+    
+    def test_delete_user_existing(self):
+        """Test deleting an existing user"""
+        result = self.service.delete_user(self.test_user.id)
+        self.assertTrue(result)
+        self.assertFalse(User.objects.filter(id=self.test_user.id).exists())
+
+    def test_delete_user_non_existing(self):
+        """Test deleting a non-existing user"""
+        result = self.service.delete_user(999)
+        self.assertFalse(result)
