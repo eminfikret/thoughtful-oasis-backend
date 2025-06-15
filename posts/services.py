@@ -101,8 +101,8 @@ class PostService:
         if dto.content is not None:
             post.content = dto.content
 
-        post.save()
-        
+        post.claims_xml = None
+        post.save(update_fields=['title', 'content', 'claims_xml'])
         return post
 
     @staticmethod

@@ -407,3 +407,175 @@ def _create_content_prompt(content: str, context: dict = None) -> str:
         ])
         
         return "\n".join(prompt_parts)
+
+def generate_claim_linked_xml(post_content: str, claims: list) -> str:
+    """
+    Generate XML that links parts of the post content to specific claims.
+    
+    Args:
+        post_content: The full text of the post
+        claims: List of claim objects with id, extracted_claim, and verdict
+        
+    Returns:
+        XML string with claim links embedded in the post content or None if LLM fails
+    """
+    if not claims:
+        return f"<text>{post_content}</text>"
+    
+    claim_texts = [
+        f"{claim['claim']['id']}:{claim['claim']['extracted_claim']}"
+        for claim in claims
+    ]
+    claims_list = "\n".join([f"{i+1}. ID {claim_id}: {claim_text}" for i, (claim_id, claim_text) in 
+                           enumerate([c.split(":", 1) for c in claim_texts])])
+    
+    prompt = f"""
+    Original Text:
+    "{post_content}"
+    
+    Claims to link (with their IDs):
+    {claims_list}
+    
+    For each claim listed above, find the EXACT segment of text in the original content that 
+    most closely corresponds to that claim.
+    
+    IMPORTANT:
+    - Return ONLY exact text segments that appear in the original text
+    - DO NOT paraphrase or modify the text in any way
+    - If multiple claims refer to the same text, select the most contextually important
+      claim for that segment
+    - If a claim has no clear text segment match, respond with "NO_MATCH" for that claim
+    
+    Format your response as follows (one line per claim):
+    CLAIM_ID:EXACT_TEXT_SEGMENT
+    
+    Example:
+    25:This is the exact text from the original content
+    42:Another exact segment from the original text
+    56:NO_MATCH
+    """
+    
+    llm_response = call_llm(prompt).strip()
+    
+    if llm_response == "FALLBACK_RESPONSE":
+        logger.warning("LLM failed while generating claim-linked XML, returning None")
+        return None
+    
+    segments = []
+    claim_id_to_text = {}
+    
+    for line in llm_response.split('\n'):
+        line = line.strip()
+        if not line or ':' not in line:
+            continue
+            
+        parts = line.split(':', 1)
+        if len(parts) != 2:
+            continue
+            
+        claim_id_part, segment_text = parts
+        
+        try:
+            claim_id = int(re.search(r'\d+', claim_id_part).group())
+        except (ValueError, AttributeError):
+            continue
+            
+        if segment_text == "NO_MATCH":
+            continue
+            
+        if segment_text in post_content:
+            segments.append({
+                "id": claim_id,
+                "text": segment_text,
+                "start_index": post_content.index(segment_text)
+            })
+            claim_id_to_text[claim_id] = segment_text
+    
+    for claim in claims:
+        claim_id = claim["claim"]["id"]
+        if claim_id not in claim_id_to_text:
+            claim_text = claim["claim"]["extracted_claim"]
+            
+            if claim_text in post_content:
+                segments.append({
+                    "id": claim_id,
+                    "text": claim_text,
+                    "start_index": post_content.index(claim_text)
+                })
+            else:
+                key_words = [w for w in claim_text.split() if len(w) > 3]
+                for word in key_words:
+                    found_match = False
+                    for sentence in re.split(r'[.!?]', post_content):
+                        if word.lower() in sentence.lower():
+                            potential_segment = sentence.strip()
+                            if len(potential_segment) > 3 and potential_segment in post_content:
+                                segments.append({
+                                    "id": claim_id,
+                                    "text": potential_segment,
+                                    "start_index": post_content.index(potential_segment)
+                                })
+                                found_match = True
+                                break
+                    if found_match:
+                        break
+    
+    segments.sort(key=lambda x: x["start_index"])
+    
+    processed_segments = []
+    if segments:
+        processed_segments = [segments[0]]
+        
+        for i in range(1, len(segments)):
+            current = segments[i]
+            previous = processed_segments[-1]
+            
+            current_start = current["start_index"]
+            current_end = current_start + len(current["text"])
+            previous_end = previous["start_index"] + len(previous["text"])
+            
+            if current_start < previous_end:
+                overlap_size = previous_end - current_start
+                overlap_ratio = overlap_size / len(current["text"])
+                
+                if overlap_ratio > 0.5:
+                    if len(current["text"]) < len(previous["text"]):
+                        processed_segments[-1] = current
+                    continue
+                
+                if current_end > previous_end:
+                    for break_point in range(previous_end-1, current_start-1, -1):
+                        if post_content[break_point] in " ,.;:!?":
+                            previous["text"] = post_content[previous["start_index"]:break_point+1]
+                            current["start_index"] = break_point+1
+                            current["text"] = post_content[break_point+1:current_end]
+                            processed_segments.append(current)
+                            break
+                    else:
+                        middle = (current_start + previous_end) // 2
+                        previous["text"] = post_content[previous["start_index"]:middle]
+                        current["start_index"] = middle
+                        current["text"] = post_content[middle:current_end]
+                        processed_segments.append(current)
+            else:
+                processed_segments.append(current)
+    
+    result = "<text>"
+    last_end = 0
+    
+    for segment in processed_segments:
+        start = segment["start_index"]
+        end = start + len(segment["text"])
+        
+        if start > last_end:
+            result += post_content[last_end:start]
+            
+        result += f'<link id="{segment["id"]}">{segment["text"]}</link>'
+            
+        last_end = end
+    
+    if last_end < len(post_content):
+        result += post_content[last_end:]
+        
+    result += "</text>"
+    return result

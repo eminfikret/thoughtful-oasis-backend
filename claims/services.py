@@ -70,7 +70,6 @@ class ClaimService:
         context_to_use = context if context and source_type == 'comment' else None
         extracted_claims = extract_claims_with_context(content, context_to_use)
         
-        # Return early if no claims are extracted
         if not extracted_claims:
             return []
         

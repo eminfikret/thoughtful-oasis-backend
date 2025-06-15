@@ -20,6 +20,7 @@ class Post(BaseModel):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    claims_xml = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = 'posts'

@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from channels.models import Channel
+from common.test_utils import disable_fact_checking_signals
 from posts.models import Post
 
 
@@ -65,3 +66,28 @@ class PostModelTest(TestCase):
         posts = Post.objects.all()
         self.assertEqual(posts[0], post1)
         self.assertEqual(posts[1], post2)
+        
+    def test_post_claims_xml_field(self):
+        """Test the claims_xml field for storing XML representation of post with claim links"""
+        with disable_fact_checking_signals():
+            post = Post.objects.create(
+                title='Test Post with Claims',
+                content='This post contains factual claims that can be linked.',
+                author=self.user,
+                channel=self.channel
+            )
+    
+        self.assertIsNone(post.claims_xml)
+    
+        test_xml = "<text>This post contains <link id=\"1\">factual claims</link> that " \
+        "can be linked.</text>"
+        post.claims_xml = test_xml
+        post.save()
+    
+        refreshed_post = Post.objects.get(pk=post.pk)
+        self.assertEqual(test_xml, refreshed_post.claims_xml)
+    
+        post.claims_xml = None
+        post.save()
+        refreshed_post = Post.objects.get(pk=post.pk)
+        self.assertIsNone(refreshed_post.claims_xml)
