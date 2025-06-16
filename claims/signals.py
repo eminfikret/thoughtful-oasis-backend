@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -82,3 +84,18 @@ def build_comment_context(comment):
     context["conversation_thread"] = list(reversed(thread))
     
     return context
+
+@contextmanager
+def disable_post_fact_checking():
+    """Temporarily disable post fact checking signals"""
+    original_receivers = post_save.receivers.copy()
+    original_sender_receivers_cache = post_save.sender_receivers_cache.copy()
+    
+    post_save.disconnect(process_post_fact_checking, sender=Post)
+    post_save.disconnect(process_comment_fact_checking, sender=Comment)
+    
+    try:
+        yield
+    finally:
+        post_save.receivers = original_receivers
+        post_save.sender_receivers_cache = original_sender_receivers_cache
