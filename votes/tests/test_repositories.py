@@ -1,7 +1,8 @@
-from django.contrib.auth.models import User
-from django.test import TestCase
 from unittest.mock import patch
+
+from django.contrib.auth.models import User
 from django.db import IntegrityError
+from django.test import TestCase
 
 from comments.models import Comment
 from common.test_utils import disable_fact_checking_signals

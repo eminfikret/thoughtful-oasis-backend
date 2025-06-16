@@ -353,7 +353,8 @@ class VoteControllersTest(APITestCase):
         self.assertEqual(response.data["score"], 0)
         
         upvote = PostVote.objects.filter(post=self.post, user=self.user, is_upvote=True).exists()
-        downvote = PostVote.objects.filter(post=self.post, user=self.other_user, is_upvote=False).exists()
+        downvote = PostVote.objects.filter(post=self.post, user=self.other_user,
+                                            is_upvote=False).exists()
         self.assertTrue(upvote)
         self.assertTrue(downvote)
     

@@ -218,7 +218,8 @@ class VoteServiceTest(TestCase):
             
             mock_get.assert_called_once_with(id=self.comment.id)
             
-            mock_vote_comment.assert_called_once_with(self.comment.id, self.user.id, is_upvote=False)
+            mock_vote_comment.assert_called_once_with(self.comment.id, self.user.id, 
+                                                      is_upvote=False)
             
             self.assertEqual(result, {"test": "result"})
     
