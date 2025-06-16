@@ -1,5 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
+from unittest.mock import patch
+from django.db import IntegrityError
 
 from comments.models import Comment
 from common.test_utils import disable_fact_checking_signals
@@ -97,14 +99,29 @@ class VoteRepositoryTest(TestCase):
         vote = PostVote.objects.get(post=self.post, user=self.user)
         self.assertTrue(vote.is_upvote)
 
-    def test_vote_post_multiple_users(self):
-        """Test multiple users voting on the same post"""
-        self.repository.vote_post(self.post.id, self.user.id, is_upvote=True)
-        result = self.repository.vote_post(self.post.id, self.other_user.id, is_upvote=False)
+    def test_vote_post_change_from_upvote_to_downvote(self):
+        """Test changing a vote from upvote to downvote"""
+        PostVote.objects.create(post=self.post, user=self.user, is_upvote=True)
         
-        self.assertEqual(result["upvotes"], 1)
+        result = self.repository.vote_post(self.post.id, self.user.id, is_upvote=False)
+        
+        self.assertEqual(result["action"], "changed")
+        self.assertEqual(result["vote_type"], "downvote")
+        self.assertEqual(result["upvotes"], 0)
         self.assertEqual(result["downvotes"], 1)
-        self.assertEqual(result["score"], 0)
+        
+        vote = PostVote.objects.get(post=self.post, user=self.user)
+        self.assertFalse(vote.is_upvote)
+
+    def test_vote_post_integrity_error(self):
+        """Test handling IntegrityError when voting on a post"""
+        with patch('votes.models.PostVote.objects.create') as mock_create:
+            mock_create.side_effect = IntegrityError("Test integrity error")
+            
+            with self.assertRaises(ValueError) as context:
+                self.repository.vote_post(self.post.id, self.user.id, is_upvote=True)
+            
+            self.assertEqual(str(context.exception), "Invalid post or user")
 
     def test_vote_comment_add_upvote(self):
         """Test adding a new upvote to a comment"""
@@ -146,27 +163,61 @@ class VoteRepositoryTest(TestCase):
         vote_exists = CommentVote.objects.filter(comment=self.comment, user=self.user).exists()
         self.assertFalse(vote_exists)
 
-    def test_get_post_votes(self):
-        """Test getting vote counts for a post"""
-        PostVote.objects.create(post=self.post, user=self.user, is_upvote=True)
-        PostVote.objects.create(post=self.post, user=self.other_user, is_upvote=False)
-        
-        result = self.repository.get_post_votes(self.post.id)
+    def test_vote_post_multiple_users(self):
+        """Test multiple users voting on the same post"""
+        self.repository.vote_post(self.post.id, self.user.id, is_upvote=True)
+        result = self.repository.vote_post(self.post.id, self.other_user.id, is_upvote=False)
         
         self.assertEqual(result["upvotes"], 1)
         self.assertEqual(result["downvotes"], 1)
         self.assertEqual(result["score"], 0)
 
-    def test_get_comment_votes(self):
-        """Test getting vote counts for a comment"""
+    def test_vote_comment_change_from_upvote_to_downvote(self):
+        """Test changing a comment vote from upvote to downvote"""
         CommentVote.objects.create(comment=self.comment, user=self.user, is_upvote=True)
-        CommentVote.objects.create(comment=self.comment, user=self.other_user, is_upvote=True)
         
-        result = self.repository.get_comment_votes(self.comment.id)
+        result = self.repository.vote_comment(self.comment.id, self.user.id, is_upvote=False)
         
-        self.assertEqual(result["upvotes"], 2)
+        self.assertEqual(result["action"], "changed")
+        self.assertEqual(result["vote_type"], "downvote")
+        self.assertEqual(result["upvotes"], 0)
+        self.assertEqual(result["downvotes"], 1)
+        
+        vote = CommentVote.objects.get(comment=self.comment, user=self.user)
+        self.assertFalse(vote.is_upvote)
+
+    def test_vote_comment_change_from_downvote_to_upvote(self):
+        """Test changing a comment vote from downvote to upvote"""
+        CommentVote.objects.create(comment=self.comment, user=self.user, is_upvote=False)
+        
+        result = self.repository.vote_comment(self.comment.id, self.user.id, is_upvote=True)
+        
+        self.assertEqual(result["action"], "changed")
+        self.assertEqual(result["vote_type"], "upvote")
+        self.assertEqual(result["upvotes"], 1)
         self.assertEqual(result["downvotes"], 0)
-        self.assertEqual(result["score"], 2)
+        
+        vote = CommentVote.objects.get(comment=self.comment, user=self.user)
+        self.assertTrue(vote.is_upvote)
+
+    def test_vote_comment_multiple_users(self):
+        """Test multiple users voting on the same comment"""
+        self.repository.vote_comment(self.comment.id, self.user.id, is_upvote=True)
+        result = self.repository.vote_comment(self.comment.id, self.other_user.id, is_upvote=False)
+        
+        self.assertEqual(result["upvotes"], 1)
+        self.assertEqual(result["downvotes"], 1)
+        self.assertEqual(result["score"], 0)
+
+    def test_vote_comment_integrity_error(self):
+        """Test handling IntegrityError when voting on a comment"""
+        with patch('votes.models.CommentVote.objects.create') as mock_create:
+            mock_create.side_effect = IntegrityError("Test integrity error")
+            
+            with self.assertRaises(ValueError) as context:
+                self.repository.vote_comment(self.comment.id, self.user.id, is_upvote=True)
+            
+            self.assertEqual(str(context.exception), "Invalid comment or user")
 
     def test_get_user_post_vote_exists(self):
         """Test getting a user's vote for a post when it exists"""
@@ -180,6 +231,22 @@ class VoteRepositoryTest(TestCase):
     def test_get_user_post_vote_not_exists(self):
         """Test getting a user's vote for a post when it doesn't exist"""
         result = self.repository.get_user_post_vote(self.post.id, self.user.id)
+        
+        self.assertFalse(result["voted"])
+        self.assertNotIn("is_upvote", result)
+
+    def test_get_user_comment_vote_exists(self):
+        """Test getting a user's vote for a comment when it exists"""
+        CommentVote.objects.create(comment=self.comment, user=self.user, is_upvote=True)
+        
+        result = self.repository.get_user_comment_vote(self.comment.id, self.user.id)
+        
+        self.assertTrue(result["voted"])
+        self.assertTrue(result["is_upvote"])
+
+    def test_get_user_comment_vote_not_exists(self):
+        """Test getting a user's vote for a comment when it doesn't exist"""
+        result = self.repository.get_user_comment_vote(self.comment.id, self.user.id)
         
         self.assertFalse(result["voted"])
         self.assertNotIn("is_upvote", result)

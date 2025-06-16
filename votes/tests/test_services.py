@@ -123,3 +123,148 @@ class VoteServiceTest(TestCase):
         self.assertEqual(result["upvotes"], 0)
         self.assertEqual(result["downvotes"], 1)
         self.assertEqual(result["score"], -1)
+
+    def test_get_post_vote_status_no_vote(self):
+        """Test getting vote status for a post when the user hasn't voted"""
+        other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='password123'
+        )
+        PostVote.objects.create(post=self.post, user=other_user, is_upvote=True)
+        
+        result = self.service.get_post_vote_status(self.post.id, self.user.id)
+        
+        self.assertFalse(result["voted"]) 
+        self.assertNotIn("is_upvote", result)  
+        self.assertEqual(result["upvotes"], 1)  
+        self.assertEqual(result["downvotes"], 0)
+        self.assertEqual(result["score"], 1)
+    
+    def test_get_comment_vote_status_no_vote(self):
+        """Test getting vote status for a comment when the user hasn't voted"""
+        other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='password123'
+        )
+        CommentVote.objects.create(comment=self.comment, user=other_user, is_upvote=False)
+        
+        result = self.service.get_comment_vote_status(self.comment.id, self.user.id)
+        
+        self.assertFalse(result["voted"])  
+        self.assertNotIn("is_upvote", result) 
+        self.assertEqual(result["upvotes"], 0)
+        self.assertEqual(result["downvotes"], 1) 
+        self.assertEqual(result["score"], -1)
+    
+    def test_upvote_post_with_mocks(self):
+        """Test upvote_post using mocks to verify Post.objects.get is called correctly"""
+        from unittest.mock import patch
+        
+        with patch('votes.services.Post.objects.get') as mock_get, \
+             patch('votes.services.VoteRepository.vote_post') as mock_vote_post:
+            
+            mock_vote_post.return_value = {"test": "result"}
+            result = self.service.upvote_post(self.post.id, self.user)
+            
+            mock_get.assert_called_once_with(id=self.post.id)
+            
+            mock_vote_post.assert_called_once_with(self.post.id, self.user.id, is_upvote=True)
+            
+            self.assertEqual(result, {"test": "result"})
+    
+    def test_downvote_post_with_mocks(self):
+        """Test downvote_post using mocks to verify Post.objects.get is called correctly"""
+        from unittest.mock import patch
+        
+        with patch('votes.services.Post.objects.get') as mock_get, \
+             patch('votes.services.VoteRepository.vote_post') as mock_vote_post:
+            
+            mock_vote_post.return_value = {"test": "result"}
+            result = self.service.downvote_post(self.post.id, self.user)
+            
+            mock_get.assert_called_once_with(id=self.post.id)
+            
+            mock_vote_post.assert_called_once_with(self.post.id, self.user.id, is_upvote=False)
+            
+            self.assertEqual(result, {"test": "result"})
+    
+    def test_upvote_comment_with_mocks(self):
+        """Test upvote_comment using mocks to verify Comment.objects.get is called correctly"""
+        from unittest.mock import patch
+        
+        with patch('votes.services.Comment.objects.get') as mock_get, \
+             patch('votes.services.VoteRepository.vote_comment') as mock_vote_comment:
+            
+            mock_vote_comment.return_value = {"test": "result"}
+            result = self.service.upvote_comment(self.comment.id, self.user)
+            
+            mock_get.assert_called_once_with(id=self.comment.id)
+            
+            mock_vote_comment.assert_called_once_with(self.comment.id, self.user.id, is_upvote=True)
+            
+            self.assertEqual(result, {"test": "result"})
+    
+    def test_downvote_comment_with_mocks(self):
+        """Test downvote_comment using mocks to verify Comment.objects.get is called correctly"""
+        from unittest.mock import patch
+        
+        with patch('votes.services.Comment.objects.get') as mock_get, \
+             patch('votes.services.VoteRepository.vote_comment') as mock_vote_comment:
+            
+            mock_vote_comment.return_value = {"test": "result"}
+            result = self.service.downvote_comment(self.comment.id, self.user)
+            
+            mock_get.assert_called_once_with(id=self.comment.id)
+            
+            mock_vote_comment.assert_called_once_with(self.comment.id, self.user.id, is_upvote=False)
+            
+            self.assertEqual(result, {"test": "result"})
+    
+    def test_get_post_vote_status_with_mocks(self):
+        """Test get_post_vote_status using mocks to verify repository methods are called
+          correctly"""
+        from unittest.mock import patch
+        
+        with patch('votes.services.VoteRepository.get_user_post_vote') as mock_get_user_vote, \
+             patch('votes.services.VoteRepository.get_post_votes') as mock_get_votes:
+            
+            mock_get_user_vote.return_value = {"voted": True, "is_upvote": True}
+            mock_get_votes.return_value = {"upvotes": 5, "downvotes": 2, "score": 3}
+            
+            result = self.service.get_post_vote_status(self.post.id, self.user.id)
+            
+            mock_get_user_vote.assert_called_once_with(self.post.id, self.user.id)
+            mock_get_votes.assert_called_once_with(self.post.id)
+            
+            self.assertEqual(result, {
+                "voted": True, 
+                "is_upvote": True,
+                "upvotes": 5, 
+                "downvotes": 2, 
+                "score": 3
+            })
+    
+    def test_get_comment_vote_status_with_mocks(self):
+        """Test get_comment_vote_status using mocks to verify repository methods are 
+        called correctly"""
+        from unittest.mock import patch
+        
+        with patch('votes.services.VoteRepository.get_user_comment_vote') as mock_get_user_vote, \
+             patch('votes.services.VoteRepository.get_comment_votes') as mock_get_votes:
+            
+            mock_get_user_vote.return_value = {"voted": False}
+            mock_get_votes.return_value = {"upvotes": 1, "downvotes": 3, "score": -2}
+            
+            result = self.service.get_comment_vote_status(self.comment.id, self.user.id)
+            
+            mock_get_user_vote.assert_called_once_with(self.comment.id, self.user.id)
+            mock_get_votes.assert_called_once_with(self.comment.id)
+            
+            self.assertEqual(result, {
+                "voted": False,
+                "upvotes": 1, 
+                "downvotes": 3, 
+                "score": -2
+            })
