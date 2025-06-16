@@ -258,7 +258,8 @@ Summary: <short explanation focusing ONLY on relevant evidence and using ONLY EX
 
 def _normalize_text(text: str) -> str:
     """
-    Normalize text by removing punctuation, converting to lowercase, collapsing whitespace, and handling ellipses.
+    Normalize text by removing punctuation, converting to lowercase, collapsing whitespace, 
+    and handling ellipses.
     
     Args:
         text: The text to normalize.
@@ -274,8 +275,10 @@ def _normalize_text(text: str) -> str:
 
 def _verify_quotes_in_evidence(summary: str, evidence: str, extracted_claim: str) -> bool:
     """
-    Verify that all quoted text (enclosed in double quotation marks) in the summary appears in the evidence,
-    except for quotes that match the extracted claim. Allows partial matches and fuzzy matching for leniency.
+    Verify that all quoted text (enclosed in double quotation marks) in the summary appears in the
+      evidence,
+    except for quotes that match the extracted claim. Allows partial matches and fuzzy matching for
+      leniency.
     
     Args:
         summary: The summary text containing quotes.
@@ -325,7 +328,10 @@ def _verify_quotes_in_evidence(summary: str, evidence: str, extracted_claim: str
                 logger.info(f"Fuzzy match succeeded for segment: '{segment}'")
                 continue
             
-            logger.warning(f"Segment verification failed: '{segment}' not found or matched in evidence")
+            logger.warning(
+                "Segment verification failed: '%s' not found or matched in evidence",
+                segment
+            )
         
         if segment_matches == len(segments):
             continue
