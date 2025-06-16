@@ -449,3 +449,124 @@ class ClaimLinkedXmlTest(TestCase):
         
         text_without_tags = re.sub(r'<[^>]+>', '', result)
         self.assertEqual(self.sample_post_content, text_without_tags)
+    
+    @patch('claims.utils.call_llm')
+    def test_exact_claim_match(self, mock_call_llm):
+        """Test claim matching when claim text appears exactly in content"""
+        mock_call_llm.return_value = "NO_MATCH"
+        
+        content = "The Earth is round and rotates around the Sun."
+        claims = [{
+            "claim": {
+                "id": 10,
+                "extracted_claim": "The Earth is round",
+            }
+        }]
+        
+        result = generate_claim_linked_xml(content, claims)
+        
+        self.assertIn('<link id="10">The Earth is round</link>', result)
+        self.assertIn('rotates around the Sun.', result)
+    
+    @patch('claims.utils.call_llm')
+    def test_keyword_matching_fallback(self, mock_call_llm):
+        """Test keyword matching when exact claim text isn't found"""
+        mock_call_llm.return_value = "NO_MATCH" 
+        
+        content = "The Earth rotates on its axis. It also orbits the Sun."
+        claims = [{
+            "claim": {
+                "id": 20,
+                "extracted_claim": "Earth rotates daily",  
+            }
+        }]
+        
+        result = generate_claim_linked_xml(content, claims)
+        
+        self.assertIn('<link id="20">The Earth rotates on its axis</link>', result)
+        self.assertIn('It also orbits the Sun.', result)
+    
+    @patch('claims.utils.call_llm')
+    def test_no_matching_claim_segments(self, mock_call_llm):
+        """Test when claim text has no match in content"""
+        mock_call_llm.return_value = "NO_MATCH"  
+        
+        content = "The Sun is very hot."
+        claims = [{
+            "claim": {
+                "id": 30,
+                "extracted_claim": "Mercury is the closest planet to the Sun", 
+            }
+        }]
+        
+        result = generate_claim_linked_xml(content, claims)
+        
+        self.assertEqual("<text>The Sun is very hot.</text>", result)
+    
+    @patch('claims.utils.call_llm')
+    def test_segment_no_overlap(self, mock_call_llm):
+        """Test handling of non-overlapping segments"""
+        mock_call_llm.return_value = "1:The Earth is round\n2:The Sun is hot"
+        
+        content = "The Earth is round. The Sun is hot."
+        claims = [
+            {"claim": {"id": 1, "extracted_claim": "Earth is round"}},
+            {"claim": {"id": 2, "extracted_claim": "Sun is hot"}}
+        ]
+        
+        result = generate_claim_linked_xml(content, claims)
+        
+        self.assertIn('<link id="1">The Earth is round</link>', result)
+        self.assertIn('<link id="2">The Sun is hot</link>', result)
+        self.assertEqual("<text><link id=\"1\">The Earth is round</link>. <link id=\"2\">The Sun"
+        " is hot</link>.</text>", result)
+    
+    @patch('claims.utils.call_llm')
+    def test_segment_large_overlap_keep_shorter(self, mock_call_llm):
+        """Test handling of large segment overlap with shorter segment kept"""
+        content = "Climate change is accelerating rapidly in recent years."
+        claims = [
+            {"claim": {"id": 1, "extracted_claim": "Climate change is accelerating rapidly"}},
+            {"claim": {"id": 2, "extracted_claim": "Climate change is accelerating"}}
+        ]
+        
+        mock_call_llm.return_value = "1:Climate change is accelerating rapidly\n2:Climate change" \
+        " is accelerating"
+        
+        result = generate_claim_linked_xml(content, claims)
+        
+        self.assertNotIn('<link id="1">Climate change is accelerating rapidly</link>', result)
+        self.assertIn('<link id="2">Climate change is accelerating</link>', result)
+    
+    @patch('claims.utils.call_llm')
+    def test_segment_small_overlap_with_break_point(self, mock_call_llm):
+        """Test handling of small segment overlap with natural break point"""
+        content = "Climate change affects ecosystems worldwide"
+        claims = [
+            {"claim": {"id": 1, "extracted_claim": "Climate change affects"}},
+            {"claim": {"id": 2, "extracted_claim": "affects ecosystems worldwide"}}
+        ]
+        
+        mock_call_llm.return_value = "1:Climate change affects\n2:affects ecosystems worldwide"
+        
+        result = generate_claim_linked_xml(content, claims)
+        
+        self.assertIn('<link id="1">Climate change aff</link>', result)
+        self.assertIn('<link id="2">ects ecosystems worldwide</link>', result)
+
+    @patch('claims.utils.call_llm')
+    def test_segment_small_overlap_midpoint_split(self, mock_call_llm):
+        """Test handling of small segment overlap requiring midpoint split"""
+        content = "Climatechangeaffectsecosystems"  
+        
+        mock_call_llm.return_value = "1:Climatechangeaffects\n2:affectsecosystems"
+        
+        claims = [
+            {"claim": {"id": 1, "extracted_claim": "Climatechangeaffects"}},
+            {"claim": {"id": 2, "extracted_claim": "affectsecosystems"}}
+        ]
+        
+        result = generate_claim_linked_xml(content, claims)
+        
+        self.assertIn('<link id="1">Climatechangeaff</link>', result)
+        self.assertIn('<link id="2">ectsecosystems</link>', result)
