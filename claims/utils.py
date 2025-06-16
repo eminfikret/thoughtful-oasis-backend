@@ -273,17 +273,15 @@ def _normalize_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text) 
     return text.strip()
 
-def _verify_quotes_in_evidence(summary: str, evidence: str, extracted_claim: str) -> bool:
+def _verify_quotes_in_evidence(summary: str, evidence: str, extracted_claim: str = "") -> bool:
     """
-    Verify that all quoted text (enclosed in double quotation marks) in the summary appears in the
-      evidence,
-    except for quotes that match the extracted claim. Allows partial matches and fuzzy matching for
-      leniency.
+    Verify that all quoted text (enclosed in double quotation marks) in the summary appears in the evidence,
+    except for quotes that match the extracted claim. Allows partial matches and fuzzy matching for leniency.
     
     Args:
         summary: The summary text containing quotes.
         evidence: The evidence text to check against.
-        extracted_claim: The claim made, which should not be verified against the evidence.
+        extracted_claim: The claim made, which should not be verified against the evidence. Default is empty.
         
     Returns:
         True if all quotes match the evidence (excluding the extracted claim), False otherwise.
@@ -291,7 +289,7 @@ def _verify_quotes_in_evidence(summary: str, evidence: str, extracted_claim: str
     quoted_texts = re.findall(r'"([^"]*)"', summary)
     
     if not quoted_texts:
-        return True  
+        return True
     
     evidence_normalized = _normalize_text(evidence)
     extracted_claim_normalized = _normalize_text(extracted_claim)
@@ -302,22 +300,23 @@ def _verify_quotes_in_evidence(summary: str, evidence: str, extracted_claim: str
         
         quote_normalized = _normalize_text(quote)
         
-        if quote_normalized == extracted_claim_normalized:
+        if quote_normalized == extracted_claim_normalized and extracted_claim:
             logger.info(f"Skipping verification for quote matching extracted claim: '{quote}'")
             continue
         
         segments = [segment.strip() for segment in quote_normalized.split("...") if segment.strip()]
+        if not segments:
+            segments = [quote_normalized]
+            
         segment_matches = 0
         
         for segment in segments:
-            
             if segment in evidence_normalized:
                 segment_matches += 1
                 continue
             
             significant_words = [word for word in segment.split() if len(word) > 3]
-            partial_match = all(word in evidence_normalized for word in significant_words)
-            if partial_match:
+            if significant_words and all(word in evidence_normalized for word in significant_words):
                 segment_matches += 1
                 logger.info(f"Partial match succeeded for segment: '{segment}'")
                 continue
