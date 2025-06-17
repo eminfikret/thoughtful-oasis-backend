@@ -3,8 +3,8 @@ from typing import List, Optional
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.postgres.search import TrigramSimilarity
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 from common.params import PaginationParams
@@ -30,12 +30,12 @@ class UserRepository:
         queryset = User.objects.all()
 
         if search:
-            queryset = queryset.filter(
-                Q(username__icontains=search) | 
-                Q(email__icontains=search) |
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search)
-            )
+            queryset = queryset.annotate(
+                similarity=TrigramSimilarity('username', search) + 
+                          TrigramSimilarity('first_name', search) +
+                          TrigramSimilarity('last_name', search) +
+                          TrigramSimilarity('email', search)
+            ).filter(similarity__gt=0.1).order_by('-similarity')
 
         return list(queryset[pagination.offset:pagination.offset + pagination.limit])
     
@@ -48,12 +48,12 @@ class UserRepository:
         queryset = User.objects.all()
 
         if search:
-            queryset = queryset.filter(
-                Q(username__icontains=search) | 
-                Q(email__icontains=search) |
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search)
-            )
+            queryset = queryset.annotate(
+                similarity=TrigramSimilarity('username', search) + 
+                          TrigramSimilarity('first_name', search) +
+                          TrigramSimilarity('last_name', search) +
+                          TrigramSimilarity('email', search)
+            ).filter(similarity__gt=0.1)
 
         return queryset.count()
     
