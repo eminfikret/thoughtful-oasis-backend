@@ -349,20 +349,26 @@ class ListPostsControllerTest(MockLLMTestMixin, APITestCase):
         self.assertEqual(len(response.data['results']), 2)
 
     @patch('claims.services.ClaimService')
-    def test_list_posts_with_search(self, mock_claim_service_class):
+    def test_list_posts_with_search(self, mock_get_claims):
         """Test searching posts"""
-        self.client.force_authenticate(user=self.user)
-
-        mock_service_instance = MagicMock()
-        mock_claim_service_class.return_value = mock_service_instance
-        mock_service_instance.get_claims_for_content.return_value = []
+        mock_get_claims.return_value = []
         
-        url = reverse('list_posts') + '?search=Post 2'
-        response = self.client.get(url)
+        self.client.force_authenticate(user=self.user)
+        
+        unique_term = "UNIQUE_SEARCH_TERM_XYZ123"
+        unique_post = Post.objects.create(
+            title=f"Test post with {unique_term}",
+            content="Test content for search",
+            author=self.user,
+            channel=self.channel
+        )
+        
+        url = reverse('list_posts') + f'?search={unique_term}'
+        response = self.client.get(url, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
-        self.assertEqual(response.data['results'][0]['title'], 'Post 2')
+        self.assertEqual(response.data['results'][0]['id'], unique_post.id)
 
 
 class ChannelPostsControllerTest(MockLLMTestMixin, APITestCase):
@@ -701,3 +707,69 @@ class HomePagePostsViewTest(MockLLMTestMixin, APITestCase):
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class UserListControllerTest(MockLLMTestMixin, APITestCase):
+    def setUp(self):
+        super().setUp()
+        
+        self.client = APIClient()
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@example.com',
+            password='adminpass'
+        )
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='testuser@example.com',
+            password='testpass'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            email='otheruser@example.com',
+            password='otherpass'
+        )
+
+    def authenticate(self, user):
+        token = str(RefreshToken.for_user(user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+
+    @patch('claims.services.ClaimService')
+    def test_user_list_controller(self, mock_claim_service_class):
+        """Test user list controller"""
+        self.authenticate(self.admin_user)
+        
+        mock_service_instance = MagicMock()
+        mock_claim_service_class.return_value = mock_service_instance
+        mock_service_instance.get_claims_for_content.return_value = []
+        
+        url = reverse('user-list')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 3)
+        self.assertEqual(len(response.data['results']), 3)
+
+    @patch('claims.services.ClaimService')
+    def test_user_list_controller_with_search(self, mock_claim_service_class):
+        """Test user list with search functionality"""
+        unique_term = "UNIQUE_USERNAME_XYZ456"
+        User.objects.create_user(
+            username=unique_term,
+            email="unique@example.com",
+            password="testpass123"
+        )
+        
+        self.client.force_authenticate(user=self.admin_user)
+        url = reverse('user-list') + f'?search={unique_term}'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        found = False
+        for user in response.data['results']:
+            if user['username'] == unique_term:
+                found = True
+                break
+    
+        self.assertTrue(found, "The unique user was not found in search results")
