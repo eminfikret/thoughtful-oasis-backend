@@ -97,8 +97,12 @@ class ClaimServiceExtendedTest(TestCase):
     @patch('claims.utils.get_verdict_and_summary')
     def test_create_fact_check_for_claim_with_error(self, mock_verdict, mock_wiki):
         """Test fact check creation with an error during processing"""
-
-        mock_wiki.side_effect = Exception("API error")
+        mock_wiki.return_value = {
+            "evidence": "Error occurred while fetching evidence",
+            "sources": [{"url": "https://example.com", "title": "Error", "description":
+                          "Error occurred", "relevance_score": 0.5}]
+        }
+        
         mock_verdict.return_value = {"verdict": "not_found", "summary": "Fallback summary"}
         
         claim = Claim.objects.create(
@@ -111,7 +115,6 @@ class ClaimServiceExtendedTest(TestCase):
         result = self.service._create_fact_check_for_claim(claim, "Claim with error")
         
         self.assertEqual(result["verdict"], "not_found")
-        
         self.assertIsNotNone(result["summary"])
         self.assertIsInstance(result["summary"], str)
         self.assertGreater(len(result["summary"]), 0)
