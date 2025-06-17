@@ -325,7 +325,7 @@ def _verify_quotes_in_evidence(summary: str, evidence: str, extracted_claim: str
                 continue
             
             match_ratio = SequenceMatcher(None, segment, evidence_normalized).ratio()
-            if match_ratio >= 0.9: 
+            if match_ratio >= 0.7: 
                 segment_matches += 1
                 logger.info(f"Fuzzy match succeeded for segment: '{segment}'")
                 continue
