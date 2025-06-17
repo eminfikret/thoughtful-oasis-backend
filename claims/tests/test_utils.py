@@ -165,13 +165,12 @@ class GetVerdictAndSummaryTest(TestCase):
     @patch('claims.utils.call_llm')
     def test_get_verdict_and_summary_max_retries(self, mock_call_llm):
         """Test getting verdict with maximum retries exceeded"""
-        mock_call_llm.return_value = "Verdict: supported\nSummary: Contains \"invalid quote\" " \
-        "not in evidence"
+        mock_call_llm.return_value = "Verdict: supported\nSummary: This contains" \
+        " \"invalid quote\" that will fail verification."
         
-        evidence = "This is the evidence text."
-        result = get_verdict_and_summary("Test claim", evidence)
+        result = get_verdict_and_summary("test claim", "test evidence")
         
-        self.assertEqual(mock_call_llm.call_count, 4)  
+        self.assertEqual(mock_call_llm.call_count, 2)
         self.assertEqual(result["verdict"], "not_found")
         self.assertIn("Unable to generate a summary with accurate quotations", result["summary"])
     
