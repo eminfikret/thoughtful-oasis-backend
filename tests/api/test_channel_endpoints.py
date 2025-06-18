@@ -97,7 +97,7 @@ def test_create_channel_success():
     assert data["description"] == channel_data["description"], "Channel description should match"
     assert "id" in data, "Response should contain channel ID"
     assert "slug" in data, "Response should contain channel slug"
-    assert "owner_id" in data, "Response should contain owner ID"
+    assert "owner" in data, "Response should contain owner"
 
 def test_create_channel_unauthenticated():
     """Test channel creation without authentication"""

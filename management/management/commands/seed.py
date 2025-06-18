@@ -511,17 +511,33 @@ class Command(BaseCommand):
                 
                 user = content_object.author
                 
-                claim, created = Claim.objects.get_or_create(
-                    extracted_claim=claim_info["extracted_claim"],
-                    defaults={
-                        'user_id': user.id,
-                        'source_type': claim_info["source_type"],
-                        'source_text': claim_info["extracted_claim"],
-                        'post_id': post_id,
-                        'comment_id': comment_id,
-                        'claim_index': claim_info["claim_index"]
-                    }
-                )
+                try:
+                    existing_claim = Claim.objects.filter(
+                        extracted_claim=claim_info["extracted_claim"],
+                        source_type=claim_info["source_type"],
+                        user_id=user.id,
+                        post_id=post_id,
+                        comment_id=comment_id,
+                        claim_index=claim_info["claim_index"]
+                    ).first()
+                    
+                    if existing_claim:
+                        claim = existing_claim
+                        created = False
+                    else:
+                        claim = Claim.objects.create(
+                            user_id=user.id,
+                            source_type=claim_info["source_type"],
+                            source_text=claim_info["extracted_claim"],
+                            post_id=post_id,
+                            comment_id=comment_id,
+                            claim_index=claim_info["claim_index"],
+                            extracted_claim=claim_info["extracted_claim"]
+                        )
+                        created = True
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"Error creating claim: {e}"))
+                    continue
                 
                 if created:
                     self.stdout.write(f'Created claim: {claim.extracted_claim[:40]}...')

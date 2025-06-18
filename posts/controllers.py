@@ -362,23 +362,61 @@ def get_post_details(request, post_id):
         serializer = PostSerializer(post, context={'request': request})
         response_data = serializer.data
         
-        claim_service = ClaimService()
-        claims = claim_service.get_claims_for_content('post', post.id)
+        from claims.models import Claim, FactCheck
+        from claims.signals import disable_post_fact_checking
+        claims = []
+        
+        for claim in Claim.objects.filter(post_id=post.id):
+            claim_data = {
+                'claim': {
+                    'id': claim.id,
+                    'extracted_claim': claim.extracted_claim,
+                    'source_type': claim.source_type,
+                    'claim_index': claim.claim_index,
+                    'created_at': claim.created_at
+                }
+            }
+            
+            try:
+                fact_check = FactCheck.objects.get(claim=claim)
+                sources = []
+                
+                for source in fact_check.sources.all():
+                    sources.append({
+                        'id': source.id,
+                        'url': source.url,
+                        'title': source.title,
+                        'description': source.description
+                    })
+                
+                claim_data['fact_check'] = {
+                    'id': fact_check.id,
+                    'verdict': fact_check.verdict,
+                    'summary': fact_check.summary,
+                    'created_at': fact_check.created_at,
+                    'sources': sources
+                }
+            except FactCheck.DoesNotExist:
+                claim_data['fact_check'] = None
+                
+            claims.append(claim_data)
+            
         response_data['claims'] = claims
         
-        if claims:
-            if post.claims_xml:
-                response_data['claims_xml'] = post.claims_xml
+        with disable_post_fact_checking():
+            if claims:
+                if post.claims_xml:
+                    response_data['claims_xml'] = post.claims_xml
+                else:
+                    from claims.utils import generate_claim_linked_xml
+                    xml_content = generate_claim_linked_xml(post.content, claims)
+                    
+                    post.claims_xml = xml_content
+                    post.save(update_fields=['claims_xml'])
+                    
+                    response_data['claims_xml'] = xml_content
             else:
-                from claims.utils import generate_claim_linked_xml
-                xml_content = generate_claim_linked_xml(post.content, claims)
-                
-                post.claims_xml = xml_content
-                post.save(update_fields=['claims_xml'])
-                
-                response_data['claims_xml'] = xml_content
-        else:
-            response_data['claims_xml'] = f"<text>{post.content}</text>"
+                response_data['claims_xml'] = f"<text>{post.content}</text>"
         
         return Response(response_data)
     except Exception as e:

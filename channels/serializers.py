@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from common.serializers import PaginationQueryParams
@@ -5,14 +6,20 @@ from common.serializers import PaginationQueryParams
 from .models import Channel
 
 
+class ChannelOwnerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email']
+        read_only_fields = fields
+
 class ChannelSerializer(serializers.ModelSerializer):
-    owner_id = serializers.PrimaryKeyRelatedField(source='owner', read_only=True)
+    owner = ChannelOwnerSerializer(read_only=True)
     numb_of_subscribers = serializers.IntegerField(source='subscriptions.count', read_only=True)
 
     class Meta:
         model = Channel
         fields = [
-            'id', 'name', 'description', 'slug', 'owner_id',
+            'id', 'name', 'description', 'slug', 'owner',
             'numb_of_subscribers', 'created_at', 'updated_at'
         ]
         read_only_fields = [

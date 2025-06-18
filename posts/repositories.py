@@ -1,9 +1,10 @@
 from typing import List, Optional
 
-from django.db.models import Q
+from django.contrib.postgres.search import TrigramSimilarity
 
+from channels.models import Channel
 from common.params import PaginationParams
-from posts.models import Channel, Post
+from posts.models import Post
 from posts.types import PostId
 
 
@@ -21,26 +22,39 @@ class PostRepository:
             queryset = queryset.filter(channel=channel)
 
         if search is not None:
-            queryset = queryset.filter(
-                Q(title__icontains=search) | 
-                Q(content__icontains=search)
-            )
+            queryset = queryset.annotate(
+                similarity=TrigramSimilarity('title', search) + 
+                          TrigramSimilarity('content', search)
+            ).filter(similarity__gt=0.1).order_by('-similarity', '-id')
 
         return list(queryset[pagination.offset:pagination.offset + pagination.limit])
 
     @staticmethod
     def get_posts_count(search: Optional[str] = None) -> int:
-        """
-        Returns total count of Post records.
-        Optional filtering by search term.
-        """
         queryset = Post.objects.all()
 
         if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search) | Q(content__icontains=search)
-            )
+            queryset = queryset.annotate(
+                similarity=TrigramSimilarity('title', search) + 
+                          TrigramSimilarity('content', search)
+            ).filter(similarity__gt=0.1)
 
+        return queryset.count()
+        
+    @staticmethod
+    def get_posts_count_by_channel(channel: Optional[Channel] = None, 
+                                   search: Optional[str] = None) -> int:
+        queryset = Post.objects.all()
+        
+        if channel:
+            queryset = queryset.filter(channel=channel)
+            
+        if search:
+            queryset = queryset.annotate(
+                similarity=TrigramSimilarity('title', search) + 
+                          TrigramSimilarity('content', search)
+            ).filter(similarity__gt=0.1)
+            
         return queryset.count()
 
     @staticmethod
@@ -52,19 +66,6 @@ class PostRepository:
             return Post.objects.select_related('author', 'channel').get(pk=post_id)
         except Post.DoesNotExist:
             return None
-
-    @staticmethod
-    def get_posts_count_by_channel(
-            channel: Channel,
-            search: Optional[str] = None
-    ) -> int:
-        queryset = Post.objects.filter(channel=channel)
-
-        if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search) | Q(content__icontains=search)
-            )
-        return queryset.count()
 
     @staticmethod
     def create_post(
