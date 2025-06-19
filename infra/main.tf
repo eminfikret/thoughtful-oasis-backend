@@ -356,7 +356,7 @@ resource "aws_db_subnet_group" "db_private_subnet_group" {
 }
 
 resource "aws_db_instance" "postgres_db" {
-  identifier             = "${var.db_name}-${var.node_env}"
+  identifier             = "${var.db_name}"
   engine                 = "postgres"
   engine_version         = "14"
   instance_class         = "db.t3.micro"
