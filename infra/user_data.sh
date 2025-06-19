@@ -16,7 +16,7 @@ echo "${CI_DEPLOY_PASSWORD}" | docker login -u "${CI_DEPLOY_USER}" --password-st
 
 docker pull "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
 
-docker run -d \
+sudo docker run -d \
   -e NODE_ENV="${NODE_ENV}" \
   -e POSTGRES_HOST="${DB_HOST}" \
   -e POSTGRES_PORT=5432 \
