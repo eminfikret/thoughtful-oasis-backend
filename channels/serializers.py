@@ -15,24 +15,33 @@ class ChannelOwnerSerializer(serializers.ModelSerializer):
 class ChannelSerializer(serializers.ModelSerializer):
     owner = ChannelOwnerSerializer(read_only=True)
     numb_of_subscribers = serializers.IntegerField(source='subscriptions.count', read_only=True)
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = Channel
         fields = [
             'id', 'name', 'description', 'slug', 'owner',
-            'numb_of_subscribers', 'created_at', 'updated_at'
+            'numb_of_subscribers', 'created_at', 'updated_at', 'is_subscribed'
         ]
         read_only_fields = [
-            'id', 'slug', 'created_at', 'numb_of_subscribers', 'updated_at'
+            'id', 'slug', 'created_at', 'numb_of_subscribers', 'updated_at', 'is_subscribed'
         ]
+    
+    def get_is_subscribed(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+            
+        from subscriptions.repositories import SubscriptionRepository
+        return SubscriptionRepository.get_subscription(
+            channel=obj,
+            subscriber=request.user
+        ) is not None
 
 class ChannelCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = ['name', 'description']
-        # Disable automatic uniqueness validation on the 'name' field.
-        # This allows us to handle duplicate name conflicts manually in the service layer
-        # and return a proper 409 Conflict instead of DRF's default 400 Bad Request.
         extra_kwargs = {
             'name': {'validators': []},
         }

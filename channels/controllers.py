@@ -140,7 +140,7 @@ class ChannelDetailController(APIView):
         except NotFoundException as e:
             raise NotFoundAPIException(detail=str(e))
 
-        serializer = ChannelSerializer(channel)
+        serializer = ChannelSerializer(channel, context={'request': request})
         return Response(serializer.data)
 
     @swagger_auto_schema(
