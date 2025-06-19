@@ -53,9 +53,6 @@ class ChannelUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = ['name', 'description']
-        # Disable automatic uniqueness validation on the 'name' field.
-        # This all ows us to handle duplicate name conflicts manually in the service layer
-        # and return a proper 409 Conflict instead of DRF's default 400 Bad Request.
         extra_kwargs = {
             'name': {'validators': []},
         }
