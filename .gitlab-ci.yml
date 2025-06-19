@@ -2,8 +2,8 @@ stages:
   - lint
   - test
   - build
-  - api-tests
   - deploy
+  - api-tests
 
 variables:
   POSTGRES_DB: test_db
