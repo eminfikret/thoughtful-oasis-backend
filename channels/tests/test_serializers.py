@@ -25,7 +25,8 @@ class ChannelSerializersTest(TestCase):
             slug='test-channel',
             owner=self.owner
         )
-        self.user = User.objects.create_user(username='testuser', email='test@example.com', password='password')
+        self.user = User.objects.create_user(username='testuser', email='test@example.com', 
+                                             password='password')
         self.factory = APIRequestFactory()
 
     def test_channel_serializer_output(self):
@@ -93,7 +94,8 @@ class ChannelSerializersTest(TestCase):
         self.assertTrue(serializer.data['is_subscribed'])
 
     def test_is_subscribed_field_when_not_subscribed(self):
-        other_user = User.objects.create_user(username='otheruser', email='other@example.com', password='password')
+        other_user = User.objects.create_user(username='otheruser', email='other@example.com',
+                                               password='password')
         request = self.factory.get('/')
         request.user = other_user
 

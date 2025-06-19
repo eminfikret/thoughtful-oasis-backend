@@ -2,12 +2,12 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from channels.models import Channel
+from channels.types import ChannelId
 from subscriptions.exceptions import SubscriptionPermissionDeniedException
 from subscriptions.models import Subscription
 from subscriptions.services import SubscriptionService
 from users.exceptions import UserNotFoundException
 from users.types import UserId
-from channels.types import ChannelId
 
 
 class SubscriptionServiceTest(TestCase):
