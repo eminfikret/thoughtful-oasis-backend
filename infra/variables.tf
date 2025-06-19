@@ -85,11 +85,11 @@ variable "ci_commit_short_sha" {
 }
 
 variable "db_name" {
-  default = "parkherepostgresdatabase"
+  default = "fact_check_db"
 }
 
 variable "db_user" {
-  default = "admin"
+  default = "postgres"
 }
 
 variable "db_password" {
