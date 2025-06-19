@@ -111,7 +111,6 @@ api-tests:
     - job: deploy
       artifacts: true
   before_script:
-    - source build.env
     - export BACKEND_API_URL="http://${LOAD_BALANCER_DNS}/api/v1"
     - pip install -r requirements.txt pytest requests
     - curl --retry 5 --retry-connrefused --retry-delay 2 "$BACKEND_API_URL" || curl "$BACKEND_API_URL/swagger/"
