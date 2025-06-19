@@ -362,7 +362,7 @@ resource "aws_db_instance" "postgres_db" {
   instance_class         = "db.t3.micro"
   username               = var.db_user
   password               = var.db_password
-  db_name                = "${var.db_name}${var.node_env}"
+  db_name                = "${var.db_name}"
   allocated_storage      = 10
   storage_type           = "gp2"
   multi_az               = true
