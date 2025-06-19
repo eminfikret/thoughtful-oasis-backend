@@ -115,4 +115,4 @@ api-tests:
     - pip install -r requirements.txt pytest requests
     - curl --retry 5 --retry-connrefused --retry-delay 2 "$BACKEND_API_URL" || curl "$BACKEND_API_URL/swagger/"
   script:
-    - pytest tests/api/
+    - pytest tests/api/ --tb=short
