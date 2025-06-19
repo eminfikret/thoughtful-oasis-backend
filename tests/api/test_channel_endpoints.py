@@ -241,13 +241,13 @@ def test_get_channel_detail_unauthenticated():
 
 def test_channel_detail_includes_subscription_status():
     """Test that channel detail includes correct subscription status"""
-    token1, _ = register_and_login_user()
+    token1, user_id1 = register_and_login_user()
     assert token1 is not None, "Failed to get first auth token"
     
     channel = create_test_channel(token1)
     assert channel is not None, "Failed to create test channel"
     
-    token2, _ = register_and_login_user()
+    token2, user_id2 = register_and_login_user()
     assert token2 is not None, "Failed to get second auth token"
     
     headers2 = {"Authorization": f"Bearer {token2}"}
@@ -260,7 +260,9 @@ def test_channel_detail_includes_subscription_status():
     
     response = requests.post(f"{API_URL}/channels/{channel['id']}/subscribe/", headers=headers2)
     assert response.status_code == 204, "Subscribe should succeed"
-    created_subscriptions.append({"channel_id": channel["id"], "token": token2})
+    
+    subscription_record = {"channel_id": channel["id"], "token": token2}
+    created_subscriptions.append(subscription_record)
     
     response = requests.get(f"{API_URL}/channels/{channel['id']}/", headers=headers2)
     
@@ -270,6 +272,9 @@ def test_channel_detail_includes_subscription_status():
     
     response = requests.delete(f"{API_URL}/channels/{channel['id']}/unsubscribe/", headers=headers2)
     assert response.status_code == 204, "Unsubscribe should succeed"
+    
+    if subscription_record in created_subscriptions:
+        created_subscriptions.remove(subscription_record)
     
     response = requests.get(f"{API_URL}/channels/{channel['id']}/", headers=headers2)
     assert response.status_code == 200, "Should return channel details"
