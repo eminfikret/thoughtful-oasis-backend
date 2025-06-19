@@ -64,25 +64,6 @@ build:
     - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA -f docker/Dockerfile .
     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
 
-#local-api-tests:
-#  stage: local-api-tests
-#  image: python:3.11
-#  services:
-#    - postgres:15
-#  variables:
-#    POSTGRES_PORT: 5432
-#    DJANGO_SETTINGS_MODULE: core.settings
-#    BACKEND_API_URL: "http://localhost:8000/api/v1"
-#  before_script:
-#    - pip install -r requirements.txt pytest requests
-#    - python manage.py migrate
-#    - python manage.py runserver 0.0.0.0:8000 &
-#    - sleep 5
-#    - curl --retry 3 --retry-connrefused --retry-delay 2 http://localhost:8000/api/v1/ || curl --retry 3 --retry-connrefused --retry-delay 2 http://localhost:8000/swagger/
-#  script:
-#    - pytest tests/api/
-#  after_script:
-#    - pkill -f "python manage.py runserver" || true
 
 deploy:
   stage: deploy
@@ -120,4 +101,24 @@ deploy:
   only:
     - main
     - 41-configure-deployment-stage-of-ci-cd-pipeline
+
+local-api-tests:
+  stage: local-api-tests
+  image: python:3.11
+  services:
+    - postgres:15
+  variables:
+    POSTGRES_PORT: 5432
+    DJANGO_SETTINGS_MODULE: core.settings
+    BACKEND_API_URL: "http://localhost:8000/api/v1"
+  before_script:
+    - pip install -r requirements.txt pytest requests
+    - python manage.py migrate
+    - python manage.py runserver 0.0.0.0:8000 &
+    - sleep 5
+    - curl --retry 3 --retry-connrefused --retry-delay 2 http://localhost:8000/api/v1/ || curl --retry 3 --retry-connrefused --retry-delay 2 http://localhost:8000/swagger/
+  script:
+    - pytest tests/api/
+  after_script:
+    - pkill -f "python manage.py runserver" || true
 
