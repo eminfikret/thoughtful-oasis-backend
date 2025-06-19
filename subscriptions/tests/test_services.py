@@ -7,6 +7,7 @@ from subscriptions.models import Subscription
 from subscriptions.services import SubscriptionService
 from users.exceptions import UserNotFoundException
 from users.types import UserId
+from channels.types import ChannelId
 
 
 class SubscriptionServiceTest(TestCase):
@@ -130,3 +131,22 @@ class SubscriptionServiceTest(TestCase):
 
         SubscriptionService.unsubscribe(self.channel.id, self.subscriber)
         self.assertEqual(Subscription.objects.count(), 0)
+
+    def test_is_subscribed_returns_true_when_subscribed(self):
+        """Test that is_subscribed returns True when the user is subscribed"""
+        SubscriptionService.subscribe(self.channel.id, self.subscriber)
+
+        is_subbed = SubscriptionService.is_subscribed(self.channel.id, self.subscriber)
+        self.assertTrue(is_subbed)
+
+    def test_is_subscribed_returns_false_when_not_subscribed(self):
+        """Test that is_subscribed returns False when the user is not subscribed"""
+        is_subbed = SubscriptionService.is_subscribed(self.channel.id, self.other)
+        self.assertFalse(is_subbed)
+
+    def test_is_subscribed_raises_exception_for_nonexistent_channel(self):
+        """Test that is_subscribed raises an exception for a nonexistent channel"""
+        from channels.exceptions import ChannelNotFoundException
+
+        with self.assertRaises(ChannelNotFoundException):
+            SubscriptionService.is_subscribed(ChannelId(99999), self.subscriber)
