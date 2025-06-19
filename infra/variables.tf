@@ -85,7 +85,7 @@ variable "ci_commit_short_sha" {
 }
 
 variable "db_name" {
-  default = "fact_check_db"
+  default = "factcheckdb"
 }
 
 variable "db_user" {
