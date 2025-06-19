@@ -103,7 +103,7 @@ deploy:
     - 41-configure-deployment-stage-of-ci-cd-pipeline
 
 api-tests:
-  stage: local-api-tests
+  stage: api-tests
   image: python:3.11
   dependencies:
     - deploy
