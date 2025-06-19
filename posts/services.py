@@ -41,7 +41,14 @@ class PostService:
         if not channel:
             raise ChannelNotFoundException()
 
-        return PostRepository.get_all_posts(channel=channel, pagination=pagination, search=search)
+        queryset = Post.objects.filter(channel=channel)
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(content__icontains=search)
+            )
+
+        return list(queryset[pagination.offset:pagination.offset + pagination.limit])
 
     @staticmethod
     def get_posts_count_by_channel(

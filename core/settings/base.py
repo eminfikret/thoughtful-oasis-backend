@@ -26,6 +26,8 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     'drf_yasg',
+    'common',
+    'django.contrib.postgres',
     
     # Project apps
     'users',

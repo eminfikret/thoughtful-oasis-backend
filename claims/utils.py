@@ -2,7 +2,9 @@ import asyncio
 import logging
 import os
 import re
+import string
 from concurrent.futures import ThreadPoolExecutor
+from difflib import SequenceMatcher
 from typing import Any, Dict, List
 
 import requests
@@ -161,7 +163,7 @@ def check_claim_with_wikipedia(claim: str) -> Dict[str, Any]:
         }
 
 def get_verdict_and_summary(claim: str, evidence: str) -> Dict[str, str]:
-    """Generate verdict and summary for a claim based on evidence"""
+    """Generate verdict and summary for a claim based on evidence."""
     prompt = f"""You are given a factual CLAIM and evidence from Wikipedia.
 Based on the evidence, determine the most likely classification:
 - "supported"
@@ -180,6 +182,7 @@ IMPORTANT FOR QUOTATIONS:
 - ONLY quote text that appears EXACTLY as written in the evidence.
 - If you cannot find an exact quote that supports your point, do not use quotation marks.
 - Every single character within quotation marks must match the evidence precisely.
+- DO NOT use ellipses (...) or any other modifications in quotes.
 
 IMPORTANT FOR RELEVANCE:
 1. Only refer to evidence that is DIRECTLY RELEVANT to the claim.
@@ -198,7 +201,7 @@ Verdict: <one of supported, contradicted, not_found>
 Summary: <short explanation focusing ONLY on relevant evidence and using ONLY EXACT quotes>
 """  # noqa: E501
     
-    max_retries = 4
+    max_retries = 2  
     retry_count = 0
     
     while retry_count < max_retries:
@@ -220,19 +223,11 @@ Summary: <short explanation focusing ONLY on relevant evidence and using ONLY EX
                     verdict = line.split(":", 1)[1].strip().lower()
                 elif line.lower().startswith("summary:"):
                     summary = line.split(":", 1)[1].strip()
-                    summary_index = lines.index(line)
-                    if summary_index < len(lines) - 1:
-                        summary += "\n" + "\n".join(lines[summary_index + 1:])
 
             if verdict not in ["supported", "contradicted", "not_found"]:
-                if "support" in verdict:
-                    verdict = "supported"
-                elif "contradict" in verdict:
-                    verdict = "contradicted"
-                else:
-                    verdict = "not_found"
+                verdict = "not_found"
             
-            if _verify_quotes_in_evidence(summary, evidence):
+            if _verify_quotes_in_evidence(summary, evidence, claim):
                 return {
                     "verdict": verdict,
                     "summary": summary
@@ -261,31 +256,90 @@ Summary: <short explanation focusing ONLY on relevant evidence and using ONLY EX
         "summary": "Unable to generate a summary with accurate quotations. Please try again later."
     }
 
-def _verify_quotes_in_evidence(summary: str, evidence: str) -> bool:
+def _normalize_text(text: str) -> str:
     """
-    Verify that all quoted text in summary appears exactly in the evidence.
+    Normalize text by removing punctuation, converting to lowercase, collapsing whitespace, 
+    and handling ellipses.
     
     Args:
-        summary: The summary text containing quotes
-        evidence: The evidence text to check against
+        text: The text to normalize.
         
     Returns:
-        True if all quotes match exactly, False otherwise
+        Normalized text.
+    """
+    text = text.replace("...", " ")  
+    text = text.translate(str.maketrans("", "", string.punctuation)) 
+    text = text.lower() 
+    text = re.sub(r'\s+', ' ', text) 
+    return text.strip()
+
+def _verify_quotes_in_evidence(summary: str, evidence: str, extracted_claim: str = "") -> bool:
+    """
+    Verify that all quoted text (enclosed in double quotation marks) in the summary appears in the
+      evidence,
+    except for quotes that match the extracted claim. Allows partial matches and fuzzy matching for
+      leniency.
+    
+    Args:
+        summary: The summary text containing quotes.
+        evidence: The evidence text to check against.
+        extracted_claim: The claim made, which should not be verified against the evidence.
+          Default is empty.
+        
+    Returns:
+        True if all quotes match the evidence (excluding the extracted claim), False otherwise.
     """
     quoted_texts = re.findall(r'"([^"]*)"', summary)
     
     if not quoted_texts:
         return True
     
-    evidence_lower = evidence.lower()
+    evidence_normalized = _normalize_text(evidence)
+    extracted_claim_normalized = _normalize_text(extracted_claim)
     
     for quote in quoted_texts:
-        if not quote.strip(): 
+        if not quote.strip():
             continue
+        
+        quote_normalized = _normalize_text(quote)
+        
+        if quote_normalized == extracted_claim_normalized and extracted_claim:
+            logger.info(f"Skipping verification for quote matching extracted claim: '{quote}'")
+            continue
+        
+        segments = [segment.strip() for segment in quote_normalized.split("...") if segment.strip()]
+        if not segments:
+            segments = [quote_normalized]
             
-        if quote.lower() not in evidence_lower:
-            logger.warning(f"Quote verification failed: '{quote}' not found in evidence")
-            return False
+        segment_matches = 0
+        
+        for segment in segments:
+            if segment in evidence_normalized:
+                segment_matches += 1
+                continue
+            
+            significant_words = [word for word in segment.split() if len(word) > 3]
+            if significant_words and all(word in evidence_normalized for word in significant_words):
+                segment_matches += 1
+                logger.info(f"Partial match succeeded for segment: '{segment}'")
+                continue
+            
+            match_ratio = SequenceMatcher(None, segment, evidence_normalized).ratio()
+            if match_ratio >= 0.7: 
+                segment_matches += 1
+                logger.info(f"Fuzzy match succeeded for segment: '{segment}'")
+                continue
+            
+            logger.warning(
+                "Segment verification failed: '%s' not found or matched in evidence",
+                segment
+            )
+        
+        if segment_matches == len(segments):
+            continue
+        
+        logger.warning(f"Quote verification failed: '{quote}' not found or matched in evidence")
+        return False
     
     return True
 

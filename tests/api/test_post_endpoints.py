@@ -182,8 +182,10 @@ def test_list_posts_empty_search():
     """Test search with no results"""
     user_data, token, user_id, channel, post = setup_test_environment()
     
+    unique_non_matching_term = f"XYZNONEXISTENT{uuid.uuid4().hex}"
+    
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{API_URL}/posts/?search=ThisSearchShouldNeverMatch12345",
+    response = requests.get(f"{API_URL}/posts/?search={unique_non_matching_term}",
                              headers=headers)
     
     if response.status_code == 200:
