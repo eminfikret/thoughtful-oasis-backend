@@ -239,6 +239,43 @@ def test_get_channel_detail_unauthenticated():
     
     assert response.status_code == 401, "Should require authentication"
 
+def test_channel_detail_includes_subscription_status():
+    """Test that channel detail includes correct subscription status"""
+    token1, _ = register_and_login_user()
+    assert token1 is not None, "Failed to get first auth token"
+    
+    channel = create_test_channel(token1)
+    assert channel is not None, "Failed to create test channel"
+    
+    token2, _ = register_and_login_user()
+    assert token2 is not None, "Failed to get second auth token"
+    
+    headers2 = {"Authorization": f"Bearer {token2}"}
+    response = requests.get(f"{API_URL}/channels/{channel['id']}/", headers=headers2)
+    
+    assert response.status_code == 200, "Should return channel details"
+    data = response.json()
+    assert "is_subscribed" in data, "Response should include is_subscribed field"
+    assert data["is_subscribed"] is False, "User should not be subscribed initially"
+    
+    response = requests.post(f"{API_URL}/channels/{channel['id']}/subscribe/", headers=headers2)
+    assert response.status_code == 204, "Subscribe should succeed"
+    created_subscriptions.append({"channel_id": channel["id"], "token": token2})
+    
+    response = requests.get(f"{API_URL}/channels/{channel['id']}/", headers=headers2)
+    
+    assert response.status_code == 200, "Should return channel details"
+    data = response.json()
+    assert data["is_subscribed"] is True, "User should show as subscribed after subscribing"
+    
+    response = requests.delete(f"{API_URL}/channels/{channel['id']}/unsubscribe/", headers=headers2)
+    assert response.status_code == 204, "Unsubscribe should succeed"
+    
+    response = requests.get(f"{API_URL}/channels/{channel['id']}/", headers=headers2)
+    assert response.status_code == 200, "Should return channel details"
+    data = response.json()
+    assert data["is_subscribed"] is False, "User should show as not subscribed after unsubscribing"
+
 # -------------------------
 # Channel update tests
 # -------------------------
