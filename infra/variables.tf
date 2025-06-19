@@ -46,7 +46,7 @@ variable "availability_zone_2" {
 
 variable "ami_id" {
   description = "The AMI ID for the EC2 instance"
-  default     = "ami-07b7f66b629de9364"
+  default     = "ami-04b70fa74e45c3917"
 }
 
 variable "key_name" {
