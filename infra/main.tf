@@ -119,8 +119,8 @@ resource "aws_security_group" "ec2_sg" {
   }
 
   ingress {
-    from_port   = 3000
-    to_port     = 3000
+    from_port   = 8000
+    to_port     = 8000
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -332,7 +332,7 @@ resource "aws_lb_listener" "alb_listener" {
 resource "aws_lb_target_group" "lb_target_group" {
   name        = "${var.project_name}"
   target_type = "instance"
-  port        = 3000
+  port        = 8000
   protocol    = "HTTP"
   vpc_id      = aws_vpc.vpc.id
 
