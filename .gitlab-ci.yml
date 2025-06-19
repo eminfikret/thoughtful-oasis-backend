@@ -91,13 +91,14 @@ deploy:
     entrypoint: [""]
   before_script:
     - cd infra
-    - terraform init -reconfigure \
-      -backend-config="address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}" \
-      -backend-config="lock_address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}/lock" \
-      -backend-config="unlock_address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}/lock" \
-      -backend-config="lock_method=POST" \
-      -backend-config="unlock_method=DELETE" \
-      -backend-config="username=gitlab-ci-token" \
+    - terraform init
+      -reconfigure
+      -backend-config="address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}"
+      -backend-config="lock_address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}/lock"
+      -backend-config="unlock_address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}/lock"
+      -backend-config="lock_method=POST"
+      -backend-config="unlock_method=DELETE"
+      -backend-config="username=gitlab-ci-token"
       -backend-config="password=${TF_CONFIG_PASSWORD}"
   script:
     - terraform apply -auto-approve
