@@ -266,7 +266,7 @@ data "template_file" "ec2_template_user_data" {
     CI_REGISTRY        = var.ci_registry
     NODE_ENV           = var.node_env
     DB_HOST     = aws_db_instance.postgres_db.address
-    DB_NAME     = "${var.db_name}${var.node_env}"
+    DB_NAME     = "${var.db_name}"
     DB_USERNAME = var.db_user
     DB_PASSWORD = var.db_password
   }
