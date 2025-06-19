@@ -306,7 +306,7 @@ resource "aws_launch_template" "ec2_template" {
 }
 
 resource "aws_lb" "lb" {
-  name               = "${var.project_name}-lb-${var.node_env}"
+  name               = "${var.node_env}"
   internal           = false
   load_balancer_type = "application"
   ip_address_type    = "ipv4"
