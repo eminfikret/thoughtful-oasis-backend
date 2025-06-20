@@ -116,5 +116,23 @@ class SubscriptionService:
         if subscription:
             SubscriptionRepository.delete_subscription(subscription)
 
+    @staticmethod
+    def is_subscribed(channel_id: ChannelId, user: User) -> bool:
+        """
+        Check if a user is subscribed to a channel.
+
+        Args:
+            channel_id: ID of the channel
+            user: User to check subscription for
+
+        Returns:
+            True if the user is subscribed, False otherwise
+
+        Raises:
+            ChannelNotFoundException: if no channel exists with the given ID.
+        """
+        channel = ChannelService.get_channel_by_id(channel_id)
+        return SubscriptionRepository.get_subscription(channel, user) is not None
+
 
 

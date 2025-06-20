@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory
 
 from channels.models import Channel
 from channels.serializers import (
@@ -8,6 +9,7 @@ from channels.serializers import (
     ChannelsQueryParamsSerializer,
     ChannelUpdateSerializer,
 )
+from subscriptions.models import Subscription
 
 
 class ChannelSerializersTest(TestCase):
@@ -23,6 +25,9 @@ class ChannelSerializersTest(TestCase):
             slug='test-channel',
             owner=self.owner
         )
+        self.user = User.objects.create_user(username='testuser', email='test@example.com', 
+                                             password='password')
+        self.factory = APIRequestFactory()
 
     def test_channel_serializer_output(self):
         serializer = ChannelSerializer(self.channel)
@@ -79,3 +84,20 @@ class ChannelSerializersTest(TestCase):
         self.assertEqual(serializer.validated_data['search'], 'query')
         self.assertEqual(serializer.validated_data['limit'], 5)
         self.assertEqual(serializer.validated_data['offset'], 10)
+
+    def test_is_subscribed_field_when_subscribed(self):
+        Subscription.objects.create(subscriber=self.user, channel=self.channel)
+        request = self.factory.get('/')
+        request.user = self.user
+
+        serializer = ChannelSerializer(self.channel, context={'request': request})
+        self.assertTrue(serializer.data['is_subscribed'])
+
+    def test_is_subscribed_field_when_not_subscribed(self):
+        other_user = User.objects.create_user(username='otheruser', email='other@example.com',
+                                               password='password')
+        request = self.factory.get('/')
+        request.user = other_user
+
+        serializer = ChannelSerializer(self.channel, context={'request': request})
+        self.assertFalse(serializer.data['is_subscribed'])
