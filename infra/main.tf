@@ -341,6 +341,7 @@ resource "aws_lb_target_group" "lb_target_group" {
   }
   health_check {
       path                = "/swagger"
+      port                = 8000
       interval            = 30
       timeout             = 10
       healthy_threshold   = 2
