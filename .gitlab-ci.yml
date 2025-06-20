@@ -2,6 +2,7 @@ stages:
   - lint
   - test
   - build
+  - local-api-tests
   - deploy
   - api-tests
 
@@ -14,44 +15,64 @@ variables:
 services:
   - postgres:15
 
-#lint:
-#  stage: lint
-#  image: python:3.11-slim
-#  before_script:
-#    - pip install ruff
-#  script:
-#    - ruff check .
-#  cache:
-#    paths:
-#      - ~/.cache/pip/
-#      - .ruff_cache/
-#
-#lint-image:
-#  stage: build
-#  image: docker:20.10.16
-#  services:
-#    - docker:20.10.16-dind
-#  before_script:
-#    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-#  script:
-#    - docker build -t $CI_REGISTRY_IMAGE/lint:latest -f docker/Dockerfile.lint .
-#    - docker push $CI_REGISTRY_IMAGE/lint:latest
-#  only:
-#    - main
-#    - tags
-#
-#test:
-#  stage: test
-#  image: python:3.11-slim
-#  variables:
-#    POSTGRES_HOST: postgres
-#    POSTGRES_PORT: 5432
-#    DJANGO_SETTINGS_MODULE: core.settings
-#  before_script:
-#    - pip install -r requirements.txt
-#    - python manage.py migrate
-#  script:
-#    - python manage.py test
+lint:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - pip install ruff
+  script:
+    - ruff check .
+  cache:
+    paths:
+      - ~/.cache/pip/
+      - .ruff_cache/
+
+lint-image:
+  stage: build
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/lint:latest -f docker/Dockerfile.lint .
+    - docker push $CI_REGISTRY_IMAGE/lint:latest
+  only:
+    - main
+    - tags
+
+test:
+  stage: test
+  image: python:3.11-slim
+  variables:
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: 5432
+    DJANGO_SETTINGS_MODULE: core.settings
+  before_script:
+    - pip install -r requirements.txt
+    - python manage.py migrate
+  script:
+    - python manage.py test
+
+local-api-tests:
+  stage: local-api-tests
+  image: python:3.11
+  services:
+    - postgres:15
+  variables:
+    POSTGRES_PORT: 5432
+    DJANGO_SETTINGS_MODULE: core.settings
+    BACKEND_API_URL: "http://localhost:8000/api/v1"
+  before_script:
+    - pip install -r requirements.txt pytest requests
+    - python manage.py migrate
+    - python manage.py runserver 0.0.0.0:8000 &
+    - sleep 5
+    - curl --retry 3 --retry-connrefused --retry-delay 2 http://localhost:8000/api/v1/ || curl --retry 3 --retry-connrefused --retry-delay 2 http://localhost:8000/swagger/
+  script:
+    - pytest tests/api/
+  after_script:
+    - pkill -f "python manage.py runserver" || true
 
 build:
   stage: build
