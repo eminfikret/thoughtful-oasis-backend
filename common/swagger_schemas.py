@@ -117,6 +117,11 @@ def channel_example_response():
                 type=openapi.TYPE_STRING, 
                 format=openapi.FORMAT_DATETIME,
                 example="2023-06-15T09:12:37Z"
+            ),
+            'is_subscribed': openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                example=True,
+                description="Indicates whether the current user is subscribed to this channel"
             )
         }
     )

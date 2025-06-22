@@ -58,4 +58,4 @@ fi
 
 # Start server
 echo "Starting server"
-exec "$@"
+exec python manage.py runserver 0.0.0.0:8000
