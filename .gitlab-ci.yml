@@ -4,6 +4,7 @@ stages:
   - build
   - local-api-tests
   - deploy
+  - api-tests
 
 variables:
   POSTGRES_DB: test_db
@@ -53,17 +54,6 @@ test:
   script:
     - python manage.py test
 
-build:
-  stage: build
-  image: docker:20.10.16
-  services:
-    - docker:20.10.16-dind
-  before_script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-  script:
-    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA -f docker/Dockerfile .
-    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
-
 local-api-tests:
   stage: local-api-tests
   image: python:3.11
@@ -84,10 +74,66 @@ local-api-tests:
   after_script:
     - pkill -f "python manage.py runserver" || true
 
+build:
+  stage: build
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA -f docker/Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+
+
 deploy:
   stage: deploy
-  image: alpine:latest
+  image:
+    name: hashicorp/terraform:latest
+    entrypoint: [""]
+  before_script:
+    - cd infra
+    - terraform init
+      -reconfigure
+      -backend-config="address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}"
+      -backend-config="lock_address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}/lock"
+      -backend-config="unlock_address=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE}/lock"
+      -backend-config="lock_method=POST"
+      -backend-config="unlock_method=DELETE"
+      -backend-config="username=gitlab-ci-token"
+      -backend-config="password=${TF_CONFIG_PASSWORD}"
   script:
-    - echo "Deploying to production server"
+    - terraform apply -auto-approve
+    - export LOAD_BALANCER_DNS=$(terraform output -raw load_balancer_url)
+    - echo "LOAD_BALANCER_DNS=$LOAD_BALANCER_DNS" > $CI_PROJECT_DIR/build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+  variables:
+    TF_STATE: "thoughtful-backend-${CI_COMMIT_REF_NAME}"
+    TF_VAR_node_env: $CI_COMMIT_REF_NAME
+    TF_VAR_ci_deploy_user: $CI_DEPLOY_USERNAME
+    TF_VAR_ci_deploy_password: $CI_DEPLOY_PASSWORD
+    TF_VAR_ci_registry: $CI_REGISTRY
+    TF_VAR_ci_registry_image: $CI_REGISTRY_IMAGE
+    TF_VAR_ci_commit_short_sha: $CI_COMMIT_SHORT_SHA
+    TF_VAR_db_user: $DB_USER
+    TF_VAR_db_password: $DB_PASSWORD
+  only:
+    - main
+api-tests:
+  stage: api-tests
+  image: python:3.11
+  dependencies:
+    - deploy
+  needs:
+    - job: deploy
+      artifacts: true
+  before_script:
+    - export BACKEND_API_URL="http://${LOAD_BALANCER_DNS}/api/v1"
+    - pip install -r requirements.txt pytest requests
+    - curl --retry 5 --retry-connrefused --retry-delay 2 "$BACKEND_API_URL" || curl "$BACKEND_API_URL/swagger/"
+  script:
+    - pytest tests/api/ --tb=short
   only:
     - main
