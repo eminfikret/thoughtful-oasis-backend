@@ -11,14 +11,14 @@ A backend API service for fact checking operations.
 Example `.env` file:
 
 ```env
-DJANGO_SECRET_KEY=wiLnCbe3KYzIBk4TH3mwj8sujEyZTiSN
+DJANGO_SECRET_KEY=your_django_secret_key
 POSTGRES_DB=fact_check_db
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
 REDIS_URL=redis://localhost:6379/1
-WIKIPEDIA_API_URL=http://149.12.247.64/wikipedia/search
+WIKIPEDIA_API_URL=http://your-server-host/wikipedia/search
 LLM_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=your_api_key
 BACKEND_API_URL=http://localhost:8000/api/v1
 ```
